@@ -1,8 +1,7 @@
-// App.js — LifeOS root component
 import React, { useState, useEffect, useRef } from 'react';
 import {
   View, Text, TouchableOpacity, SafeAreaView,
-  ScrollView, StatusBar, Modal, StyleSheet,
+  ScrollView, StatusBar, Modal, StyleSheet, Platform
 } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
@@ -26,6 +25,8 @@ import NotesScreen     from './src/screens/NotesScreen';
 import LinksScreen     from './src/screens/LinksScreen';
 import DiarioScreen    from './src/screens/DiarioScreen';
 import StatsScreen     from './src/screens/StatsScreen';
+
+
 
 // ─── Storage helpers ───────────────────────────────────────────────────────────
 const PREFIX = 'lifeos_';
@@ -213,7 +214,7 @@ export default function App() {
       {/* ── Drawer ─────────────────────────────────────────────────────── */}
       <Modal visible={drawerOpen} animationType="fade" transparent>
         <View style={styles.drawerOverlay}>
-          <TouchableOpacity style={{ flex: 1 }} onPress={() => setDrawerOpen(false)} />
+          {/* Spostato qui il menù per farlo apparire a sinistra */}
           <View style={styles.drawer}>
             <View style={styles.drawerHeader}>
               <Text style={styles.logo}>
@@ -236,6 +237,9 @@ export default function App() {
               ))}
             </ScrollView>
           </View>
+
+          {/* L'overlay cliccabile ora si trova a destra del menù */}
+          <TouchableOpacity style={{ flex: 1 }} onPress={() => setDrawerOpen(false)} />
         </View>
       </Modal>
 
@@ -265,7 +269,11 @@ export default function App() {
 
 // ─── Styles ───────────────────────────────────────────────────────────────────
 const styles = StyleSheet.create({
-  root: { flex: 1, backgroundColor: COLORS.bg },
+  root: { 
+    flex: 1, 
+    backgroundColor: COLORS.bg,
+    paddingTop: Platform.OS === 'android' ? StatusBar.currentHeight : 0 
+  },
 
   topBar: {
     flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
