@@ -4,28 +4,24 @@
     "slug": "lifeos",
     "version": "1.0.0",
     "orientation": "portrait",
-    "icon": "./assets/icon.png",
     "userInterfaceStyle": "dark",
     "newArchEnabled": true,
-    "splash": {
-      "image": "./assets/splash-icon.png",
-      "resizeMode": "contain",
-      "backgroundColor": "#0a0a0f"
-    },
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.lifeos.app"
     },
     "android": {
-      "adaptiveIcon": {
-        "foregroundImage": "./assets/adaptive-icon.png",
-        "backgroundColor": "#0a0a0f"
-      },
       "package": "com.lifeos.app"
     },
-    "web": {
-      "favicon": "./assets/favicon.png"
+    "scheme": "lifeos",
+    "extra": {
+      "eas": {
+        "projectId": "922d2216-712c-47bd-a77a-9118932806b2"
+      }
     },
-    "scheme": "lifeos"
+    "plugins": [
+      "expo-asset",
+      "expo-web-browser"
+    ]
   }
 }

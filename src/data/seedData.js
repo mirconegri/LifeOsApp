@@ -36,24 +36,17 @@ export const INIT_SPESA = [
   { id: 4, text: 'Pane integrale', cat: 'supermercato', done: false },
 ];
 
-export const INIT_OBIETTIVI = [
-  { id: 1, text: 'Laurea Triennale',  anno: 2026, stato: 'in corso',   priorita: 'alta'  },
-  { id: 2, text: 'Certificazione B2', anno: 2025, stato: 'da fare',    priorita: 'media' },
-  { id: 3, text: 'Erasmus',           anno: 2026, stato: 'da fare',    priorita: 'alta'  },
-  { id: 4, text: 'Portfolio GitHub',  anno: 2025, stato: 'in corso',   priorita: 'alta'  },
-  { id: 5, text: 'Maturità',         anno: 2024, stato: 'completato', priorita: 'alta'  },
-];
-
 export const INIT_NOTES = [
   { id: 1, titolo: 'Idea App Fitness',      contenuto: 'Tracker che usa il microfono per contare i rep automaticamente', tag: ['idea','app'],    data: todayKey() },
   { id: 2, titolo: 'Prompt AI per Analisi', contenuto: 'Spiega come se fossi un professore del MIT...',                  tag: ['prompt','studio'], data: todayKey() },
 ];
 
+// starred: bool — max 6 starred mostrati in Home
 export const INIT_LINKS = [
-  { id: 1, nome: 'Gmail',   url: 'https://mail.google.com',  icon: '✉️' },
-  { id: 2, nome: 'GitHub',  url: 'https://github.com',       icon: '🐙' },
-  { id: 3, nome: 'Drive',   url: 'https://drive.google.com', icon: '📁' },
-  { id: 4, nome: 'ChatGPT', url: 'https://chat.openai.com',  icon: '🤖' },
-  { id: 5, nome: 'Moodle',  url: 'https://moodle.unipd.it', icon: '🎓' },
-  { id: 6, nome: 'Esse3',   url: 'https://esse3.unipd.it',  icon: '📋' },
+  { id: 1, nome: 'Gmail',   url: 'https://mail.google.com',  icon: '✉️', starred: true  },
+  { id: 2, nome: 'GitHub',  url: 'https://github.com',       icon: '🐙', starred: true  },
+  { id: 3, nome: 'Drive',   url: 'https://drive.google.com', icon: '📁', starred: true  },
+  { id: 4, nome: 'ChatGPT', url: 'https://chat.openai.com',  icon: '🤖', starred: true  },
+  { id: 5, nome: 'Moodle',  url: 'https://moodle.unipd.it', icon: '🎓', starred: false },
+  { id: 6, nome: 'Esse3',   url: 'https://esse3.unipd.it',  icon: '📋', starred: false },
 ];
