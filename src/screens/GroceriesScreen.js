@@ -8,92 +8,92 @@ import { Card } from '../components/Card';
 import { Pill } from '../components/Pill';
 import { CustomAlert } from '../components/CustomAlert';
 
-const CATEGORIE = ['supermercato', 'farmacia', 'casa', 'altro'];
+const CATEGORIES = ['supermarket', 'pharmacy', 'home', 'other'];
 
-export default function SpesaScreen({ spesa, setSpesa }) {
+export default function GroceriesScreen({ groceries, setGroceries }) {
   const [modalVisible, setModalVisible] = useState(false);
   const [formText, setFormText]         = useState('');
-  const [formCat,  setFormCat]          = useState('supermercato');
-  const [filter,   setFilter]           = useState('tutte');
+  const [formCat,  setFormCat]          = useState('supermarket');
+  const [filter,   setFilter]           = useState('all');
   const [alertConfig, setAlertConfig]   = useState(null);
 
   const showAlert = (cfg) => setAlertConfig(cfg);
 
   const toggleItem = (id) => {
-    setSpesa(prev => prev.map(item => item.id === id ? { ...item, done: !item.done } : item));
+    setGroceries(prev => prev.map(item => item.id === id ? { ...item, done: !item.done } : item));
   };
 
   const deleteItem = (id, text) => {
     showAlert({
-      title: 'Rimuovi',
-      message: `Eliminare "${text}" dalla lista?`,
+      title: 'Remove',
+      message: `Delete "${text}" from the list?`,
       buttons: [
-        { text: 'Annulla', style: 'cancel', onPress: () => setAlertConfig(null) },
-        { text: 'Elimina', style: 'destructive', onPress: () => {
-          setSpesa(prev => prev.filter(item => item.id !== id));
+        { text: 'Cancel', style: 'cancel', onPress: () => setAlertConfig(null) },
+        { text: 'Delete', style: 'destructive', onPress: () => {
+          setGroceries(prev => prev.filter(item => item.id !== id));
           setAlertConfig(null);
         }},
       ],
     });
   };
 
-  const aggiungi = () => {
+  const addItem = () => {
     if (!formText.trim()) {
-      showAlert({ title: 'Errore', message: 'Inserisci il nome del prodotto',
+      showAlert({ title: 'Error', message: 'Enter the product name',
         buttons: [{ text: 'OK', style: 'cancel', onPress: () => setAlertConfig(null) }] });
       return;
     }
-    const newId = Math.max(0, ...spesa.map(s => s.id)) + 1;
-    setSpesa(prev => [{ id: newId, text: formText.trim(), cat: formCat, done: false }, ...prev]);
+    const newId = Math.max(0, ...groceries.map(s => s.id)) + 1;
+    setGroceries(prev => [{ id: newId, text: formText.trim(), category: formCat, done: false }, ...prev]);
     setFormText('');
     setModalVisible(false);
   };
 
-  const filteredSpesa = spesa.filter(item => {
-    if (filter === 'da comprare') return !item.done;
-    if (filter === 'completate')  return item.done;
+  const filteredGroceries = groceries.filter(item => {
+    if (filter === 'to buy') return !item.done;
+    if (filter === 'completed') return item.done;
     return true;
   });
 
-  const daComprare  = spesa.filter(i => !i.done).length;
-  const completate  = spesa.filter(i =>  i.done).length;
+  const toBuyCount    = groceries.filter(i => !i.done).length;
+  const completedCount = groceries.filter(i =>  i.done).length;
 
   return (
     <View style={styles.root}>
       <ScrollView style={styles.scroll} contentContainerStyle={styles.content}>
         <View style={styles.header}>
-          <Text style={styles.title}>🛒 Lista Spesa</Text>
+          <Text style={styles.title}>🛒 Groceries</Text>
           <TouchableOpacity onPress={() => setModalVisible(true)} style={styles.addFab}>
-            <Text style={styles.addFabText}>+ Prodotto</Text>
+            <Text style={styles.addFabText}>+ Product</Text>
           </TouchableOpacity>
         </View>
 
         {/* Counters */}
         <View style={styles.countersRow}>
-          <View style={styles.counterChip}>
-            <Text style={styles.counterNum}>{daComprare}</Text>
-            <Text style={styles.counterLbl}>da comprare</Text>
+          <View style={[styles.counterChip, { marginRight: 10 }]}>
+            <Text style={styles.counterNum}>{toBuyCount}</Text>
+            <Text style={styles.counterLbl}>to buy</Text>
           </View>
           <View style={[styles.counterChip, { borderColor: COLORS.green + '44' }]}>
-            <Text style={[styles.counterNum, { color: COLORS.green }]}>{completate}</Text>
-            <Text style={styles.counterLbl}>completate</Text>
+            <Text style={[styles.counterNum, { color: COLORS.green }]}>{completedCount}</Text>
+            <Text style={styles.counterLbl}>completed</Text>
           </View>
         </View>
 
-        {/* Filtri */}
+        {/* Filters */}
         <View style={styles.filters}>
-          {[['tutte', 'Tutte'], ['da comprare', 'Da Comprare'], ['completate', 'Completate']].map(([f, l]) => (
+          {[['all', 'All'], ['to buy', 'To Buy'], ['completed', 'Completed']].map(([f, l]) => (
             <TouchableOpacity key={f} onPress={() => setFilter(f)}
-              style={[styles.filterPill, filter === f && styles.filterPillActive]}>
+              style={[styles.filterPill, filter === f && styles.filterPillActive, { marginRight: 8 }]}>
               <Text style={[styles.filterText, filter === f && { color: COLORS.accent }]}>{l}</Text>
             </TouchableOpacity>
           ))}
         </View>
 
-        {filteredSpesa.length === 0 ? (
-          <Text style={styles.emptyText}>Lista vuota 🎉</Text>
+        {filteredGroceries.length === 0 ? (
+          <Text style={styles.emptyText}>Empty list 🎉</Text>
         ) : (
-          filteredSpesa.map(item => (
+          filteredGroceries.map(item => (
             <Card key={item.id} style={styles.itemCard}>
               <View style={styles.itemRow}>
                 <TouchableOpacity onPress={() => toggleItem(item.id)} style={styles.checkboxWrap}>
@@ -103,7 +103,7 @@ export default function SpesaScreen({ spesa, setSpesa }) {
                   </View>
                 </TouchableOpacity>
                 <Text style={[styles.itemText, item.done && styles.itemTextDone]}>{item.text}</Text>
-                <Pill color="muted">{item.cat}</Pill>
+                <Pill color="muted">{item.category}</Pill>
                 <TouchableOpacity onPress={() => deleteItem(item.id, item.text)} style={styles.deleteBtn}>
                   <Text style={styles.deleteBtnText}>✕</Text>
                 </TouchableOpacity>
@@ -122,24 +122,24 @@ export default function SpesaScreen({ spesa, setSpesa }) {
           <TouchableOpacity style={styles.modalBackdrop} activeOpacity={1} onPress={() => setModalVisible(false)} />
           <View style={styles.modal}>
             <View style={styles.modalHandle} />
-            <Text style={styles.modalTitle}>Aggiungi Prodotto</Text>
+            <Text style={styles.modalTitle}>Add Product</Text>
 
             <TextInput
               style={styles.input}
-              placeholder="Cosa devi comprare?"
+              placeholder="What do you need to buy?"
               placeholderTextColor={COLORS.textSub}
               value={formText}
               onChangeText={setFormText}
               autoFocus
               returnKeyType="done"
-              onSubmitEditing={aggiungi}
+              onSubmitEditing={addItem}
             />
 
-            <Text style={styles.fieldLabel}>Categoria:</Text>
+            <Text style={styles.fieldLabel}>Category:</Text>
             <View style={styles.catRow}>
-              {CATEGORIE.map(c => (
+              {CATEGORIES.map(c => (
                 <TouchableOpacity key={c} onPress={() => setFormCat(c)}
-                  style={[styles.catChip, formCat === c && styles.catChipActive]}>
+                  style={[styles.catChip, formCat === c && styles.catChipActive, { marginRight: 8, marginBottom: 8 }]}>
                   <Text style={[styles.catChipText, formCat === c && { color: COLORS.accent }]}>{c}</Text>
                 </TouchableOpacity>
               ))}
@@ -147,10 +147,10 @@ export default function SpesaScreen({ spesa, setSpesa }) {
 
             <View style={styles.modalBtns}>
               <TouchableOpacity onPress={() => setModalVisible(false)}>
-                <Text style={styles.cancelBtn}>Annulla</Text>
+                <Text style={styles.cancelBtn}>Cancel</Text>
               </TouchableOpacity>
-              <TouchableOpacity style={styles.confirmBtn} onPress={aggiungi}>
-                <Text style={styles.confirmBtnText}>Aggiungi</Text>
+              <TouchableOpacity style={styles.confirmBtn} onPress={addItem}>
+                <Text style={styles.confirmBtnText}>Add</Text>
               </TouchableOpacity>
             </View>
           </View>
@@ -171,25 +171,25 @@ const styles = StyleSheet.create({
   addFab:  { backgroundColor: COLORS.accent, paddingVertical: 8, paddingHorizontal: 14, borderRadius: 20 },
   addFabText: { color: '#fff', fontSize: 14, fontWeight: '700' },
 
-  countersRow: { flexDirection: 'row', gap: 10, marginBottom: 14 },
+  countersRow: { flexDirection: 'row', marginBottom: 14 },
   counterChip: { flex: 1, backgroundColor: COLORS.bg2, borderWidth: 1, borderColor: COLORS.border, borderRadius: 12, padding: 12, alignItems: 'center' },
   counterNum:  { fontSize: 22, fontWeight: '700', color: COLORS.accent },
   counterLbl:  { fontSize: 11, color: COLORS.textSub, marginTop: 2 },
 
-  filters:         { flexDirection: 'row', gap: 8, marginBottom: 14 },
+  filters:         { flexDirection: 'row', marginBottom: 14 },
   filterPill:      { paddingHorizontal: 12, paddingVertical: 6, borderRadius: 20, backgroundColor: COLORS.bg2 },
   filterPillActive:{ backgroundColor: COLORS.accentGlow },
   filterText:      { fontSize: 12, color: COLORS.textMuted },
   emptyText:       { fontSize: 13, color: COLORS.textSub, textAlign: 'center', marginTop: 20 },
 
   itemCard:    { marginBottom: 8, padding: 12 },
-  itemRow:     { flexDirection: 'row', alignItems: 'center', gap: 10 },
-  checkboxWrap:{ padding: 2 },
+  itemRow:     { flexDirection: 'row', alignItems: 'center' },
+  checkboxWrap:{ padding: 2, marginRight: 10 },
   checkbox:    { width: 20, height: 20, borderWidth: 1.5, borderRadius: 4, alignItems: 'center', justifyContent: 'center' },
   checkmark:   { color: '#fff', fontSize: 11, fontWeight: 'bold' },
-  itemText:    { flex: 1, fontSize: 14, color: COLORS.text },
+  itemText:    { flex: 1, fontSize: 14, color: COLORS.text, marginRight: 10 },
   itemTextDone:{ textDecorationLine: 'line-through', color: COLORS.textSub },
-  deleteBtn:   { padding: 4 },
+  deleteBtn:   { padding: 4, marginLeft: 10 },
   deleteBtnText: { fontSize: 14, color: COLORS.textSub },
 
   // Modal
@@ -205,7 +205,7 @@ const styles = StyleSheet.create({
   modalTitle:  { fontSize: 18, fontWeight: '700', color: COLORS.text, marginBottom: 16, textAlign: 'center' },
   input:       { backgroundColor: COLORS.bg3, borderWidth: 1, borderColor: COLORS.border, borderRadius: 10, padding: 12, color: COLORS.text, fontSize: 14, marginBottom: 12 },
   fieldLabel:  { color: COLORS.textSub, fontSize: 13, marginBottom: 8 },
-  catRow:      { flexDirection: 'row', gap: 8, flexWrap: 'wrap', marginBottom: 20 },
+  catRow:      { flexDirection: 'row', flexWrap: 'wrap', marginBottom: 12 },
   catChip:     { paddingHorizontal: 14, paddingVertical: 7, borderRadius: 12, backgroundColor: COLORS.bg4 },
   catChipActive:{ backgroundColor: COLORS.accentGlow },
   catChipText: { fontSize: 13, color: COLORS.textMuted },

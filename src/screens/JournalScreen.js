@@ -5,87 +5,87 @@ import { Pill } from '../components/Pill';
 import { COLORS } from '../config/colors';
 import { todayKey, diffDays } from '../data/helpers';
 
-export default function AgendaScreen({ tasks, setTasks }) {
+export default function JournalScreen({ journal, setJournal }) {
   const [modalVisible, setModalVisible] = useState(false);
-  const [formText, setFormText] = useState('');
-  const [formMateria, setFormMateria] = useState('');
-  const [formPriorita, setFormPriorita] = useState('media');
-  const [formData, setFormData] = useState(todayKey());
+  const [formText, setFormText]         = useState('');
+  const [formSubject, setFormSubject]   = useState('');
+  const [formPriority, setFormPriority] = useState('medium');
+  const [formDate, setFormDate]         = useState(todayKey());
 
-  const apriModal = () => {
-    setFormText(''); setFormMateria(''); setFormPriorita('media'); setFormData(todayKey());
+  const openModal = () => {
+    setFormText(''); setFormSubject(''); setFormPriority('medium'); setFormDate(todayKey());
     setModalVisible(true);
   };
 
-  const aggiungiTask = () => {
+  const addEntry = () => {
     const t = formText.trim();
-    if (!t) { Alert.alert('Errore', 'Inserisci una descrizione'); return; }
+    if (!t) { Alert.alert('Error', 'Please enter a description'); return; }
     
-    const newId = Math.max(0, ...tasks.map(x => x.id || 0)) + 1;
-    setTasks(prev => [
+    const newId = Math.max(0, ...journal.map(x => x.id || 0)) + 1;
+    setJournal(prev => [
       ...prev,
-      { id: newId, text: t, materia: formMateria.trim(), priorita: formPriorita, data: formData || todayKey(), done: false }
+      { id: newId, text: t, subject: formSubject.trim(), priority: formPriority, date: formDate || todayKey(), done: false }
     ]);
     setModalVisible(false);
   };
 
-  const toggleTask = (id) => {
-    setTasks(prev => prev.map(t => t.id === id ? { ...t, done: !t.done } : t));
+  const toggleEntry = (id) => {
+    setJournal(prev => prev.map(t => t.id === id ? { ...t, done: !t.done } : t));
   };
 
-  const eliminaTask = (id) => {
-    Alert.alert('Elimina impegno', 'Vuoi rimuovere questo impegno?', [
-      { text: 'Annulla', style: 'cancel' },
-      { text: 'Elimina', style: 'destructive', onPress: () => setTasks(prev => prev.filter(t => t.id !== id)) }
+  const deleteEntry = (id) => {
+    Alert.alert('Delete entry', 'Do you want to remove this entry?', [
+      { text: 'Cancel', style: 'cancel' },
+      { text: 'Delete', style: 'destructive', onPress: () => setJournal(prev => prev.filter(t => t.id !== id)) }
     ]);
   };
 
-  const prioritaColor = (p) => p === 'alta' ? 'red' : p === 'media' ? 'amber' : 'green';
+  const priorityColor = (p) => p === 'high' ? 'red' : p === 'medium' ? 'amber' : 'green';
 
-  // Raggruppa i task per data
-  const groupedTasks = useMemo(() => {
+  // Group entries by date
+  const groupedEntries = useMemo(() => {
     const groups = {};
-    tasks.forEach(t => {
-      const d = t.data || todayKey();
+    journal.forEach(t => {
+      const d = t.date || todayKey();
       if (!groups[d]) groups[d] = [];
       groups[d].push(t);
     });
-    // Ordina le date dalla più recente
+    // Sort dates (newest first)
     const sortedKeys = Object.keys(groups).sort((a, b) => a.localeCompare(b));
-    return sortedKeys.map(k => ({ data: k, items: groups[k] }));
-  }, [tasks]);
+    return sortedKeys.map(k => ({ date: k, items: groups[k] }));
+  }, [journal]);
 
   return (
     <ScrollView style={styles.container} contentContainerStyle={styles.content}>
       <View style={styles.header}>
-        <Text style={styles.title}>📅 Agenda</Text>
-        <TouchableOpacity onPress={apriModal} style={styles.addFab}>
-          <Text style={styles.addFabText}>+ Impegno</Text>
+        <Text style={styles.title}>📅 Journal</Text>
+        <TouchableOpacity onPress={openModal} style={styles.addFab}>
+          <Text style={styles.addFabText}>+ Entry</Text>
         </TouchableOpacity>
       </View>
 
-      {groupedTasks.length === 0 ? (
-        <Card><Text style={styles.emptyText}>Nessun impegno in agenda.</Text></Card>
+      {groupedEntries.length === 0 ? (
+        <Card><Text style={styles.emptyText}>No entries in the journal.</Text></Card>
       ) : (
-        groupedTasks.map(group => (
-          <View key={group.data} style={styles.dateGroup}>
+        groupedEntries.map(group => (
+          <View key={group.date} style={styles.dateGroup}>
             <Text style={styles.dateTitle}>
-              {group.data === todayKey() ? 'Oggi' : diffDays(group.data) === 1 ? 'Domani' : group.data}
+              {group.date === todayKey() ? 'Today' : diffDays(group.date) === 1 ? 'Tomorrow' : group.date}
             </Text>
             {group.items.map(t => (
               <Card key={t.id} style={t.done ? styles.cardDone : styles.cardActive}>
                 <View style={styles.taskRow}>
-                  <TouchableOpacity onPress={() => toggleTask(t.id)} style={styles.checkWrap}>
+                  <TouchableOpacity onPress={() => toggleEntry(t.id)} style={styles.checkWrap}>
                     <View style={[styles.checkbox, t.done && styles.checkboxChecked]}>
                       {t.done && <Text style={styles.checkText}>✓</Text>}
                     </View>
                   </TouchableOpacity>
                   <View style={styles.taskInfo}>
                     <Text style={[styles.taskText, t.done && styles.taskTextStriked]}>{t.text}</Text>
-                    {t.materia ? <Text style={styles.taskMateria}>{t.materia}</Text> : null}
+                    {t.subject ? <Text style={styles.taskSubject}>{t.subject}</Text> : null}
                   </View>
-                  <Pill color={prioritaColor(t.priorita)}>{t.priorita}</Pill>
-                  <TouchableOpacity onPress={() => eliminaTask(t.id)} style={styles.trashBtn}>
+                  <Pill color={priorityColor(t.priority)}>{t.priority}</Pill>
+                  <TouchableOpacity onPress={() => deleteEntry(t.id)} style={styles.trashBtn}>
                     <Text style={styles.trashIcon}>✕</Text>
                   </TouchableOpacity>
                 </View>
@@ -95,27 +95,27 @@ export default function AgendaScreen({ tasks, setTasks }) {
         ))
       )}
 
-      {/* Modal Aggiungi */}
+      {/* Add Modal */}
       <Modal visible={modalVisible} transparent animationType="slide">
         <View style={styles.modalOverlay}>
           <View style={styles.modal}>
-            <Text style={styles.modalTitle}>Nuovo Impegno</Text>
-            <TextInput style={styles.input} placeholder="Cosa devi fare?" placeholderTextColor={COLORS.textSub} value={formText} onChangeText={setFormText} />
-            <TextInput style={styles.input} placeholder="Materia o Categoria (opzionale)" placeholderTextColor={COLORS.textSub} value={formMateria} onChangeText={setFormMateria} />
-            <TextInput style={styles.input} placeholder={`Data (es. ${todayKey()})`} placeholderTextColor={COLORS.textSub} value={formData} onChangeText={setFormData} />
+            <Text style={styles.modalTitle}>New Entry</Text>
+            <TextInput style={styles.input} placeholder="What do you need to do?" placeholderTextColor={COLORS.textSub} value={formText} onChangeText={setFormText} />
+            <TextInput style={styles.input} placeholder="Subject or Category (optional)" placeholderTextColor={COLORS.textSub} value={formSubject} onChangeText={setFormSubject} />
+            <TextInput style={styles.input} placeholder={`Date (e.g. ${todayKey()})`} placeholderTextColor={COLORS.textSub} value={formDate} onChangeText={setFormDate} />
             
-            <Text style={styles.fieldLabel}>Priorità:</Text>
+            <Text style={styles.fieldLabel}>Priority:</Text>
             <View style={styles.pillRow}>
-              {['bassa', 'media', 'alta'].map(p => (
-                <TouchableOpacity key={p} onPress={() => setFormPriorita(p)} style={[styles.prioritaBtn, formPriorita === p && styles.prioritaBtnActive]}>
-                  <Text style={[styles.prioritaText, formPriorita === p && {color: COLORS.accent}]}>{p.toUpperCase()}</Text>
+              {['low', 'medium', 'high'].map((p, idx) => (
+                <TouchableOpacity key={p} onPress={() => setFormPriority(p)} style={[styles.priorityBtn, formPriority === p && styles.priorityBtnActive, idx < 2 && { marginRight: 10 }]}>
+                  <Text style={[styles.priorityText, formPriority === p && {color: COLORS.accent}]}>{p.toUpperCase()}</Text>
                 </TouchableOpacity>
               ))}
             </View>
 
             <View style={styles.modalBtns}>
-              <TouchableOpacity onPress={() => setModalVisible(false)}><Text style={styles.cancelBtn}>Annulla</Text></TouchableOpacity>
-              <TouchableOpacity style={styles.confirmBtn} onPress={aggiungiTask}><Text style={styles.confirmBtnText}>Salva</Text></TouchableOpacity>
+              <TouchableOpacity onPress={() => setModalVisible(false)}><Text style={styles.cancelBtn}>Cancel</Text></TouchableOpacity>
+              <TouchableOpacity style={styles.confirmBtn} onPress={addEntry}><Text style={styles.confirmBtnText}>Save</Text></TouchableOpacity>
             </View>
           </View>
         </View>
@@ -144,7 +144,7 @@ const styles = StyleSheet.create({
   taskInfo: { flex: 1 },
   taskText: { fontSize: 15, color: COLORS.text },
   taskTextStriked: { textDecorationLine: 'line-through', color: COLORS.textSub },
-  taskMateria: { fontSize: 12, color: COLORS.textMuted, marginTop: 4 },
+  taskSubject: { fontSize: 12, color: COLORS.textMuted, marginTop: 4 },
   trashBtn: { padding: 8, marginLeft: 8 },
   trashIcon: { color: COLORS.textSub, fontSize: 16 },
   modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.7)', justifyContent: 'flex-end' },
@@ -152,10 +152,10 @@ const styles = StyleSheet.create({
   modalTitle: { fontSize: 20, fontWeight: '700', color: COLORS.text, marginBottom: 20, textAlign: 'center' },
   input: { backgroundColor: COLORS.bg3, borderWidth: 1, borderColor: COLORS.border, borderRadius: 10, padding: 12, color: COLORS.text, fontSize: 15, marginBottom: 12 },
   fieldLabel: { color: COLORS.textSub, fontSize: 13, marginBottom: 8 },
-  pillRow: { flexDirection: 'row', gap: 10, marginBottom: 20 },
-  prioritaBtn: { flex: 1, paddingVertical: 10, borderRadius: 10, backgroundColor: COLORS.bg3, alignItems: 'center', borderWidth: 1, borderColor: COLORS.border },
-  prioritaBtnActive: { backgroundColor: COLORS.accentGlow, borderColor: COLORS.accent },
-  prioritaText: { fontSize: 12, color: COLORS.textSub, fontWeight: '600' },
+  pillRow: { flexDirection: 'row', marginBottom: 20 },
+  priorityBtn: { flex: 1, paddingVertical: 10, borderRadius: 10, backgroundColor: COLORS.bg3, alignItems: 'center', borderWidth: 1, borderColor: COLORS.border },
+  priorityBtnActive: { backgroundColor: COLORS.accentGlow, borderColor: COLORS.accent },
+  priorityText: { fontSize: 12, color: COLORS.textSub, fontWeight: '600' },
   modalBtns: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
   cancelBtn: { color: COLORS.textSub, fontSize: 16, padding: 10 },
   confirmBtn: { backgroundColor: COLORS.accent, paddingVertical: 12, paddingHorizontal: 24, borderRadius: 10 },

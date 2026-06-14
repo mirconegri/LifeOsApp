@@ -11,7 +11,7 @@ const MAX_STARRED = 6;
 
 export default function LinksScreen({ links, setLinks }) {
   const [modalVisible, setModalVisible] = useState(false);
-  const [formNome, setFormNome]         = useState('');
+  const [formName, setFormName]         = useState('');
   const [formUrl,  setFormUrl]          = useState('');
   const [formIcon, setFormIcon]         = useState('🔗');
   const [alertConfig, setAlertConfig]   = useState(null);
@@ -25,8 +25,8 @@ export default function LinksScreen({ links, setLinks }) {
     if (!link) return;
     if (!link.starred && starredCount >= MAX_STARRED) {
       showAlert({
-        title: 'Limite raggiunto',
-        message: `Puoi aggiungere al massimo ${MAX_STARRED} link in evidenza. Rimuovine uno per aggiungerne un altro.`,
+        title: 'Limit Reached',
+        message: `You can add up to ${MAX_STARRED} starred links. Remove one to add another.`,
         buttons: [{ text: 'OK', style: 'cancel', onPress: () => setAlertConfig(null) }],
       });
       return;
@@ -34,194 +34,132 @@ export default function LinksScreen({ links, setLinks }) {
     setLinks(prev => prev.map(l => l.id === id ? { ...l, starred: !l.starred } : l));
   };
 
-  const aggiungiLink = () => {
-    if (!formNome.trim() || !formUrl.trim()) {
-      showAlert({
-        title: 'Errore',
-        message: 'Inserisci nome e URL del link',
-        buttons: [{ text: 'OK', style: 'cancel', onPress: () => setAlertConfig(null) }],
-      });
-      return;
-    }
-    const newId   = Math.max(0, ...links.map(l => l.id || 0)) + 1;
-    let finalUrl  = formUrl.trim();
-    if (!finalUrl.startsWith('http://') && !finalUrl.startsWith('https://')) {
-      finalUrl = 'https://' + finalUrl;
-    }
-    setLinks(prev => [...prev, {
-      id: newId, nome: formNome.trim(),
-      url: finalUrl, icon: formIcon || '🔗', starred: false,
-    }]);
-    setFormNome(''); setFormUrl(''); setFormIcon('🔗');
-    setModalVisible(false);
-  };
-
-  const eliminaLink = (id, nome) => {
+  const deleteLink = (id, name) => {
     showAlert({
-      title: 'Elimina Link',
-      message: `Rimuovere "${nome}"?`,
+      title: 'Remove Link',
+      message: `Are you sure you want to delete "${name}"?`,
       buttons: [
-        { text: 'Annulla', style: 'cancel', onPress: () => setAlertConfig(null) },
-        { text: 'Elimina', style: 'destructive', onPress: () => {
-          setLinks(prev => prev.filter(l => l.id !== id));
-          setAlertConfig(null);
-        }},
+        { text: 'Cancel', style: 'cancel', onPress: () => setAlertConfig(null) },
+        { text: 'Delete', style: 'destructive', onPress: () => {
+            setLinks(prev => prev.filter(l => l.id !== id));
+            setAlertConfig(null);
+          }
+        },
       ],
     });
   };
 
-  const apriLink = async (url) => {
-    try {
-      const ok = await Linking.canOpenURL(url);
-      if (ok) await Linking.openURL(url);
-      else showAlert({
-        title: 'Errore', message: 'Impossibile aprire questo URL',
-        buttons: [{ text: 'OK', style: 'cancel', onPress: () => setAlertConfig(null) }],
-      });
-    } catch {
-      showAlert({
-        title: 'Errore', message: 'Problema aprendo il link',
-        buttons: [{ text: 'OK', style: 'cancel', onPress: () => setAlertConfig(null) }],
-      });
+  const handleSave = () => {
+    if (!formName.trim() || !formUrl.trim()) {
+      showAlert({ title: 'Error', message: 'Name and URL are required.',
+        buttons: [{ text: 'OK', style: 'cancel', onPress: () => setAlertConfig(null) }] });
+      return;
     }
+    let validUrl = formUrl.trim();
+    if (!validUrl.startsWith('http')) validUrl = 'https://' + validUrl;
+
+    const newLink = {
+      id: Date.now(),
+      name: formName.trim(),
+      url: validUrl,
+      icon: formIcon.trim() || '🔗',
+      starred: false,
+    };
+    setLinks(prev => [...prev, newLink]);
+    setModalVisible(false);
   };
 
-  const starred    = links.filter(l => l.starred);
-  const nonStarred = links.filter(l => !l.starred);
+  const openAddModal = () => {
+    setFormName('');
+    setFormUrl('');
+    setFormIcon('🔗');
+    setModalVisible(true);
+  };
 
   return (
     <View style={styles.root}>
-      <ScrollView style={styles.scroll} contentContainerStyle={styles.content}>
+      <ScrollView contentContainerStyle={styles.content}>
         <View style={styles.header}>
-          <Text style={styles.title}>🔗 Link</Text>
-          <TouchableOpacity onPress={() => setModalVisible(true)} style={styles.addFab}>
-            <Text style={styles.addFabText}>+ Nuovo</Text>
+          <Text style={styles.title}>🌐 Useful Links</Text>
+          <TouchableOpacity onPress={openAddModal} style={styles.addBtn}>
+            <Text style={styles.addBtnText}>+ Add</Text>
           </TouchableOpacity>
         </View>
 
-        {/* ─── Starred (in evidenza) ─── */}
-        {starred.length > 0 && (
-          <>
-            <Text style={styles.sectionLabel}>
-              ⭐ In Evidenza ({starred.length}/{MAX_STARRED})
-            </Text>
-            <View style={styles.grid}>
-              {starred.map(link => (
-                <Card key={link.id} style={styles.linkCard}>
-                  <TouchableOpacity style={styles.linkClickArea} onPress={() => apriLink(link.url)}>
-                    <View style={styles.iconCircle}>
-                      <Text style={styles.linkIcon}>{link.icon}</Text>
-                    </View>
-                    <Text style={styles.linkNome} numberOfLines={1}>{link.nome}</Text>
-                    <Text style={styles.linkUrl} numberOfLines={1}>
-                      {link.url.replace('https://', '').replace('http://', '')}
-                    </Text>
-                  </TouchableOpacity>
-                  <View style={styles.cardActions}>
-                    <TouchableOpacity onPress={() => toggleStarred(link.id)} style={styles.starBtn}>
-                      <Text style={[styles.starIcon, styles.starIconActive]}>★</Text>
-                    </TouchableOpacity>
-                    <TouchableOpacity onPress={() => eliminaLink(link.id, link.nome)} style={styles.trashBtn}>
-                      <Text style={styles.trashIcon}>✕</Text>
-                    </TouchableOpacity>
-                  </View>
-                </Card>
-              ))}
-            </View>
-          </>
-        )}
-
-        {/* ─── All links ─── */}
-        {nonStarred.length > 0 && (
-          <>
-            <Text style={styles.sectionLabel}>Tutti i Link</Text>
-            <View style={styles.grid}>
-              {nonStarred.map(link => (
-                <Card key={link.id} style={styles.linkCard}>
-                  <TouchableOpacity style={styles.linkClickArea} onPress={() => apriLink(link.url)}>
-                    <View style={styles.iconCircle}>
-                      <Text style={styles.linkIcon}>{link.icon}</Text>
-                    </View>
-                    <Text style={styles.linkNome} numberOfLines={1}>{link.nome}</Text>
-                    <Text style={styles.linkUrl} numberOfLines={1}>
-                      {link.url.replace('https://', '').replace('http://', '')}
-                    </Text>
-                  </TouchableOpacity>
-                  <View style={styles.cardActions}>
-                    <TouchableOpacity
-                      onPress={() => toggleStarred(link.id)}
-                      style={styles.starBtn}
-                      disabled={!link.starred && starredCount >= MAX_STARRED}
-                    >
-                      <Text style={[
-                        styles.starIcon,
-                        !link.starred && starredCount >= MAX_STARRED && styles.starIconDisabled,
-                      ]}>☆</Text>
-                    </TouchableOpacity>
-                    <TouchableOpacity onPress={() => eliminaLink(link.id, link.nome)} style={styles.trashBtn}>
-                      <Text style={styles.trashIcon}>✕</Text>
-                    </TouchableOpacity>
-                  </View>
-                </Card>
-              ))}
-            </View>
-          </>
-        )}
-
-        {links.length === 0 && (
-          <Card><Text style={styles.emptyText}>Nessun link salvato.</Text></Card>
+        <Text style={styles.sectionTitle}>All Links</Text>
+        {links.length === 0 ? (
+          <Text style={styles.emptyText}>No saved links.</Text>
+        ) : (
+          links.map(l => (
+            <Card key={l.id} style={styles.linkCard}>
+              <TouchableOpacity onPress={() => Linking.openURL(l.url)} style={styles.linkInfo}>
+                <Text style={styles.linkIcon}>{l.icon}</Text>
+                <View style={styles.linkTexts}>
+                  <Text style={styles.linkName}>{l.name}</Text>
+                  <Text style={styles.linkUrl} numberOfLines={1}>{l.url}</Text>
+                </View>
+              </TouchableOpacity>
+              
+              <View style={styles.actions}>
+                <TouchableOpacity onPress={() => toggleStarred(l.id)} style={styles.starBtn}>
+                  <Text style={[styles.starIcon, l.starred ? styles.starIconActive : styles.starIconDisabled]}>
+                    ★
+                  </Text>
+                </TouchableOpacity>
+                <TouchableOpacity onPress={() => deleteLink(l.id, l.name)} style={styles.trashBtn}>
+                  <Text style={styles.trashIcon}>✕</Text>
+                </TouchableOpacity>
+              </View>
+            </Card>
+          ))
         )}
       </ScrollView>
 
-      {/* ─── Modal Aggiungi ─── */}
+      {/* Modal */}
       <Modal visible={modalVisible} transparent animationType="slide">
         <KeyboardAvoidingView
           style={styles.modalWrapper}
           behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         >
-          <TouchableOpacity
-            style={styles.modalBackdrop}
-            activeOpacity={1}
-            onPress={() => setModalVisible(false)}
-          />
+          <TouchableOpacity style={styles.modalBackdrop} activeOpacity={1} onPress={() => setModalVisible(false)} />
           <View style={styles.modal}>
             <View style={styles.modalHandle} />
-            <Text style={styles.modalTitle}>Nuovo Link</Text>
+            <Text style={styles.modalTitle}>New Link</Text>
+
             <View style={styles.formRow}>
               <TextInput
                 style={[styles.input, styles.iconInput]}
+                placeholder="Icon"
+                placeholderTextColor={COLORS.textSub}
                 value={formIcon}
                 onChangeText={setFormIcon}
                 maxLength={2}
-                placeholder="🔗"
-                placeholderTextColor={COLORS.textSub}
               />
               <TextInput
                 style={[styles.input, { flex: 1 }]}
-                placeholder="Nome (es. Moodle)"
+                placeholder="Site name..."
                 placeholderTextColor={COLORS.textSub}
-                value={formNome}
-                onChangeText={setFormNome}
-                autoFocus
+                value={formName}
+                onChangeText={setFormName}
               />
             </View>
+
             <TextInput
               style={styles.input}
-              placeholder="URL (es. google.com)"
+              placeholder="URL (e.g. google.com)..."
               placeholderTextColor={COLORS.textSub}
               value={formUrl}
               onChangeText={setFormUrl}
-              autoCapitalize="none"
               keyboardType="url"
-              returnKeyType="done"
-              onSubmitEditing={aggiungiLink}
+              autoCapitalize="none"
             />
+
             <View style={styles.modalBtns}>
-              <TouchableOpacity onPress={() => setModalVisible(false)}>
-                <Text style={styles.cancelBtn}>Annulla</Text>
+              <TouchableOpacity onPress={() => setModalVisible(false)} style={[styles.btn, styles.btnCancel]}>
+                <Text style={styles.btnCancelText}>Cancel</Text>
               </TouchableOpacity>
-              <TouchableOpacity style={styles.confirmBtn} onPress={aggiungiLink}>
-                <Text style={styles.confirmBtnText}>Salva</Text>
+              <TouchableOpacity onPress={handleSave} style={[styles.btn, styles.btnSave]}>
+                <Text style={styles.btnSaveText}>Save</Text>
               </TouchableOpacity>
             </View>
           </View>
@@ -234,27 +172,25 @@ export default function LinksScreen({ links, setLinks }) {
 }
 
 const styles = StyleSheet.create({
-  root:   { flex: 1, backgroundColor: COLORS.bg },
-  scroll: { flex: 1 },
-  content:{ padding: 16, paddingBottom: 40 },
-  header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 },
-  title:  { fontSize: 28, fontWeight: '700', color: COLORS.text },
-  addFab: { backgroundColor: COLORS.accent, paddingVertical: 8, paddingHorizontal: 14, borderRadius: 20 },
-  addFabText: { color: '#fff', fontSize: 14, fontWeight: '700' },
+  root:    { flex: 1, backgroundColor: COLORS.bg },
+  content: { padding: 16, paddingBottom: 40 },
+  header:  { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 },
+  title:   { fontSize: 28, fontWeight: '700', color: COLORS.text },
+  addBtn:  { backgroundColor: COLORS.accent, paddingVertical: 8, paddingHorizontal: 14, borderRadius: 20 },
+  addBtnText:{ color: '#fff', fontSize: 14, fontWeight: '700' },
 
-  sectionLabel: { fontSize: 11, fontWeight: '600', color: COLORS.textMuted, textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 10, marginTop: 8 },
-  emptyText: { color: COLORS.textSub, textAlign: 'center', marginVertical: 20 },
+  sectionTitle: { fontSize: 13, fontWeight: '600', color: COLORS.textMuted, textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 12 },
+  emptyText:    { fontSize: 14, color: COLORS.textSub, textAlign: 'center', marginTop: 20 },
 
-  grid: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between', marginBottom: 8 },
-  linkCard: { width: '48%', marginBottom: 14, padding: 12 },
-  linkClickArea: { alignItems: 'center' },
-  iconCircle: { width: 48, height: 48, borderRadius: 24, backgroundColor: COLORS.bg3, alignItems: 'center', justifyContent: 'center', marginBottom: 8 },
-  linkIcon:   { fontSize: 24 },
-  linkNome:   { fontSize: 14, fontWeight: '600', color: COLORS.text, marginBottom: 4, textAlign: 'center' },
-  linkUrl:    { fontSize: 11, color: COLORS.accent, textAlign: 'center', marginBottom: 8 },
+  linkCard: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10, padding: 14 },
+  linkInfo: { flexDirection: 'row', alignItems: 'center', flex: 1, marginRight: 10 },
+  linkIcon: { fontSize: 24, marginRight: 12 },
+  linkTexts:{ flex: 1 },
+  linkName: { fontSize: 15, fontWeight: '600', color: COLORS.text, marginBottom: 2 },
+  linkUrl:  { fontSize: 12, color: COLORS.textSub },
 
-  cardActions: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: 4 },
-  starBtn:  { padding: 4 },
+  actions:  { flexDirection: 'row', alignItems: 'center' },
+  starBtn:  { padding: 8, marginRight: 4 },
   starIcon: { fontSize: 18, color: COLORS.amber },
   starIconActive:   { color: COLORS.amber },
   starIconDisabled: { color: COLORS.textSub },
@@ -272,11 +208,14 @@ const styles = StyleSheet.create({
   },
   modalHandle: { width: 40, height: 4, borderRadius: 2, backgroundColor: COLORS.bg4, alignSelf: 'center', marginBottom: 16 },
   modalTitle:  { fontSize: 18, fontWeight: '700', color: COLORS.text, marginBottom: 16, textAlign: 'center' },
-  formRow:     { flexDirection: 'row', gap: 10, marginBottom: 12 },
+  formRow:     { flexDirection: 'row', marginBottom: 12 },
   input:       { backgroundColor: COLORS.bg3, borderWidth: 1, borderColor: COLORS.border, borderRadius: 10, padding: 12, color: COLORS.text, fontSize: 15, marginBottom: 12 },
-  iconInput:   { width: 60, textAlign: 'center', fontSize: 20, marginBottom: 0 },
-  modalBtns:   { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: 4 },
-  cancelBtn:   { color: COLORS.textSub, fontSize: 15, padding: 10 },
-  confirmBtn:  { backgroundColor: COLORS.accent, paddingVertical: 12, paddingHorizontal: 22, borderRadius: 10 },
-  confirmBtnText: { color: '#fff', fontSize: 14, fontWeight: '700' },
+  iconInput:   { width: 60, marginRight: 10, textAlign: 'center' },
+  
+  modalBtns:   { flexDirection: 'row', justifyContent: 'space-between', marginTop: 10 },
+  btn:         { flex: 1, paddingVertical: 14, borderRadius: 10, alignItems: 'center' },
+  btnCancel:   { backgroundColor: COLORS.bg4, marginRight: 10 },
+  btnCancelText:{ color: COLORS.textMuted, fontWeight: '600' },
+  btnSave:     { backgroundColor: COLORS.accent },
+  btnSaveText: { color: '#fff', fontWeight: '700' },
 });

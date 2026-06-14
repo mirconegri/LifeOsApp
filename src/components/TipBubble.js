@@ -41,7 +41,7 @@ export function TipBubble({ visible, text, onDismiss, position = 'bottom' }) {
       <View style={styles.inner}>
         <Text style={styles.text}>💡 {text}</Text>
         <TouchableOpacity onPress={onDismiss} style={styles.dismissBtn}>
-          <Text style={styles.dismissText}>Capito</Text>
+          <Text style={styles.dismissText}>Got it</Text>
         </TouchableOpacity>
       </View>
       {position === 'top' && <View style={styles.arrowDown} />}

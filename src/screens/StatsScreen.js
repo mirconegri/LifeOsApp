@@ -4,127 +4,169 @@ import { COLORS } from '../config/colors';
 import { Card } from '../components/Card';
 import { ProgressBar } from '../components/ProgressBar';
 import { StatCard } from '../components/StatCard';
-import { calcMedia, prevLaurea, todayKey } from '../data/helpers';
+import { calculateAverages, predictedDegreeGrade, todayKey } from '../data/helpers';
 
 export default function StatsScreen({ exams, tasks, habits, heatmap }) {
-  // ── Computed ──────────────────────────────────────────────────────────────
-  const taskCompletati = tasks.filter(t => t.done).length;
-  const esamiSuperati  = exams.filter(e => e.votoOttenuto).length;
-  const maxStreak      = habits.reduce((max, h) => Math.max(max, h.streak || 0), 0);
-  const giorniStudio   = Object.keys(heatmap).length;
-  const oreStudio      = Object.values(heatmap).reduce((a, v) => a + v, 0).toFixed(1);
+  // ─── Computed Metrics ──────────────────────────────────────────────────────
+  const completedTasks = tasks.filter(t => t.done).length;
+  const passedExams     = exams.filter(e => e.achievedGrade).length;
+  const maxStreak       = habits.reduce((max, h) => Math.max(max, h.streak || 0), 0);
+  const studyDays       = Object.keys(heatmap).length;
+  const studyHours      = Object.values(heatmap).reduce((a, v) => a + v, 0).toFixed(1);
 
-  const { media, mediaPonderata } = calcMedia(exams);
-  const uniPct   = exams.length > 0 ? (esamiSuperati / exams.length) * 100 : 0;
-  const mpPct    = mediaPonderata ? (mediaPonderata / 30) * 100 : 0;
-  const votoL    = prevLaurea(mediaPonderata);
-  const laureaPct = votoL ? (votoL / 110) * 100 : 0;
+  const { average, weightedAverage } = calculateAverages(exams);
+  const uniPct        = exams.length > 0 ? (passedExams / exams.length) * 100 : 0;
+  const weightedAvgPct = weightedAverage ? (weightedAverage / 30) * 100 : 0;
+  const predictedGrade = predictedDegreeGrade(weightedAverage);
+  const graduationPct  = predictedGrade ? (predictedGrade / 110) * 100 : 0;
 
-  const today        = todayKey();
-  const habitsOggi   = habits.filter(h => h.history && h.history[today]).length;
-  const habitsPct    = habits.length > 0 ? (habitsOggi / habits.length) * 100 : 0;
+  const today = todayKey();
 
-  // ── Heatmap (52 weeks × 7 days) ──────────────────────────────────────────
-  const heatmapMatrix = useMemo(() => {
-    const cols = 52, rows = 7;
-    const matrix = Array.from({ length: cols }, () => Array(rows).fill(0));
-    const todayDate = new Date();
-    for (let c = cols - 1; c >= 0; c--) {
-      for (let r = rows - 1; r >= 0; r--) {
-        const d = new Date(todayDate);
-        d.setDate(d.getDate() - ((cols - 1 - c) * 7 + (rows - 1 - r)));
-        const key = d.toISOString().slice(0, 10);
-        matrix[c][r] = heatmap[key] || 0;
+  // ─── Heatmap Layout Constants ──────────────────────────────────────────────
+  // Generates columns representing the intensity of study hours
+  const heatmapCols = useMemo(() => {
+    const cols = [];
+    const now = new Date();
+    
+    for (let c = 0; c < 15; c++) {
+      const colDays = [];
+      for (let r = 0; r < 7; r++) {
+        const offset = (14 - c) * 7 + (6 - r);
+        const d = new Date(now);
+        d.setDate(d.getDate() - offset);
+        const k = d.toISOString().slice(0, 10);
+        colDays.push({ key: k, val: heatmap[k] || 0 });
       }
+      cols.push(colDays);
     }
-    return matrix;
+    return cols;
   }, [heatmap]);
 
+  // Helper to resolve color intensity based on hours studied
   const getHeatColor = (val) => {
-    if (!val) return COLORS.bg4;
-    if (val < 1) return COLORS.accentGlow;
-    if (val < 3) return COLORS.accentDim;
+    if (val === 0) return COLORS.bg4;
+    if (val < 2)   return '#102A45';
+    if (val < 4)   return '#1A4D80';
+    if (val < 6)   return COLORS.accentDim;
     return COLORS.accent;
   };
 
   return (
     <ScrollView style={styles.scroll} contentContainerStyle={styles.content}>
-      <Text style={styles.sectionTitle}>📈 Panoramica</Text>
-
+      
+      {/* ─── General Overview ─── */}
+      <Text style={styles.sectionTitle}>General Overview</Text>
       <View style={styles.gridRow}>
-        <View style={styles.gridCol}><StatCard label="Ore Studio (tot.)" value={`${oreStudio}h`}         color={COLORS.accent} /></View>
-        <View style={styles.gridCol}><StatCard label="Giorni Studio"      value={giorniStudio}           color={COLORS.accentDim} /></View>
-      </View>
-      <View style={styles.gridRow}>
-        <View style={styles.gridCol}><StatCard label="Task Chiusi"        value={taskCompletati}         color={COLORS.green} /></View>
-        <View style={styles.gridCol}><StatCard label="Max Streak"         value={`${maxStreak} 🔥`}      color={COLORS.amber} /></View>
-      </View>
-      <View style={styles.gridRow}>
-        <View style={styles.gridCol}><StatCard label="Esami Superati"     value={`${esamiSuperati}/${exams.length}`} color={COLORS.blue} /></View>
-        <View style={styles.gridCol}><StatCard label="Media Pond."        value={mediaPonderata ? mediaPonderata.toFixed(2) : '—'} sub="/30" color={COLORS.amber} /></View>
+        <View style={styles.gridCol}>
+          <StatCard label="Completed Tasks" value={completedTasks} color={COLORS.green} />
+        </View>
+        <View style={styles.gridCol}>
+          <StatCard label="Passed Exams" value={`${passedExams}/${exams.length}`} color={COLORS.accent} />
+        </View>
       </View>
 
-      {/* ── Mission Control ── */}
-      <Text style={styles.sectionTitle}>🚀 Mission Control</Text>
+      <View style={styles.gridRow}>
+        <View style={styles.gridCol}>
+          <StatCard label="Max Streak" value={`${maxStreak}d`} color={COLORS.amber} />
+        </View>
+        <View style={styles.gridCol}>
+          <StatCard label="Study Days" value={studyDays} sub={`${studyHours}h total`} color={COLORS.text} />
+        </View>
+      </View>
+
+      {/* ─── University & Predictions ─── */}
+      <Text style={styles.sectionTitle}>University & Predictions</Text>
       <Card style={styles.missionCard}>
-        {[
-          { label: '🎓 Università',       val: `${esamiSuperati}/${exams.length} esami`, pct: uniPct,    color: COLORS.blue  },
-          { label: '📊 Media Ponderata',  val: mediaPonderata ? `${mediaPonderata.toFixed(2)}/30` : '—', pct: mpPct, color: COLORS.amber },
-          { label: '🎯 Previsione Laurea',val: votoL ? `${votoL}/110` : '—',             pct: laureaPct, color: COLORS.green },
-          { label: '🔥 Abitudini Oggi',   val: `${habitsOggi}/${habits.length}`,          pct: habitsPct, color: COLORS.accent },
-        ].map(item => (
-          <View key={item.label} style={styles.missionItem}>
-            <View style={styles.missionLabelRow}>
-              <Text style={styles.missionLabel}>{item.label}</Text>
-              <Text style={styles.missionVal}>{item.val}</Text>
-            </View>
-            <ProgressBar pct={item.pct} color={item.color} />
+        
+        {/* Graduation Progress */}
+        <View style={styles.missionItem}>
+          <View style={styles.missionLabelRow}>
+            <Text style={styles.missionLabel}>Graduation Progress</Text>
+            <Text style={styles.missionVal}>{uniPct.toFixed(0)}%</Text>
           </View>
-        ))}
+          <ProgressBar pct={uniPct} color={COLORS.accent} />
+        </View>
+
+        {/* Weighted Average */}
+        <View style={styles.missionItem}>
+          <View style={styles.missionLabelRow}>
+            <Text style={styles.missionLabel}>Weighted Average</Text>
+            <Text style={styles.missionVal}>{weightedAverage.toFixed(2)} / 30</Text>
+          </View>
+          <ProgressBar pct={weightedAvgPct} color={COLORS.amber} />
+        </View>
+
+        {/* Grade Projection */}
+        <View style={styles.missionItem}>
+          <View style={styles.missionLabelRow}>
+            <Text style={styles.missionLabel}>Grade Projection</Text>
+            <Text style={styles.missionVal}>{predictedGrade} / 110</Text>
+          </View>
+          <ProgressBar pct={graduationPct} color={COLORS.green} />
+        </View>
+
       </Card>
 
-      {/* ── Heatmap ── */}
-      <Text style={styles.sectionTitle}>🔥 Costanza Annuale (ore di studio)</Text>
+      {/* ─── Study Heatmap ─── */}
+      <Text style={styles.sectionTitle}>Study Heatmap</Text>
       <Card style={styles.heatmapCard}>
         <ScrollView horizontal showsHorizontalScrollIndicator={false}>
           <View style={styles.heatmapGrid}>
-            {heatmapMatrix.map((col, cIdx) => (
+            {heatmapCols.map((col, cIdx) => (
               <View key={cIdx} style={styles.heatmapCol}>
-                {col.map((val, rIdx) => (
-                  <View key={rIdx} style={[styles.heatBox, { backgroundColor: getHeatColor(val) }]} />
-                ))}
+                {col.map((day) => {
+                  const isToday = day.key === today;
+                  return (
+                    <View
+                      key={day.key}
+                      style={[
+                        styles.heatBox,
+                        { backgroundColor: getHeatColor(day.val) },
+                        isToday && { borderWidth: 1, borderColor: '#fff' }
+                      ]}
+                    />
+                  );
+                })}
               </View>
             ))}
           </View>
         </ScrollView>
+
         <View style={styles.legendRow}>
-          <Text style={styles.legendText}>Meno</Text>
-          {[COLORS.bg4, COLORS.accentGlow, COLORS.accentDim, COLORS.accent].map((c, i) => (
-            <View key={i} style={[styles.legendBox, { backgroundColor: c }]} />
-          ))}
-          <Text style={styles.legendText}>Più</Text>
+          <Text style={styles.legendText}>Less</Text>
+          <View style={[styles.legendBox, { backgroundColor: COLORS.bg4 }]} />
+          <View style={[styles.legendBox, { backgroundColor: '#102A45' }]} />
+          <View style={[styles.legendBox, { backgroundColor: '#1A4D80' }]} />
+          <View style={[styles.legendBox, { backgroundColor: COLORS.accentDim }]} />
+          <View style={[styles.legendBox, { backgroundColor: COLORS.accent }]} />
+          <Text style={styles.legendText}>More</Text>
         </View>
       </Card>
+      
     </ScrollView>
   );
 }
 
 const styles = StyleSheet.create({
-  scroll:  { flex: 1, backgroundColor: COLORS.bg },
+  scroll: { flex: 1, backgroundColor: COLORS.bg },
   content: { padding: 16, paddingBottom: 40 },
   sectionTitle: { fontSize: 13, fontWeight: '600', color: COLORS.textMuted, textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 12, marginTop: 10 },
+  
   gridRow: { flexDirection: 'row', marginBottom: 10 },
   gridCol: { flex: 1, marginHorizontal: 5 },
-  missionCard:  { paddingVertical: 20, paddingHorizontal: 16, marginBottom: 16 },
-  missionItem:  { marginBottom: 16 },
+  
+  missionCard: { paddingVertical: 20, paddingHorizontal: 16, marginBottom: 16 },
+  missionItem: { marginBottom: 16 },
   missionLabelRow: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 8 },
   missionLabel: { fontSize: 13, fontWeight: '600', color: COLORS.text },
-  missionVal:   { fontSize: 13, fontWeight: 'bold', color: COLORS.textMuted },
-  heatmapCard:  { padding: 16 },
-  heatmapGrid:  { flexDirection: 'row' },
-  heatmapCol:   { marginRight: 4 },
-  heatBox:      { width: 10, height: 10, borderRadius: 2, marginBottom: 4 },
-  legendRow:    { flexDirection: 'row', alignItems: 'center', justifyContent: 'flex-end', marginTop: 12 },
-  legendText:   { fontSize: 10, color: COLORS.textMuted, marginHorizontal: 6 },
-  legendBox:    { width: 10, height: 10, borderRadius: 2, marginHorizontal: 2 },
+  missionVal: { fontSize: 13, fontWeight: 'bold', color: COLORS.textMuted },
+  
+  heatmapCard: { padding: 16 },
+  heatmapGrid: { flexDirection: 'row' },
+  heatmapCol: { marginRight: 4 },
+  heatBox: { width: 10, height: 10, borderRadius: 2, marginBottom: 4 },
+  
+  legendRow: { flexDirection: 'row', justifyContent: 'flex-end', alignItems: 'center', marginTop: 12 },
+  legendBox: { width: 9, height: 9, borderRadius: 1.5, marginHorizontal: 2 },
+  legendText: { fontSize: 10, color: COLORS.textSub, marginHorizontal: 4 }
 });

@@ -4,18 +4,15 @@ import { COLORS } from '../config/colors';
 
 /**
  * CustomAlert – replaces the stock Android alert dialog.
- * 
- * Usage:
- *   const [alert, setAlert] = useState(null);
- * 
- *   // Show:
- *   setAlert({ title: 'Elimina', message: 'Sicuro?', buttons: [
- *     { text: 'Annulla', style: 'cancel', onPress: () => setAlert(null) },
- *     { text: 'Elimina', style: 'destructive', onPress: () => { doDelete(); setAlert(null); } },
- *   ]});
- * 
- *   // In JSX:
- *   <CustomAlert config={alert} />
+ * * Usage:
+ * const [alert, setAlert] = useState(null);
+ * * // Show:
+ * setAlert({ title: 'Delete', message: 'Are you sure?', buttons: [
+ * { text: 'Cancel', style: 'cancel', onPress: () => setAlert(null) },
+ * { text: 'Delete', style: 'destructive', onPress: () => { doDelete(); setAlert(null); } },
+ * ]});
+ * * // In JSX:
+ * <CustomAlert config={alert} />
  */
 export function CustomAlert({ config }) {
   if (!config) return null;

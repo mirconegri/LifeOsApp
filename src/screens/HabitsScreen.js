@@ -28,43 +28,35 @@ export default function HabitsScreen({ habits, setHabits }) {
       } else {
         history[today] = 1;
       }
+      
       let streak = 0;
       const d = new Date();
       while (true) {
         const dateStr = d.toISOString().slice(0, 10);
-        if (history[dateStr]) { streak++; d.setDate(d.getDate() - 1); }
-        else break;
+        if (history[dateStr]) {
+          streak++;
+          d.setDate(d.getDate() - 1);
+        } else {
+          // Allow the current day to be missed without breaking streak calculation
+          if (dateStr === today) {
+             d.setDate(d.getDate() - 1);
+          } else {
+             break;
+          }
+        }
       }
+
       return { ...h, history, streak };
     }));
   };
 
-  const aggiungiHabit = () => {
-    const nome = formName.trim();
-    if (!nome) {
-      showAlert({
-        title: 'Errore',
-        message: "Inserisci un nome per l'abitudine",
-        buttons: [{ text: 'OK', style: 'cancel', onPress: () => setAlertConfig(null) }],
-      });
-      return;
-    }
-    const newId = Math.max(0, ...habits.map(h => h.id || 0)) + 1;
-    setHabits(prev => [
-      ...prev,
-      { id: newId, name: nome, icon: formIcon || '🌟', streak: 0, history: {} },
-    ]);
-    setFormName(''); setFormIcon('🌟');
-    setModalVisible(false);
-  };
-
-  const eliminaHabit = (id, nome) => {
+  const deleteHabit = (id, name) => {
     showAlert({
-      title: 'Elimina Abitudine',
-      message: `Vuoi rimuovere "${nome}"?`,
+      title: 'Delete Habit',
+      message: `Are you sure you want to delete "${name}"?`,
       buttons: [
-        { text: 'Annulla', style: 'cancel', onPress: () => setAlertConfig(null) },
-        { text: 'Elimina', style: 'destructive', onPress: () => {
+        { text: 'Cancel', style: 'cancel', onPress: () => setAlertConfig(null) },
+        { text: 'Delete', style: 'destructive', onPress: () => {
           setHabits(prev => prev.filter(h => h.id !== id));
           setAlertConfig(null);
         }},
@@ -72,84 +64,101 @@ export default function HabitsScreen({ habits, setHabits }) {
     });
   };
 
+  const addHabit = () => {
+    if (!formName.trim()) {
+      showAlert({
+        title: 'Error', message: 'Please enter a name for the habit.',
+        buttons: [{ text: 'OK', style: 'cancel', onPress: () => setAlertConfig(null) }]
+      });
+      return;
+    }
+    const newId = Math.max(0, ...habits.map(h => h.id || 0)) + 1;
+    const newHabit = {
+      id: newId,
+      name: formName.trim(),
+      icon: formIcon.trim() || '🌟',
+      streak: 0,
+      history: {}
+    };
+    setHabits(prev => [...prev, newHabit]);
+    setModalVisible(false);
+    setFormName('');
+    setFormIcon('🌟');
+  };
+
   return (
     <View style={styles.root}>
-      <ScrollView style={styles.container} contentContainerStyle={styles.content}>
+      <ScrollView contentContainerStyle={styles.content}>
+        
         <View style={styles.header}>
-          <Text style={styles.title}>🌱 Abitudini</Text>
-          <TouchableOpacity onPress={() => setModalVisible(true)} style={styles.addFab}>
-            <Text style={styles.addFabText}>+ Nuova</Text>
+          <Text style={styles.title}>🔥 Habits</Text>
+          <TouchableOpacity onPress={() => setModalVisible(true)} style={styles.addBtn}>
+            <Text style={styles.addBtnText}>+ New</Text>
           </TouchableOpacity>
         </View>
 
         {habits.length === 0 ? (
-          <Card><Text style={styles.emptyText}>Non hai ancora abitudini da tracciare.</Text></Card>
+          <View style={styles.emptyState}>
+            <Text style={styles.emptyEmoji}>🌱</Text>
+            <Text style={styles.emptyTitle}>No habits yet</Text>
+            <Text style={styles.emptySub}>Start building your routine!</Text>
+          </View>
         ) : (
           habits.map(h => {
-            const isDoneToday = h.history && h.history[today];
+            const isDoneToday = !!(h.history && h.history[today]);
             return (
               <Card key={h.id} style={styles.habitCard}>
-                <View style={styles.habitTop}>
-                  <View style={styles.titleArea}>
+                <View style={styles.habitHeader}>
+                  <View style={styles.habitInfo}>
                     <Text style={styles.habitIcon}>{h.icon}</Text>
-                    <View>
-                      <Text style={styles.habitName}>{h.name}</Text>
-                      <Text style={styles.habitStreak}>🔥 {h.streak} giorni di fila</Text>
-                    </View>
+                    <Text style={styles.habitName}>{h.name}</Text>
                   </View>
-                  <TouchableOpacity
-                    onPress={() => toggleHabit(h.id)}
-                    style={[styles.checkBtn, isDoneToday && styles.checkBtnDone]}
-                  >
-                    <Text style={[styles.checkBtnText, isDoneToday && { color: '#fff' }]}>
-                      {isDoneToday ? '✓ FATTO' : 'COMPLETA'}
-                    </Text>
-                  </TouchableOpacity>
+                  <View style={styles.streakBadge}>
+                    <Text style={styles.streakText}>🔥 {h.streak}</Text>
+                  </View>
                 </View>
 
-                <View style={styles.weekGraph}>
-                  {pastWeek.map(date => {
-                    const done  = h.history && h.history[date];
-                    const isOggi = date === today;
+                {/* Last 7 days tracking */}
+                <View style={styles.daysRow}>
+                  {pastWeek.map(day => {
+                    const done = !!(h.history && h.history[day]);
+                    const isToday = day === today;
                     return (
-                      <View key={date} style={styles.dayCol}>
+                      <View key={day} style={styles.dayCol}>
                         <View style={[
-                          styles.dayDot,
-                          done ? styles.dayDotDone : styles.dayDotMissed,
-                          isOggi && styles.dayDotOggi,
+                          styles.dayCircle,
+                          done && styles.dayCircleDone,
+                          isToday && styles.dayCircleToday
                         ]} />
                         <Text style={styles.dayLabel}>
-                          {new Date(date).toLocaleDateString('it-IT', { weekday: 'short' }).charAt(0)}
+                          {new Date(day).toLocaleDateString('en-US', { weekday: 'narrow' })}
                         </Text>
                       </View>
                     );
                   })}
                 </View>
 
-                <TouchableOpacity onPress={() => eliminaHabit(h.id, h.name)} style={styles.deleteBtn}>
-                  <Text style={styles.deleteText}>Elimina abitudine</Text>
-                </TouchableOpacity>
+                <View style={styles.actionsRow}>
+                   <TouchableOpacity onPress={() => toggleHabit(h.id)} style={[styles.mainBtn, isDoneToday && styles.mainBtnDone]}>
+                      <Text style={styles.mainBtnText}>{isDoneToday ? 'Completed ✓' : 'Mark as Done'}</Text>
+                   </TouchableOpacity>
+                   <TouchableOpacity onPress={() => deleteHabit(h.id, h.name)} style={styles.deleteBtn}>
+                      <Text style={styles.deleteText}>Delete</Text>
+                   </TouchableOpacity>
+                </View>
               </Card>
             );
           })
         )}
       </ScrollView>
 
-      {/* ─── Modal Aggiunta — keyboard-safe ─── */}
-      <Modal visible={modalVisible} transparent animationType="slide">
-        {/* KeyboardAvoidingView spinge il modal sopra la tastiera */}
-        <KeyboardAvoidingView
-          style={styles.modalWrapper}
-          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-        >
-          <TouchableOpacity
-            style={styles.modalBackdrop}
-            activeOpacity={1}
-            onPress={() => setModalVisible(false)}
-          />
+      {/* Add Habit Modal */}
+      <Modal visible={modalVisible} animationType="slide" transparent>
+        <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={styles.modalWrapper}>
+          <TouchableOpacity style={styles.modalBackdrop} activeOpacity={1} onPress={() => setModalVisible(false)} />
           <View style={styles.modal}>
             <View style={styles.modalHandle} />
-            <Text style={styles.modalTitle}>Nuova Abitudine</Text>
+            <Text style={styles.modalTitle}>New Habit</Text>
 
             <View style={styles.formRow}>
               <TextInput
@@ -157,27 +166,24 @@ export default function HabitsScreen({ habits, setHabits }) {
                 value={formIcon}
                 onChangeText={setFormIcon}
                 maxLength={2}
-                placeholder="🌟"
-                placeholderTextColor={COLORS.textSub}
+                placeholder="Icon"
               />
               <TextInput
                 style={[styles.input, { flex: 1 }]}
-                placeholder="Nome (es. Bere 2L d'acqua)"
+                placeholder="Name (e.g. Reading, Running)..."
                 placeholderTextColor={COLORS.textSub}
                 value={formName}
                 onChangeText={setFormName}
                 autoFocus
-                returnKeyType="done"
-                onSubmitEditing={aggiungiHabit}
               />
             </View>
 
             <View style={styles.modalBtns}>
-              <TouchableOpacity onPress={() => setModalVisible(false)}>
-                <Text style={styles.cancelBtn}>Annulla</Text>
+              <TouchableOpacity style={[styles.btn, styles.btnCancel]} onPress={() => setModalVisible(false)}>
+                <Text style={styles.btnCancelText}>Cancel</Text>
               </TouchableOpacity>
-              <TouchableOpacity style={styles.confirmBtn} onPress={aggiungiHabit}>
-                <Text style={styles.confirmBtnText}>Salva</Text>
+              <TouchableOpacity style={[styles.btn, styles.btnSave]} onPress={addHabit}>
+                <Text style={styles.btnSaveText}>Create</Text>
               </TouchableOpacity>
             </View>
           </View>
@@ -190,35 +196,39 @@ export default function HabitsScreen({ habits, setHabits }) {
 }
 
 const styles = StyleSheet.create({
-  root:      { flex: 1, backgroundColor: COLORS.bg },
-  container: { flex: 1 },
-  content:   { padding: 16, paddingBottom: 40 },
-  header:    { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 },
-  title:     { fontSize: 28, fontWeight: '700', color: COLORS.text },
-  addFab:    { backgroundColor: COLORS.green, paddingVertical: 8, paddingHorizontal: 14, borderRadius: 20 },
-  addFabText:{ color: '#111', fontSize: 14, fontWeight: '700' },
-  emptyText: { color: COLORS.textSub, textAlign: 'center', marginVertical: 20 },
+  root:    { flex: 1, backgroundColor: COLORS.bg },
+  content: { padding: 16, paddingBottom: 40 },
+  header:  { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 },
+  title:   { fontSize: 28, fontWeight: '700', color: COLORS.text },
+  addBtn:  { backgroundColor: COLORS.accent, paddingVertical: 8, paddingHorizontal: 14, borderRadius: 20 },
+  addBtnText:{ color: '#fff', fontSize: 14, fontWeight: '700' },
+
+  emptyState: { alignItems: 'center', marginTop: 40 },
+  emptyEmoji: { fontSize: 48, marginBottom: 12 },
+  emptyTitle: { fontSize: 18, color: COLORS.text, fontWeight: '700', marginBottom: 4 },
+  emptySub:   { fontSize: 14, color: COLORS.textMuted },
 
   habitCard:  { marginBottom: 16, padding: 16 },
-  habitTop:   { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 },
-  titleArea:  { flexDirection: 'row', alignItems: 'center', flex: 1 },
-  habitIcon:  { fontSize: 32, marginRight: 12 },
-  habitName:  { fontSize: 18, fontWeight: '600', color: COLORS.text, marginBottom: 4 },
-  habitStreak:{ fontSize: 12, color: COLORS.amber, fontWeight: '600' },
-  checkBtn:   { borderWidth: 1, borderColor: COLORS.border, paddingVertical: 8, paddingHorizontal: 16, borderRadius: 12 },
-  checkBtnDone:{ backgroundColor: COLORS.green, borderColor: COLORS.green },
-  checkBtnText:{ color: COLORS.text, fontSize: 12, fontWeight: 'bold' },
+  habitHeader:{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 },
+  habitInfo:  { flexDirection: 'row', alignItems: 'center' },
+  habitIcon:  { fontSize: 24, marginRight: 12 },
+  habitName:  { fontSize: 18, fontWeight: '700', color: COLORS.text },
+  streakBadge:{ backgroundColor: COLORS.amberDim, paddingHorizontal: 10, paddingVertical: 4, borderRadius: 12 },
+  streakText: { color: COLORS.amber, fontWeight: 'bold', fontSize: 12 },
 
-  weekGraph: { flexDirection: 'row', justifyContent: 'space-between', backgroundColor: COLORS.bg3, padding: 12, borderRadius: 12, marginBottom: 12 },
+  daysRow:   { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 20 },
   dayCol:    { alignItems: 'center' },
-  dayDot:    { width: 24, height: 24, borderRadius: 6, marginBottom: 6 },
-  dayDotDone:   { backgroundColor: COLORS.green },
-  dayDotMissed: { backgroundColor: COLORS.bg4 },
-  dayDotOggi:   { borderWidth: 2, borderColor: COLORS.text },
+  dayCircle: { width: 28, height: 28, borderRadius: 14, backgroundColor: COLORS.bg4, marginBottom: 8 },
+  dayCircleDone:  { backgroundColor: COLORS.green },
+  dayCircleToday: { borderWidth: 2, borderColor: COLORS.text },
   dayLabel:  { fontSize: 10, color: COLORS.textMuted, textTransform: 'uppercase' },
 
-  deleteBtn: { alignSelf: 'flex-end' },
-  deleteText:{ color: COLORS.red, fontSize: 11 },
+  actionsRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
+  mainBtn:    { flex: 1, backgroundColor: COLORS.accent, paddingVertical: 10, borderRadius: 10, alignItems: 'center', marginRight: 12 },
+  mainBtnDone:{ backgroundColor: COLORS.green },
+  mainBtnText:{ color: '#fff', fontWeight: '700', fontSize: 13 },
+  deleteBtn:  { paddingHorizontal: 8 },
+  deleteText: { color: COLORS.red, fontSize: 12, fontWeight: '600' },
 
   // Modal
   modalWrapper: {
@@ -245,11 +255,14 @@ const styles = StyleSheet.create({
     marginBottom: 16,
   },
   modalTitle: { fontSize: 20, fontWeight: '700', color: COLORS.text, marginBottom: 20, textAlign: 'center' },
-  formRow:    { flexDirection: 'row', gap: 10, marginBottom: 20 },
+  formRow:    { flexDirection: 'row', marginBottom: 20 },
   input:      { backgroundColor: COLORS.bg3, borderWidth: 1, borderColor: COLORS.border, borderRadius: 10, padding: 12, color: COLORS.text, fontSize: 15 },
-  iconInput:  { width: 60, textAlign: 'center', fontSize: 24 },
-  modalBtns:  { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-  cancelBtn:  { color: COLORS.textSub, fontSize: 16, padding: 10 },
-  confirmBtn: { backgroundColor: COLORS.green, paddingVertical: 12, paddingHorizontal: 24, borderRadius: 10 },
-  confirmBtnText: { color: '#111', fontSize: 15, fontWeight: '700' },
+  iconInput:  { width: 60, marginRight: 10, textAlign: 'center' },
+  
+  modalBtns:    { flexDirection: 'row', justifyContent: 'space-between' },
+  btn:          { flex: 1, paddingVertical: 14, borderRadius: 10, alignItems: 'center' },
+  btnCancel:    { backgroundColor: COLORS.bg4, marginRight: 10 },
+  btnCancelText:{ color: COLORS.textMuted, fontWeight: '600' },
+  btnSave:      { backgroundColor: COLORS.accent },
+  btnSaveText:  { color: '#fff', fontWeight: '700' },
 });

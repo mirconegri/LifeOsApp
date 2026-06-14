@@ -4,6 +4,12 @@
     "slug": "lifeos",
     "version": "1.0.0",
     "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "splash": {
+      "image": "./assets/splash-icon.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#ffffff"
+    },
     "userInterfaceStyle": "dark",
     "newArchEnabled": true,
     "ios": {
@@ -11,7 +17,14 @@
       "bundleIdentifier": "com.lifeos.app"
     },
     "android": {
-      "package": "com.lifeos.app"
+      "package": "com.lifeos.app",
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/adaptive-icon.png",
+        "backgroundColor": "#ffffff"
+      }
+    },
+    "web": {
+      "favicon": "./assets/favicon.png"
     },
     "scheme": "lifeos",
     "extra": {

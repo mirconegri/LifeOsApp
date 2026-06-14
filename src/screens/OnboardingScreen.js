@@ -7,9 +7,9 @@ import { COLORS } from '../config/colors';
 
 const STEPS = [
   { id: 'welcome',  title: null },
-  { id: 'name',     title: 'Come ti chiami?' },
-  { id: 'uni',      title: 'La tua università' },
-  { id: 'goals',    title: 'A cosa tieni di più?' },
+  { id: 'name',     title: 'What is your name?' },
+  { id: 'uni',      title: 'Your university' },
+  { id: 'goals',    title: 'What matters most to you?' },
   { id: 'done',     title: null },
 ];
 
@@ -17,19 +17,19 @@ export default function OnboardingScreen({ onComplete }) {
   const [step, setStep] = useState(0);
 
   // Fields
-  const [nome,       setNome]       = useState('');
-  const [corso,      setCorso]      = useState('');
-  const [anno,       setAnno]       = useState('');
-  const [cfuTotali,  setCfuTotali]  = useState('');
+  const [name,         setName]         = useState('');
+  const [course,       setCourse]       = useState('');
+  const [year,         setYear]         = useState('');
+  const [totalCredits, setTotalCredits] = useState('');
   const [selectedGoals, setSelectedGoals] = useState([]);
 
   const GOAL_OPTIONS = [
-    { id: 'uni',     label: '🎓 Laurearmi',        key: 'uni'    },
-    { id: 'finanze', label: '💶 Gestire i soldi',   key: 'finanze'},
-    { id: 'habits',  label: '🔥 Costruire abitudini', key: 'habits'},
-    { id: 'studio',  label: '📚 Studiare meglio',   key: 'studio' },
-    { id: 'spesa',   label: '🛒 Spesa organizzata', key: 'spesa'  },
-    { id: 'notes',   label: '💡 Prendere note',     key: 'notes'  },
+    { id: 'uni',       label: '🎓 Graduate',          key: 'uni'      },
+    { id: 'finances',  label: '💶 Manage money',      key: 'finances' },
+    { id: 'habits',    label: '🔥 Build habits',      key: 'habits'   },
+    { id: 'study',     label: '📚 Study better',      key: 'study'    },
+    { id: 'groceries', label: '🛒 Organized groceries', key: 'groceries'},
+    { id: 'notes',     label: '💡 Take notes',        key: 'notes'    },
   ];
 
   const toggleGoal = (key) => {
@@ -39,8 +39,8 @@ export default function OnboardingScreen({ onComplete }) {
   };
 
   const canNext = () => {
-    if (step === 1) return nome.trim().length > 0;
-    if (step === 2) return corso.trim().length > 0;
+    if (step === 1) return name.trim().length > 0;
+    if (step === 2) return course.trim().length > 0;
     if (step === 3) return selectedGoals.length > 0;
     return true;
   };
@@ -52,10 +52,10 @@ export default function OnboardingScreen({ onComplete }) {
 
   const handleDone = () => {
     onComplete({
-      nome: nome.trim(),
-      corso: corso.trim(),
-      anno: anno.trim(),
-      cfuTotali: parseInt(cfuTotali) || 180,
+      name: name.trim(),
+      course: course.trim(),
+      year: year.trim(),
+      totalCredits: parseInt(totalCredits) || 180,
       goals: selectedGoals,
     });
   };
@@ -63,7 +63,12 @@ export default function OnboardingScreen({ onComplete }) {
   const dots = STEPS.map((_, i) => (
     <View
       key={i}
-      style={[styles.dot, i === step && styles.dotActive, i < step && styles.dotDone]}
+      style={[
+        styles.dot, 
+        i === step && styles.dotActive, 
+        i < step && styles.dotDone,
+        i !== STEPS.length - 1 && { marginRight: 6 }
+      ]}
     />
   ));
 
@@ -81,29 +86,29 @@ export default function OnboardingScreen({ onComplete }) {
             <Text style={styles.logo}>
               <Text style={{ color: COLORS.accent }}>Life</Text>OS
             </Text>
-            <Text style={styles.heroTitle}>Il tuo sistema operativo personale</Text>
+            <Text style={styles.heroTitle}>Your personal operating system</Text>
             <Text style={styles.heroSub}>
-              Esami, finanze, abitudini e molto altro — tutto in un unico posto.
-              Ci vogliono 60 secondi per configurarlo.
+              Exams, finances, habits, and much more — all in one place.
+              It takes 60 seconds to set up.
             </Text>
             <TouchableOpacity style={styles.bigBtn} onPress={next}>
-              <Text style={styles.bigBtnText}>Inizia →</Text>
+              <Text style={styles.bigBtnText}>Get Started →</Text>
             </TouchableOpacity>
           </View>
         )}
 
-        {/* ── Nome ── */}
+        {/* ── Name ── */}
         {step === 1 && (
           <View style={styles.stepBlock}>
             <Text style={styles.stepEmoji}>👋</Text>
-            <Text style={styles.stepTitle}>Come ti chiami?</Text>
-            <Text style={styles.stepSub}>Verrà usato nei saluti e nella dashboard.</Text>
+            <Text style={styles.stepTitle}>What is your name?</Text>
+            <Text style={styles.stepSub}>Will be used in greetings and on the dashboard.</Text>
             <TextInput
               style={styles.input}
-              placeholder="Il tuo nome"
+              placeholder="Your name"
               placeholderTextColor={COLORS.textSub}
-              value={nome}
-              onChangeText={setNome}
+              value={name}
+              onChangeText={setName}
               autoFocus
               returnKeyType="done"
               onSubmitEditing={canNext() ? next : undefined}
@@ -111,35 +116,35 @@ export default function OnboardingScreen({ onComplete }) {
           </View>
         )}
 
-        {/* ── Università ── */}
+        {/* ── University ── */}
         {step === 2 && (
           <View style={styles.stepBlock}>
             <Text style={styles.stepEmoji}>🎓</Text>
-            <Text style={styles.stepTitle}>La tua università</Text>
-            <Text style={styles.stepSub}>Questi dati alimentano il tracker degli esami.</Text>
+            <Text style={styles.stepTitle}>Your university</Text>
+            <Text style={styles.stepSub}>This data powers the exam tracker.</Text>
 
             <TextInput
               style={styles.input}
-              placeholder="Corso di laurea (es. Informatica)"
+              placeholder="Degree course (e.g. Computer Science)"
               placeholderTextColor={COLORS.textSub}
-              value={corso}
-              onChangeText={setCorso}
+              value={course}
+              onChangeText={setCourse}
               autoFocus
             />
             <TextInput
               style={styles.input}
-              placeholder="Anno (es. 2°)"
+              placeholder="Year (e.g. 2nd)"
               placeholderTextColor={COLORS.textSub}
-              value={anno}
-              onChangeText={setAnno}
+              value={year}
+              onChangeText={setYear}
               keyboardType="default"
             />
             <TextInput
               style={styles.input}
-              placeholder="CFU totali del tuo piano (es. 180)"
+              placeholder="Total credits of your plan (e.g. 180)"
               placeholderTextColor={COLORS.textSub}
-              value={cfuTotali}
-              onChangeText={setCfuTotali}
+              value={totalCredits}
+              onChangeText={setTotalCredits}
               keyboardType="numeric"
             />
           </View>
@@ -149,9 +154,9 @@ export default function OnboardingScreen({ onComplete }) {
         {step === 3 && (
           <View style={styles.stepBlock}>
             <Text style={styles.stepEmoji}>🎯</Text>
-            <Text style={styles.stepTitle}>A cosa tieni di più?</Text>
+            <Text style={styles.stepTitle}>What matters most to you?</Text>
             <Text style={styles.stepSub}>
-              Seleziona almeno uno. Personalizzerà i suggerimenti iniziali.
+              Select at least one. This will personalize initial suggestions.
             </Text>
             <View style={styles.goalGrid}>
               {GOAL_OPTIONS.map(g => (
@@ -173,13 +178,13 @@ export default function OnboardingScreen({ onComplete }) {
         {step === 4 && (
           <View style={styles.centerBlock}>
             <Text style={styles.doneEmoji}>🚀</Text>
-            <Text style={styles.doneTitle}>Tutto pronto, {nome || 'benvenuto'}!</Text>
+            <Text style={styles.doneTitle}>All set, {name || 'welcome'}!</Text>
             <Text style={styles.heroSub}>
-              LifeOS è configurato. Puoi aggiungere i tuoi esami, le abitudini e le transazioni
-              in qualsiasi momento.
+              LifeOS is configured. You can add your exams, habits, and transactions
+              at any time.
             </Text>
             <TouchableOpacity style={styles.bigBtn} onPress={handleDone}>
-              <Text style={styles.bigBtnText}>Entra in LifeOS →</Text>
+              <Text style={styles.bigBtnText}>Enter LifeOS →</Text>
             </TouchableOpacity>
           </View>
         )}
@@ -188,7 +193,7 @@ export default function OnboardingScreen({ onComplete }) {
         {step > 0 && step < 4 && (
           <View style={styles.footer}>
             <TouchableOpacity onPress={() => setStep(s => s - 1)} style={styles.backBtn}>
-              <Text style={styles.backBtnText}>← Indietro</Text>
+              <Text style={styles.backBtnText}>← Back</Text>
             </TouchableOpacity>
             <View style={styles.dotsRow}>{dots}</View>
             <TouchableOpacity
@@ -196,7 +201,7 @@ export default function OnboardingScreen({ onComplete }) {
               style={[styles.nextBtn, !canNext() && styles.nextBtnDisabled]}
               disabled={!canNext()}
             >
-              <Text style={styles.nextBtnText}>{step === 3 ? 'Fatto ✓' : 'Avanti →'}</Text>
+              <Text style={styles.nextBtnText}>{step === 3 ? 'Done ✓' : 'Next →'}</Text>
             </TouchableOpacity>
           </View>
         )}
@@ -287,7 +292,7 @@ const styles = StyleSheet.create({
   goalGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    gap: 10,
+    justifyContent: 'space-between',
     marginTop: 4,
   },
   goalChip: {
@@ -297,7 +302,8 @@ const styles = StyleSheet.create({
     backgroundColor: COLORS.bg2,
     borderWidth: 1,
     borderColor: COLORS.border,
-    width: '47%',
+    width: '48%',
+    marginBottom: 10,
   },
   goalChipActive: {
     backgroundColor: COLORS.accentGlow,
@@ -325,8 +331,8 @@ const styles = StyleSheet.create({
   nextBtnText: { color: '#fff', fontSize: 15, fontWeight: '700' },
 
   // Dots
-  dotsRow: { flexDirection: 'row', gap: 6 },
-  dotsRowCenter: { flexDirection: 'row', gap: 6, justifyContent: 'center', marginTop: 24 },
+  dotsRow: { flexDirection: 'row' },
+  dotsRowCenter: { flexDirection: 'row', justifyContent: 'center', marginTop: 24 },
   dot: {
     width: 6, height: 6, borderRadius: 3,
     backgroundColor: COLORS.bg4,

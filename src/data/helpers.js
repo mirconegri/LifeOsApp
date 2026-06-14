@@ -4,31 +4,35 @@ export function todayKey() {
 
 export function greet() {
   const h = new Date().getHours();
-  if (h < 12) return 'Buongiorno';
-  if (h < 18) return 'Buon pomeriggio';
-  return 'Buonasera';
+  if (h < 12) return 'Good morning';
+  if (h < 18) return 'Good afternoon';
+  return 'Good evening';
 }
 
+// Formats numbers with thousand separators (switched to en-US)
 export function fmt(n) {
-  return Number(n || 0).toLocaleString('it-IT');
+  return Number(n || 0).toLocaleString('en-US');
 }
 
 export function diffDays(dateStr) {
   return Math.ceil((new Date(dateStr) - new Date()) / 86400000);
 }
 
-export function calcMedia(exams) {
-  const superati = exams.filter(e => e.votoOttenuto);
-  if (!superati.length) return { media: 0, mediaPonderata: 0 };
-  const sum = superati.reduce((a, e) => a + e.votoOttenuto, 0);
-  const wp  = superati.reduce((a, e) => a + e.votoOttenuto * e.cfu, 0);
-  const wc  = superati.reduce((a, e) => a + e.cfu, 0);
-  return { media: sum / superati.length, mediaPonderata: wp / wc };
+export function calculateAverages(exams) {
+  const passed = exams.filter(e => e.achievedGrade);
+  if (!passed.length) return { average: 0, weightedAverage: 0 };
+  
+  const sum = passed.reduce((a, e) => a + e.achievedGrade, 0);
+  const wp  = passed.reduce((a, e) => a + (e.achievedGrade * e.credits), 0);
+  const wc  = passed.reduce((a, e) => a + e.credits, 0);
+  
+  return { average: sum / passed.length, weightedAverage: wp / wc };
 }
 
-export function prevLaurea(mp) {
-  if (mp < 18) return 0;
-  return Math.min(110, Math.round((mp / 30) * 110 + (mp > 28 ? 1 : 0)));
+// Italian graduation grade is based on 110. Let's keep the logic but translate the name
+export function predictedDegreeGrade(weightedAverage) {
+  if (weightedAverage < 18) return 0;
+  return Math.min(110, Math.round((weightedAverage / 30) * 110 + (weightedAverage > 28 ? 1 : 0)));
 }
 
 export function padTime(n) {

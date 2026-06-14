@@ -9,103 +9,109 @@ import { StatCard } from '../components/StatCard';
 import { CustomAlert } from '../components/CustomAlert';
 
 const CAT_COLORS = {
-  lavoro:      COLORS.green,
-  università:  COLORS.accent,
-  cibo:        COLORS.amber,
-  trasporti:   COLORS.blue,
-  altro:       COLORS.textMuted,
+  work:        COLORS.green,
+  university:  COLORS.accent,
+  food:        COLORS.amber,
+  transport:   COLORS.blue,
+  other:       COLORS.textMuted,
 };
 
-const CATEGORIE = Object.keys(CAT_COLORS);
+const CATEGORIES = Object.keys(CAT_COLORS);
 
-export default function FinanzeScreen({ finanze, setFinanze }) {
+export default function FinancesScreen({ finances, setFinances }) {
   const [modalVisible, setModalVisible] = useState(false);
   const [formDesc,    setFormDesc]    = useState('');
-  const [formImporto, setFormImporto] = useState('');
-  const [formTipo,    setFormTipo]    = useState('uscita');
-  const [formCat,     setFormCat]     = useState('altro');
-  const [formData,    setFormData]    = useState('');
+  const [formAmount,  setFormAmount]  = useState('');
+  const [formType,    setFormType]    = useState('expense');
+  const [formCat,     setFormCat]     = useState('other');
+  const [formDate,    setFormDate]    = useState('');
   const [alertConfig, setAlertConfig] = useState(null);
 
   const showAlert = (cfg) => setAlertConfig(cfg);
 
   // ── Computed ─────────────────────────────────────────────────────────────
-  const saldo   = finanze.reduce((a, t) => a + t.importo, 0);
-  const entrate = finanze.filter(t => t.tipo === 'entrata').reduce((a, t) => a + t.importo, 0);
-  const uscite  = Math.abs(finanze.filter(t => t.tipo === 'uscita').reduce((a, t) => a + t.importo, 0));
+  const balance  = finances.reduce((a, t) => a + t.amount, 0);
+  const incomes  = finances.filter(t => t.type === 'income').reduce((a, t) => a + t.amount, 0);
+  const expenses = Math.abs(finances.filter(t => t.type === 'expense').reduce((a, t) => a + t.amount, 0));
 
   const now    = new Date();
   const months = Array.from({ length: 6 }, (_, i) => {
     const d = new Date(now.getFullYear(), now.getMonth() - 5 + i, 1);
     return {
-      label: d.toLocaleDateString('it-IT', { month: 'short' }),
+      label: d.toLocaleDateString('en-US', { month: 'short' }),
       key:   d.toISOString().slice(0, 7),
     };
   });
 
   const monthBars = months.map(m => {
-    const entries = finanze.filter(t => t.data && t.data.startsWith(m.key));
-    return entries.reduce((a, t) => a + t.importo, 0);
+    const entries = finances.filter(t => t.date && t.date.startsWith(m.key));
+    return entries.reduce((a, t) => a + t.amount, 0);
   });
   const maxAbs = Math.max(...monthBars.map(Math.abs), 1);
 
   // ── Actions ───────────────────────────────────────────────────────────────
-  const aggiungi = () => {
+  const addTransaction = () => {
     if (!formDesc.trim()) {
-      showAlert({ title: 'Errore', message: 'Inserisci la descrizione',
+      showAlert({ title: 'Error', message: 'Enter a description',
         buttons: [{ text: 'OK', style: 'cancel', onPress: () => setAlertConfig(null) }] });
       return;
     }
-    const imp = parseFloat(formImporto) || 0;
+    const imp = parseFloat(formAmount) || 0;
     if (imp === 0) {
-      showAlert({ title: 'Errore', message: 'Inserisci un importo valido',
+      showAlert({ title: 'Error', message: 'Enter a valid amount',
         buttons: [{ text: 'OK', style: 'cancel', onPress: () => setAlertConfig(null) }] });
       return;
     }
-    const newId = Math.max(0, ...finanze.map(f => f.id)) + 1;
-    setFinanze(prev => [...prev, {
-      id:      newId,
-      data:    formData || new Date().toISOString().slice(0, 10),
-      desc:    formDesc.trim(),
-      importo: formTipo === 'uscita' ? -Math.abs(imp) : Math.abs(imp),
-      tipo:    formTipo,
-      cat:     formCat,
+    const newId = Math.max(0, ...finances.map(f => f.id)) + 1;
+    setFinances(prev => [...prev, {
+      id:       newId,
+      date:     formDate || new Date().toISOString().slice(0, 10),
+      desc:     formDesc.trim(),
+      amount:   formType === 'expense' ? -Math.abs(imp) : Math.abs(imp),
+      type:     formType,
+      category: formCat,
     }]);
-    setFormDesc(''); setFormImporto(''); setFormTipo('uscita');
-    setFormCat('altro'); setFormData('');
+    setFormDesc(''); setFormAmount(''); setFormType('expense');
+    setFormCat('other'); setFormDate('');
     setModalVisible(false);
   };
 
-  const elimina = (id, desc) => {
+  const deleteTransaction = (id, desc) => {
     showAlert({
-      title: 'Elimina',
-      message: `Rimuovere "${desc}"?`,
+      title: 'Delete',
+      message: `Remove "${desc}"?`,
       buttons: [
-        { text: 'Annulla', style: 'cancel', onPress: () => setAlertConfig(null) },
-        { text: 'Elimina', style: 'destructive', onPress: () => {
-          setFinanze(prev => prev.filter(f => f.id !== id));
+        { text: 'Cancel', style: 'cancel', onPress: () => setAlertConfig(null) },
+        { text: 'Delete', style: 'destructive', onPress: () => {
+          setFinances(prev => prev.filter(f => f.id !== id));
           setAlertConfig(null);
         }},
       ],
     });
   };
 
-  const recenti = [...finanze].sort((a, b) => b.data.localeCompare(a.data)).slice(0, 15);
+  const recentTransactions = [...finances].sort((a, b) => b.date.localeCompare(a.date)).slice(0, 15);
 
   return (
     <View style={styles.root}>
       <ScrollView style={styles.scroll} contentContainerStyle={styles.content}>
 
         {/* ── Stats ── */}
-        <Text style={styles.sectionTitle}>💶 Panoramica</Text>
+        <Text style={styles.sectionTitle}>💶 Overview</Text>
         <View style={styles.statsRow}>
-          <StatCard label="Saldo"   value={saldo >= 0 ? `+${saldo}` : `${saldo}`} sub="€" color={saldo >= 0 ? COLORS.green : COLORS.red} />
-          <StatCard label="Entrate" value={`+${entrate}`} sub="€" color={COLORS.green} />
-          <StatCard label="Uscite"  value={`-${uscite}`}  sub="€" color={COLORS.red}   />
+          <View style={{ flex: 1, marginRight: 8 }}>
+             <StatCard label="Balance"   value={balance >= 0 ? `+${balance}` : `${balance}`} sub="€" color={balance >= 0 ? COLORS.green : COLORS.red} />
+          </View>
+          <View style={{ flex: 1, marginRight: 8 }}>
+             <StatCard label="Income" value={`+${incomes}`} sub="€" color={COLORS.green} />
+          </View>
+          <View style={{ flex: 1 }}>
+             <StatCard label="Expenses"  value={`-${expenses}`}  sub="€" color={COLORS.red}   />
+          </View>
         </View>
 
-        {/* ── Grafico ── */}
-        <Text style={styles.sectionTitle}>📈 Ultimi 6 mesi</Text>
+        {/* ── Chart ── */}
+        <Text style={styles.sectionTitle}>📈 Last 6 months</Text>
         <Card style={styles.chartCard}>
           <View style={styles.chart}>
             {monthBars.map((val, i) => {
@@ -122,26 +128,26 @@ export default function FinanzeScreen({ finanze, setFinanze }) {
           </View>
         </Card>
 
-        {/* ── Transazioni ── */}
+        {/* ── Transactions ── */}
         <View style={styles.listHeader}>
-          <Text style={styles.sectionTitle}>📋 Transazioni ({recenti.length})</Text>
+          <Text style={styles.sectionTitle}>📋 Transactions ({recentTransactions.length})</Text>
           <TouchableOpacity onPress={() => setModalVisible(true)}>
-            <Text style={styles.addBtn}>+ Aggiungi</Text>
+            <Text style={styles.addBtn}>+ Add</Text>
           </TouchableOpacity>
         </View>
 
-        {recenti.map(t => (
+        {recentTransactions.map(t => (
           <Card key={t.id} style={styles.txCard}>
             <View style={styles.txRow}>
-              <View style={[styles.txDot, { backgroundColor: CAT_COLORS[t.cat] || COLORS.textMuted }]} />
-              <View style={{ flex: 1 }}>
+              <View style={[styles.txDot, { backgroundColor: CAT_COLORS[t.category] || COLORS.textMuted }]} />
+              <View style={styles.txInfo}>
                 <Text style={styles.txDesc}>{t.desc}</Text>
-                <Text style={styles.txMeta}>{t.data} · {t.cat}</Text>
+                <Text style={styles.txMeta}>{t.date} · {t.category}</Text>
               </View>
-              <Text style={[styles.txImporto, { color: t.importo >= 0 ? COLORS.green : COLORS.red }]}>
-                {t.importo >= 0 ? '+' : ''}{t.importo} €
+              <Text style={[styles.txAmount, { color: t.amount >= 0 ? COLORS.green : COLORS.red }]}>
+                {t.amount >= 0 ? '+' : ''}{t.amount} €
               </Text>
-              <TouchableOpacity onPress={() => elimina(t.id, t.desc)} style={styles.deleteBtn}>
+              <TouchableOpacity onPress={() => deleteTransaction(t.id, t.desc)} style={styles.deleteBtn}>
                 <Text style={styles.deleteBtnText}>✕</Text>
               </TouchableOpacity>
             </View>
@@ -149,7 +155,7 @@ export default function FinanzeScreen({ finanze, setFinanze }) {
         ))}
       </ScrollView>
 
-      {/* ── Modal Aggiungi ── */}
+      {/* ── Add Modal ── */}
       <Modal visible={modalVisible} transparent animationType="slide">
         <KeyboardAvoidingView
           style={styles.modalWrapper}
@@ -162,40 +168,40 @@ export default function FinanzeScreen({ finanze, setFinanze }) {
           />
           <View style={styles.modal}>
             <View style={styles.modalHandle} />
-            <Text style={styles.modalTitle}>Nuova Transazione</Text>
+            <Text style={styles.modalTitle}>New Transaction</Text>
 
             <ScrollView showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
-              <TextInput style={styles.input} placeholder="Descrizione"
+              <TextInput style={styles.input} placeholder="Description"
                 placeholderTextColor={COLORS.textSub} value={formDesc} onChangeText={setFormDesc} autoFocus />
-              <TextInput style={styles.input} placeholder="Importo (€)"
-                placeholderTextColor={COLORS.textSub} keyboardType="numeric" value={formImporto} onChangeText={setFormImporto} />
-              <TextInput style={styles.input} placeholder="Data (YYYY-MM-DD)"
-                placeholderTextColor={COLORS.textSub} value={formData} onChangeText={setFormData} />
+              <TextInput style={styles.input} placeholder="Amount (€)"
+                placeholderTextColor={COLORS.textSub} keyboardType="numeric" value={formAmount} onChangeText={setFormAmount} />
+              <TextInput style={styles.input} placeholder="Date (YYYY-MM-DD)"
+                placeholderTextColor={COLORS.textSub} value={formDate} onChangeText={setFormDate} />
 
-              <Text style={styles.fieldLabel}>Tipo:</Text>
-              <View style={styles.tipoRow}>
-                {[['entrata', '↑ Entrata'], ['uscita', '↓ Uscita']].map(([v, l]) => (
-                  <TouchableOpacity key={v} onPress={() => setFormTipo(v)}
-                    style={[styles.tipoChip, formTipo === v && styles.tipoChipActive]}>
-                    <Text style={[styles.tipoChipText,
-                      formTipo === v && { color: v === 'entrata' ? COLORS.green : COLORS.red }
+              <Text style={styles.fieldLabel}>Type:</Text>
+              <View style={styles.typeRow}>
+                {[['income', '↑ Income'], ['expense', '↓ Expense']].map(([v, l], idx) => (
+                  <TouchableOpacity key={v} onPress={() => setFormType(v)}
+                    style={[styles.typeChip, formType === v && styles.typeChipActive, idx === 0 && { marginRight: 8 }]}>
+                    <Text style={[styles.typeChipText,
+                      formType === v && { color: v === 'income' ? COLORS.green : COLORS.red }
                     ]}>{l}</Text>
                   </TouchableOpacity>
                 ))}
               </View>
 
-              <Text style={styles.fieldLabel}>Categoria:</Text>
+              <Text style={styles.fieldLabel}>Category:</Text>
               <View style={styles.catRow}>
-                {CATEGORIE.map(c => (
+                {CATEGORIES.map(c => (
                   <TouchableOpacity key={c} onPress={() => setFormCat(c)}
-                    style={[styles.catChip, formCat === c && styles.catChipActive]}>
+                    style={[styles.catChip, formCat === c && styles.catChipActive, { marginRight: 6, marginBottom: 6 }]}>
                     <Text style={[styles.catChipText, formCat === c && { color: CAT_COLORS[c] }]}>{c}</Text>
                   </TouchableOpacity>
                 ))}
               </View>
 
-              <TouchableOpacity style={styles.submitBtn} onPress={aggiungi}>
-                <Text style={styles.submitBtnText}>Aggiungi</Text>
+              <TouchableOpacity style={styles.submitBtn} onPress={addTransaction}>
+                <Text style={styles.submitBtnText}>Add</Text>
               </TouchableOpacity>
             </ScrollView>
           </View>
@@ -213,7 +219,7 @@ const styles = StyleSheet.create({
   content:{ padding: 16, paddingBottom: 32 },
 
   sectionTitle: { fontSize: 13, fontWeight: '600', color: COLORS.textMuted, textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 10, marginTop: 10 },
-  statsRow:     { flexDirection: 'row', gap: 10, marginBottom: 4 },
+  statsRow:     { flexDirection: 'row', marginBottom: 4 },
 
   chartCard: { marginBottom: 12 },
   chart:     { flexDirection: 'row', justifyContent: 'space-around', alignItems: 'flex-end', height: 120, paddingVertical: 8 },
@@ -226,11 +232,12 @@ const styles = StyleSheet.create({
   addBtn:     { fontSize: 13, color: COLORS.accent, fontWeight: '600' },
 
   txCard: { marginBottom: 8, padding: 12 },
-  txRow:  { flexDirection: 'row', alignItems: 'center', gap: 10 },
-  txDot:  { width: 8, height: 8, borderRadius: 4 },
+  txRow:  { flexDirection: 'row', alignItems: 'center' },
+  txDot:  { width: 8, height: 8, borderRadius: 4, marginRight: 10 },
+  txInfo: { flex: 1, marginRight: 10 },
   txDesc: { fontSize: 13, color: COLORS.text, fontWeight: '500' },
   txMeta: { fontSize: 11, color: COLORS.textMuted, marginTop: 2 },
-  txImporto:  { fontSize: 13, fontWeight: '600' },
+  txAmount:   { fontSize: 13, fontWeight: '600', marginRight: 10 },
   deleteBtn:  { padding: 4 },
   deleteBtnText: { fontSize: 14, color: COLORS.textSub },
 
@@ -248,11 +255,11 @@ const styles = StyleSheet.create({
   modalTitle:  { fontSize: 18, fontWeight: '700', color: COLORS.text, marginBottom: 16, textAlign: 'center' },
   input:       { backgroundColor: COLORS.bg3, borderWidth: 1, borderColor: COLORS.border, borderRadius: 10, paddingHorizontal: 12, paddingVertical: 10, color: COLORS.text, fontSize: 14, marginBottom: 10 },
   fieldLabel:  { color: COLORS.textSub, fontSize: 13, marginBottom: 8, marginTop: 4 },
-  tipoRow:     { flexDirection: 'row', gap: 8, marginBottom: 12 },
-  tipoChip:    { flex: 1, paddingVertical: 10, borderRadius: 10, backgroundColor: COLORS.bg4, alignItems: 'center' },
-  tipoChipActive: { backgroundColor: COLORS.accentGlow },
-  tipoChipText:   { fontSize: 13, color: COLORS.textMuted, fontWeight: '600' },
-  catRow:      { flexDirection: 'row', gap: 6, flexWrap: 'wrap', marginBottom: 14 },
+  typeRow:     { flexDirection: 'row', marginBottom: 12 },
+  typeChip:    { flex: 1, paddingVertical: 10, borderRadius: 10, backgroundColor: COLORS.bg4, alignItems: 'center' },
+  typeChipActive: { backgroundColor: COLORS.accentGlow },
+  typeChipText:   { fontSize: 13, color: COLORS.textMuted, fontWeight: '600' },
+  catRow:      { flexDirection: 'row', flexWrap: 'wrap', marginBottom: 14 },
   catChip:     { paddingHorizontal: 12, paddingVertical: 5, borderRadius: 12, backgroundColor: COLORS.bg4 },
   catChipActive:{ backgroundColor: COLORS.accentGlow },
   catChipText: { fontSize: 12, color: COLORS.textMuted },
