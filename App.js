@@ -2,7 +2,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import {
   View, Text, TouchableOpacity, SafeAreaView,
-  ScrollView, StatusBar, Modal, StyleSheet,
+  ScrollView, StatusBar, Modal, StyleSheet, Platform
 } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
@@ -15,22 +15,21 @@ import {
 } from './src/data/seedData';
 
 // Screens
-import HomeScreen      from './src/screens/HomeScreen';
-import UniScreen       from './src/screens/UniScreen';
-import StudyScreen     from './src/screens/StudyScreen';
-import FinancesScreen  from './src/screens/FinancesScreen';
-import HabitsScreen    from './src/screens/HabitsScreen';
-import GroceriesScreen from './src/screens/GroceriesScreen';
-import GoalsScreen     from './src/screens/GoalsScreen';
-import NotesScreen     from './src/screens/NotesScreen';
-import LinksScreen     from './src/screens/LinksScreen';
-import JournalScreen   from './src/screens/JournalScreen';
-import StatsScreen     from './src/screens/StatsScreen';
+import OnboardingScreen from './src/screens/OnboardingScreen';
+import HomeScreen       from './src/screens/HomeScreen';
+import UniScreen        from './src/screens/UniScreen';
+import StudyScreen      from './src/screens/StudyScreen';
+import FinancesScreen   from './src/screens/FinancesScreen';
+import HabitsScreen     from './src/screens/HabitsScreen';
+import GroceriesScreen  from './src/screens/GroceriesScreen';
+import GoalsScreen      from './src/screens/GoalsScreen';
+import NotesScreen      from './src/screens/NotesScreen';
+import LinksScreen      from './src/screens/LinksScreen';
+import JournalScreen    from './src/screens/JournalScreen';
+import StatsScreen      from './src/screens/StatsScreen';
 
-// ─── Storage helpers ───────────────────────────────────────────────────────────
 const PREFIX = 'lifeos_';
 
-// Fetches data from AsyncStorage, parsing it safely and returning a fallback if missing
 async function loadJSON(key, fallback) {
   try {
     const raw = await AsyncStorage.getItem(PREFIX + key);
@@ -40,7 +39,6 @@ async function loadJSON(key, fallback) {
   }
 }
 
-// Persists a given value into AsyncStorage as a JSON string
 async function saveJSON(key, value) {
   try {
     await AsyncStorage.setItem(PREFIX + key, JSON.stringify(value));
@@ -49,12 +47,9 @@ async function saveJSON(key, value) {
   }
 }
 
-// ─── Persist helper ────────────────────────────────────────────────────────────
-// Custom hook pattern to update React state AND save to AsyncStorage automatically
 function usePersist(key, setter) {
   return (valOrFn) => {
     setter((prev) => {
-      // Handles both direct value updates and functional updates
       const next = typeof valOrFn === 'function' ? valOrFn(prev) : valOrFn;
       saveJSON(key, next);
       return next;
@@ -62,13 +57,17 @@ function usePersist(key, setter) {
   };
 }
 
-// ─── App Root Component ────────────────────────────────────────────────────────
 export default function App() {
   const [screen, setScreen]         = useState('home');
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [ready, setReady]           = useState(false);
+  const [isFirstUse, setIsFirstUse] = useState(false);
 
   // Global Data State
+  const [userName,     setUserName]     = useState('');
+  const [course,       setCourse]       = useState('');   
+  const [totalCredits, setTotalCredits] = useState(180);
+  const [tipsShown,    setTipsShown]    = useState([]);
   const [exams,        setExams]        = useState([]);
   const [tasks,        setTasks]        = useState([]);
   const [habits,       setHabits]       = useState([]);
@@ -81,15 +80,20 @@ export default function App() {
   const [heatmap,      setHeatmap]      = useState({});
   const [loggedSeconds, setLogged]      = useState(0);
 
-  // Global Timer State (for Study Sessions)
+  // Global Timer State
   const [timerRunning,  setTimerRunning]  = useState(false);
   const [timerSec,      setTimerSec]      = useState(0);
   const [timerSubject,  setTimerSubject]  = useState('');
   const timerRef = useRef(null);
 
-  // ── Load data on mount ──────────────────────────────────────────────────
   useEffect(() => {
     (async () => {
+      const isFirst = await loadJSON('isFirstUse', true);
+      setIsFirstUse(isFirst);
+      setUserName(     await loadJSON('userName',      ''));
+      setCourse(       await loadJSON('course',        ''));
+      setTotalCredits( await loadJSON('totalCredits',  180));
+      setTipsShown(    await loadJSON('tipsShown',     []));
       setExams(        await loadJSON('exams',         INIT_EXAMS));
       setTasks(        await loadJSON('tasks',         INIT_TASKS));
       setHabits(       await loadJSON('habits',        INIT_HABITS));
@@ -105,8 +109,6 @@ export default function App() {
     })();
   }, []);
 
-  // ── Timer ticker logic ──────────────────────────────────────────────────
-  // Runs a standard Javascript interval when the timer is toggled on
   useEffect(() => {
     if (timerRunning) {
       timerRef.current = setInterval(() => setTimerSec((s) => s + 1), 1000);
@@ -116,10 +118,8 @@ export default function App() {
     return () => clearInterval(timerRef.current);
   }, [timerRunning]);
 
-  // ── Timer actions ───────────────────────────────────────────────────────
   const toggleTimer = () => {
     if (timerRunning) {
-      // Logic to save the logged hours into the heatmap map upon stopping
       const key = todayKey();
       const hrs = timerSec / 3600;
       const newHeatmap = {
@@ -129,7 +129,6 @@ export default function App() {
       setHeatmap(newHeatmap);
       saveJSON('heatmap', newHeatmap);
 
-      // Cumulate total logged time
       const newLogged = loggedSeconds + timerSec;
       setLogged(newLogged);
       saveJSON('loggedSeconds', newLogged);
@@ -145,7 +144,23 @@ export default function App() {
     setTimerSec(0);
   };
 
-  // ── Persisted setters ───────────────────────────────────────────────────
+  const handleOnboardingComplete = (data) => {
+    setUserName(data.name);
+    setCourse(data.course);                 
+    setTotalCredits(data.totalCredits);
+    saveJSON('userName', data.name);
+    saveJSON('course', data.course);        
+    saveJSON('totalCredits', data.totalCredits);
+    setIsFirstUse(false);
+    saveJSON('isFirstUse', false);
+  };
+
+  const dismissTip = (tipId) => {
+    const updated = [...tipsShown, tipId];
+    setTipsShown(updated);
+    saveJSON('tipsShown', updated);
+  };
+
   const pExams      = usePersist('exams',      setExams);
   const pTasks      = usePersist('tasks',      setTasks);
   const pHabits     = usePersist('habits',     setHabits);
@@ -156,7 +171,6 @@ export default function App() {
   const pJournal    = usePersist('journal',    setJournal);
   const pLinks      = usePersist('links',      setLinks);
 
-  // ── Shared timer props mapped for sub-screens ─────────────────────────
   const timerProps = {
     timerSec:       loggedSeconds + timerSec,
     timerRunning,
@@ -166,16 +180,29 @@ export default function App() {
     onTimerSubject: setTimerSubject,
   };
 
-  // ── Screen mapping ──────────────────────────────────────────────────────
+  if (!ready) {
+    return (
+      <View style={{ flex: 1, backgroundColor: COLORS.bg }}>
+        <StatusBar barStyle="light-content" backgroundColor={COLORS.bg} />
+      </View>
+    );
+  }
+
+  if (isFirstUse) {
+    return <OnboardingScreen onComplete={handleOnboardingComplete} />;
+  }
+
   const SCREENS = {
     home: (
       <HomeScreen
         exams={exams} tasks={tasks} habits={habits}
-        finances={finances} heatmap={heatmap}
+        finances={finances} heatmap={heatmap} links={links}
+        userName={userName} course={course} isFirstUse={isFirstUse}
+        tipsShown={tipsShown} onDismissTip={dismissTip}
         {...timerProps}
       />
     ),
-    uni:       <UniScreen       exams={exams}         setExams={pExams}        />,
+    uni:       <UniScreen       exams={exams}         setExams={pExams} totalCredits={totalCredits} />,
     study:     <StudyScreen     tasks={tasks}         setTasks={pTasks}        {...timerProps} />,
     finances:  <FinancesScreen  finances={finances}   setFinances={pFinances}  />,
     habits:    <HabitsScreen    habits={habits}       setHabits={pHabits}      />,
@@ -194,19 +221,11 @@ export default function App() {
   const bottomNavItems = NAV.filter((n) => n.bottomNav);
   const currentNav     = NAV.find((n) => n.id === screen);
 
-  if (!ready) {
-    return (
-      <View style={{ flex: 1, backgroundColor: COLORS.bg }}>
-        <StatusBar barStyle="light-content" backgroundColor={COLORS.bg} />
-      </View>
-    );
-  }
-
   return (
     <SafeAreaView style={styles.root}>
       <StatusBar barStyle="light-content" backgroundColor={COLORS.bg} />
 
-      {/* ── Top Bar ───────────────────────────────────────────────────── */}
+      {/* ── Top Bar ── */}
       <View style={styles.topBar}>
         <TouchableOpacity onPress={() => setDrawerOpen(true)} style={styles.menuBtn}>
           <Text style={styles.menuIcon}>☰</Text>
@@ -219,7 +238,7 @@ export default function App() {
         </Text>
       </View>
 
-      {/* ── Drawer Navigation ──────────────────────────────────────────── */}
+      {/* ── Drawer ── */}
       <Modal visible={drawerOpen} animationType="fade" transparent>
         <View style={styles.drawerOverlay}>
           <TouchableOpacity style={{ flex: 1 }} onPress={() => setDrawerOpen(false)} />
@@ -248,10 +267,10 @@ export default function App() {
         </View>
       </Modal>
 
-      {/* ── Main Content ──────────────────────────────────────────────── */}
+      {/* ── Main Content ── */}
       <View style={styles.content}>{SCREENS[screen]}</View>
 
-      {/* ── Bottom Navigation ─────────────────────────────────────────── */}
+      {/* ── Bottom Nav ── */}
       <View style={styles.bottomNav}>
         {bottomNavItems.map((n) => (
           <TouchableOpacity
@@ -259,9 +278,11 @@ export default function App() {
             onPress={() => setScreen(n.id)}
             style={styles.bottomNavItem}
           >
-            <Text style={{ fontSize: 22, opacity: screen === n.id ? 1 : 0.35 }}>
-              {n.icon}
-            </Text>
+            <View style={[styles.bottomNavIconWrap, screen === n.id && styles.bottomNavIconWrapActive]}>
+              <Text style={[styles.bottomNavIcon, screen === n.id && styles.bottomNavIconActive]}>
+                {n.icon}
+              </Text>
+            </View>
             <Text style={[styles.bottomNavLabel, screen === n.id && styles.bottomNavLabelActive]}>
               {n.label}
             </Text>
@@ -272,10 +293,12 @@ export default function App() {
   );
 }
 
-// ─── Styles ───────────────────────────────────────────────────────────────────
 const styles = StyleSheet.create({
-  root: { flex: 1, backgroundColor: COLORS.bg },
-
+  root: { 
+    flex: 1, 
+    backgroundColor: COLORS.bg,
+    paddingTop: Platform.OS === 'android' ? StatusBar.currentHeight : 0 
+  },
   topBar: {
     flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
     paddingHorizontal: 16, height: 52,
@@ -300,22 +323,31 @@ const styles = StyleSheet.create({
   drawerSubtitle: { fontSize: 11, color: COLORS.textSub, marginTop: 2 },
   drawerItem: {
     flexDirection: 'row', alignItems: 'center',
-    paddingVertical: 11, paddingHorizontal: 16,
+    paddingVertical: 12, paddingHorizontal: 16,
     borderLeftWidth: 2, borderLeftColor: 'transparent',
   },
   drawerItemActive: { backgroundColor: COLORS.accentGlow, borderLeftColor: COLORS.accent },
-  drawerLabel: { fontSize: 13, color: COLORS.textMuted, marginLeft: 12 },
-  drawerLabelActive: { color: COLORS.accent, fontWeight: '600' },
+  drawerLabel:      { fontSize: 14, color: COLORS.textMuted, marginLeft: 14 },
+  drawerLabelActive:{ color: COLORS.accent, fontWeight: '600' },
 
   content: { flex: 1 },
 
   bottomNav: {
     flexDirection: 'row', justifyContent: 'space-around',
-    paddingVertical: 10, paddingBottom: 14,
+    paddingVertical: 8, paddingBottom: Platform.OS === 'ios' ? 24 : 12,
     borderTopWidth: 1, borderTopColor: COLORS.border,
-    backgroundColor: COLORS.bg,
+    backgroundColor: COLORS.bg2,
   },
   bottomNavItem: { alignItems: 'center', flex: 1 },
-  bottomNavLabel: { fontSize: 10, color: COLORS.textSub, marginTop: 3 },
+  bottomNavIconWrap: {
+    width: 36, height: 28, alignItems: 'center', justifyContent: 'center',
+    borderRadius: 10,
+  },
+  bottomNavIconWrapActive: {
+    backgroundColor: COLORS.accentGlow,
+  },
+  bottomNavIcon: { fontSize: 20, opacity: 0.35 },
+  bottomNavIconActive: { opacity: 1 },
+  bottomNavLabel: { fontSize: 10, color: COLORS.textSub, marginTop: 4 },
   bottomNavLabelActive: { color: COLORS.accent, fontWeight: '600' },
 });

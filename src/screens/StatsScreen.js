@@ -14,16 +14,16 @@ export default function StatsScreen({ exams, tasks, habits, heatmap }) {
   const studyDays       = Object.keys(heatmap).length;
   const studyHours      = Object.values(heatmap).reduce((a, v) => a + v, 0).toFixed(1);
 
+  // Uses the updated english helper function
   const { average, weightedAverage } = calculateAverages(exams);
-  const uniPct        = exams.length > 0 ? (passedExams / exams.length) * 100 : 0;
+  const uniPct         = exams.length > 0 ? (passedExams / exams.length) * 100 : 0;
   const weightedAvgPct = weightedAverage ? (weightedAverage / 30) * 100 : 0;
   const predictedGrade = predictedDegreeGrade(weightedAverage);
   const graduationPct  = predictedGrade ? (predictedGrade / 110) * 100 : 0;
 
   const today = todayKey();
 
-  // ─── Heatmap Layout Constants ──────────────────────────────────────────────
-  // Generates columns representing the intensity of study hours
+  // ─── Heatmap Layout Generation ─────────────────────────────────────────────
   const heatmapCols = useMemo(() => {
     const cols = [];
     const now = new Date();
@@ -42,7 +42,6 @@ export default function StatsScreen({ exams, tasks, habits, heatmap }) {
     return cols;
   }, [heatmap]);
 
-  // Helper to resolve color intensity based on hours studied
   const getHeatColor = (val) => {
     if (val === 0) return COLORS.bg4;
     if (val < 2)   return '#102A45';

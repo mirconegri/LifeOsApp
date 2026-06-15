@@ -187,7 +187,7 @@ const styles = StyleSheet.create({
   linkIcon: { fontSize: 24, marginRight: 12 },
   linkTexts:{ flex: 1 },
   linkName: { fontSize: 15, fontWeight: '600', color: COLORS.text, marginBottom: 2 },
-  linkUrl:  { fontSize: 12, color: COLORS.textSub },
+  linkUrl:  { fontSize: 12, color: COLORS.accent },
 
   actions:  { flexDirection: 'row', alignItems: 'center' },
   starBtn:  { padding: 8, marginRight: 4 },

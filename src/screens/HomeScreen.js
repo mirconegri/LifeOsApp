@@ -5,7 +5,6 @@ import {
 import { COLORS } from '../config/colors';
 import { Card } from '../components/Card';
 import { Pill } from '../components/Pill';
-import { ProgressRing } from '../components/ProgressRing';
 import { StatCard } from '../components/StatCard';
 import { TipBubble } from '../components/TipBubble';
 import { greet, todayKey, fmt, diffDays, calculateAverages } from '../data/helpers';
@@ -22,7 +21,7 @@ const TIPS = [
 
 export default function HomeScreen({
   exams, tasks, habits, finances, heatmap, links,
-  userName, isFirstUse, tipsShown, onDismissTip,
+  userName, course, isFirstUse, tipsShown, onDismissTip,
 }) {
   const today    = todayKey();
   const dateLabel = new Date().toLocaleDateString('en-US', { weekday: 'long', day: 'numeric', month: 'long' });
@@ -49,6 +48,12 @@ export default function HomeScreen({
         <View style={styles.header}>
           <Text style={styles.greeting}>{greet()}, {userName || 'Boss'}!</Text>
           <Text style={styles.dateLabel}>Today is {dateLabel}</Text>
+          {/* NEW: Display the user's University Course */}
+          {course ? (
+            <Text style={[styles.dateLabel, {color: COLORS.accent, marginTop: 2, fontWeight: '600'}]}>
+              🎓 {course}
+            </Text>
+          ) : null}
         </View>
 
         {/* Mission Control Grid */}
@@ -163,12 +168,13 @@ const styles = StyleSheet.create({
   },
   linkChip: {
     flexDirection: 'row', alignItems: 'center',
-    backgroundColor: COLORS.bg2, borderWidth: 1, borderColor: COLORS.border,
+    backgroundColor: COLORS.bg3, // FIX: Più chiaro per staccare dal background
+    borderWidth: 1, borderColor: COLORS.border,
     borderRadius: 12, paddingHorizontal: 14, paddingVertical: 10,
     width: '48%', marginBottom: 10,
   },
   linkChipIcon:  { fontSize: 18, marginRight: 8 },
-  linkChipLabel: { fontSize: 13, color: COLORS.text, fontWeight: '500', flex: 1 },
+  linkChipLabel: { fontSize: 14, color: COLORS.text, fontWeight: '600', flex: 1 }, // FIX: Più grande e in grassetto
 
   sectionTitle: { fontSize: 13, fontWeight: '600', color: COLORS.textMuted, textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 10, marginTop: 8 },
   emptyText:    { fontSize: 13, color: COLORS.textSub, marginBottom: 12 },
