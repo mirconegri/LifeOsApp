@@ -1,3 +1,4 @@
+// src/screens/StudyScreen.js
 import React, { useState } from 'react';
 import {
   View, Text, ScrollView, StyleSheet, TextInput,
@@ -7,6 +8,7 @@ import { COLORS } from '../config/colors';
 import { Card } from '../components/Card';
 import { Pill } from '../components/Pill';
 import { CustomAlert } from '../components/CustomAlert';
+import { DatePicker } from '../components/DatePicker';
 import { todayKey } from '../data/helpers';
 
 export default function StudioScreen({ tasks, setTasks }) {
@@ -23,7 +25,6 @@ export default function StudioScreen({ tasks, setTasks }) {
   endOfWeek.setDate(endOfWeek.getDate() + (7 - endOfWeek.getDay()));
   const weekKey = endOfWeek.toISOString().slice(0, 10);
 
-  // Filter Tasks based on tab selection
   const filtered = tasks.filter(t => {
     if (filter === 'today') return t.date === today;
     if (filter === 'week')  return t.date >= today && t.date <= weekKey;
@@ -34,23 +35,26 @@ export default function StudioScreen({ tasks, setTasks }) {
     setTasks(prev => prev.map(t => t.id === id ? { ...t, done: !t.done } : t));
   };
 
+  const openModal = () => {
+    setFormText(''); setFormSubject('');
+    setFormPriority('medium'); setFormDate(todayKey());
+    setModalVisible(true);
+  };
+
   const handleAddTask = () => {
-    if (!formText.trim()) return;
+    if (!formText.trim()) {
+      setAlertConfig({ title: 'Error', message: 'Enter a task description.',
+        buttons: [{ text: 'OK', style: 'cancel', onPress: () => setAlertConfig(null) }] }); return;
+    }
     const newTask = {
       id: Date.now(),
       text: formText.trim(),
       subject: formSubject.trim() || null,
       priority: formPriority,
-      date: formDate,
-      done: false
+      date: formDate || today,
+      done: false,
     };
     setTasks(prev => [newTask, ...prev]);
-    
-    // Reset fields
-    setFormText('');
-    setFormSubject('');
-    setFormPriority('medium');
-    setFormDate(todayKey());
     setModalVisible(false);
   };
 
@@ -61,11 +65,10 @@ export default function StudioScreen({ tasks, setTasks }) {
       buttons: [
         { text: 'Cancel', style: 'cancel', onPress: () => setAlertConfig(null) },
         { text: 'Delete', style: 'destructive', onPress: () => {
-            setTasks(prev => prev.filter(t => t.id !== id));
-            setAlertConfig(null);
-          }
-        }
-      ]
+          setTasks(prev => prev.filter(t => t.id !== id));
+          setAlertConfig(null);
+        }},
+      ],
     });
   };
 
@@ -95,7 +98,7 @@ export default function StudioScreen({ tasks, setTasks }) {
           ))}
         </View>
 
-        <TouchableOpacity onPress={() => setModalVisible(true)} style={styles.addBtn}>
+        <TouchableOpacity onPress={openModal} style={styles.addBtn}>
           <Text style={styles.addBtnText}>+ Add Task</Text>
         </TouchableOpacity>
       </View>
@@ -141,58 +144,61 @@ export default function StudioScreen({ tasks, setTasks }) {
             <View style={styles.modalHandle} />
             <Text style={styles.modalTitle}>New Task</Text>
 
-            <TextInput
-              placeholder="Task description..."
-              placeholderTextColor={COLORS.textSub}
-              value={formText}
-              onChangeText={setFormText}
-              style={styles.input}
-            />
+            <ScrollView showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
+              <TextInput
+                placeholder="Task description..."
+                placeholderTextColor={COLORS.textSub}
+                value={formText}
+                onChangeText={setFormText}
+                style={styles.input}
+                autoFocus
+              />
 
-            <TextInput
-              placeholder="Subject name (optional)..."
-              placeholderTextColor={COLORS.textSub}
-              value={formSubject}
-              onChangeText={setFormSubject}
-              style={styles.input}
-            />
+              <TextInput
+                placeholder="Subject name (optional)..."
+                placeholderTextColor={COLORS.textSub}
+                value={formSubject}
+                onChangeText={setFormSubject}
+                style={styles.input}
+              />
 
-            <TextInput
-              placeholder="Date (YYYY-MM-DD)..."
-              placeholderTextColor={COLORS.textSub}
-              value={formDate}
-              onChangeText={setFormDate}
-              style={styles.input}
-            />
+              <Text style={styles.fieldLabel}>Due date</Text>
+              <DatePicker
+                value={formDate}
+                onChange={setFormDate}
+                mode="any"
+                label="Select due date"
+              />
 
-            <Text style={styles.fieldLabel}>Priority</Text>
-            <View style={styles.priorityRow}>
-              {['low', 'medium', 'high'].map((p) => (
-                <TouchableOpacity
-                  key={p}
-                  onPress={() => setFormPriority(p)}
-                  style={[styles.priorityChip, formPriority === p && styles.priorityChipActive, { marginRight: 8 }]}
-                >
-                  <Text style={[styles.priorityChipText, formPriority === p && styles.priorityChipTextActive]}>
-                    {p.toUpperCase()}
-                  </Text>
+              <Text style={styles.fieldLabel}>Priority</Text>
+              <View style={styles.priorityRow}>
+                {['low', 'medium', 'high'].map((p) => (
+                  <TouchableOpacity
+                    key={p}
+                    onPress={() => setFormPriority(p)}
+                    style={[styles.priorityChip, formPriority === p && styles.priorityChipActive, { marginRight: 8 }]}
+                  >
+                    <Text style={[styles.priorityChipText, formPriority === p && styles.priorityChipTextActive]}>
+                      {p.toUpperCase()}
+                    </Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+
+              <View style={styles.modalButtons}>
+                <TouchableOpacity onPress={() => setModalVisible(false)} style={[styles.formBtn, styles.btnCancel]}>
+                  <Text style={styles.btnCancelText}>Cancel</Text>
                 </TouchableOpacity>
-              ))}
-            </View>
+                <TouchableOpacity onPress={handleAddTask} style={[styles.formBtn, styles.btnSave]}>
+                  <Text style={styles.btnSaveText}>Save</Text>
+                </TouchableOpacity>
+              </View>
 
-            <View style={styles.modalButtons}>
-              <TouchableOpacity onPress={() => setModalVisible(false)} style={[styles.formBtn, styles.btnCancel]}>
-                <Text style={styles.btnCancelText}>Cancel</Text>
-              </TouchableOpacity>
-              <TouchableOpacity onPress={handleAddTask} style={[styles.formBtn, styles.btnSave]}>
-                <Text style={styles.btnSaveText}>Save</Text>
-              </TouchableOpacity>
-            </View>
-
+              <View style={{ height: 20 }} />
+            </ScrollView>
           </View>
         </KeyboardAvoidingView>
       </Modal>
-
     </View>
   );
 }
@@ -210,7 +216,7 @@ const styles = StyleSheet.create({
 
   list: { padding: 16, paddingTop: 0 },
   emptyText: { color: COLORS.textMuted, textAlign: 'center', marginTop: 40, fontSize: 14 },
-  
+
   taskCard: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10, paddingVertical: 12 },
   taskCardDone: { opacity: 0.5 },
   checkArea: { flexDirection: 'row', alignItems: 'center', flex: 1 },
@@ -227,11 +233,11 @@ const styles = StyleSheet.create({
 
   modalWrapper: { flex: 1, justifyContent: 'flex-end' },
   modalBackdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.6)' },
-  modal: { backgroundColor: COLORS.bg2, borderTopLeftRadius: 24, borderTopRightRadius: 24, padding: 24, paddingBottom: 40, borderTopWidth: 1, borderColor: COLORS.border },
+  modal: { backgroundColor: COLORS.bg2, borderTopLeftRadius: 24, borderTopRightRadius: 24, padding: 24, paddingBottom: 40, borderTopWidth: 1, borderColor: COLORS.border, maxHeight: '88%' },
   modalHandle: { width: 40, height: 4, borderRadius: 2, backgroundColor: COLORS.bg4, alignSelf: 'center', marginBottom: 16 },
   modalTitle: { fontSize: 18, fontWeight: '700', color: COLORS.text, marginBottom: 16, textAlign: 'center' },
-  input: { backgroundColor: COLORS.bg3, borderWidth: 1, borderColor: COLORS.border, borderRadius: 10, padding: 12, color: COLORS.text, fontSize: 14, marginBottom: 10 },
-  fieldLabel: { color: COLORS.textSub, fontSize: 13, marginBottom: 8 },
+  input: { backgroundColor: COLORS.bg3, borderWidth: 1, borderColor: COLORS.border, borderRadius: 10, padding: 12, color: COLORS.text, fontSize: 14, marginBottom: 12 },
+  fieldLabel: { color: COLORS.textSub, fontSize: 13, marginBottom: 8, marginTop: 4 },
   priorityRow: { flexDirection: 'row', marginBottom: 16 },
   priorityChip: { flex: 1, paddingVertical: 8, borderRadius: 10, backgroundColor: COLORS.bg4, alignItems: 'center' },
   priorityChipActive: { backgroundColor: COLORS.accentGlow },
@@ -242,5 +248,5 @@ const styles = StyleSheet.create({
   btnCancel: { backgroundColor: COLORS.bg4, marginRight: 10 },
   btnCancelText: { color: COLORS.textMuted, fontWeight: '600' },
   btnSave: { backgroundColor: COLORS.accent },
-  btnSaveText: { color: '#fff', fontWeight: '700' }
+  btnSaveText: { color: '#fff', fontWeight: '700' },
 });

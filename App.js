@@ -180,6 +180,10 @@ export default function App() {
     onTimerSubject: setTimerSubject,
   };
 
+  // Used by HomeScreen's per-section "jump to" arrows, so tapping a
+  // section title on the Home screen navigates straight into it.
+  const navigateTo = (screenId) => setScreen(screenId);
+
   if (!ready) {
     return (
       <View style={{ flex: 1, backgroundColor: COLORS.bg }}>
@@ -199,6 +203,7 @@ export default function App() {
         finances={finances} heatmap={heatmap} links={links}
         userName={userName} course={course} isFirstUse={isFirstUse}
         tipsShown={tipsShown} onDismissTip={dismissTip}
+        onNavigate={navigateTo}
         {...timerProps}
       />
     ),
@@ -238,10 +243,13 @@ export default function App() {
         </Text>
       </View>
 
-      {/* ── Drawer ── */}
+      {/* ── Drawer ──
+          Opens from the LEFT edge of the screen. The overlay puts the
+          dismiss-tap area AFTER the drawer panel in source order, and the
+          drawer itself is anchored with borderRightWidth (not left), so it
+          slides in from the left side rather than the right. */}
       <Modal visible={drawerOpen} animationType="fade" transparent>
         <View style={styles.drawerOverlay}>
-          <TouchableOpacity style={{ flex: 1 }} onPress={() => setDrawerOpen(false)} />
           <View style={styles.drawer}>
             <View style={styles.drawerHeader}>
               <Text style={styles.logo}>
@@ -264,6 +272,7 @@ export default function App() {
               ))}
             </ScrollView>
           </View>
+          <TouchableOpacity style={{ flex: 1 }} onPress={() => setDrawerOpen(false)} />
         </View>
       </Modal>
 
@@ -315,7 +324,7 @@ const styles = StyleSheet.create({
   },
   drawer: {
     width: 240, backgroundColor: COLORS.bg2,
-    borderLeftWidth: 1, borderLeftColor: COLORS.border,
+    borderRightWidth: 1, borderRightColor: COLORS.border,
   },
   drawerHeader: {
     padding: 16, borderBottomWidth: 1, borderBottomColor: COLORS.border, marginBottom: 8,

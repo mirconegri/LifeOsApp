@@ -106,40 +106,42 @@ export default function NotesScreen({ notes, setNotes }) {
             <View style={styles.modalHandle} />
             <Text style={styles.modalTitle}>New Note</Text>
 
-            <TextInput
-              style={[styles.input, styles.titleInput]}
-              placeholder="Title..."
-              placeholderTextColor={COLORS.textSub}
-              value={formTitle}
-              onChangeText={setFormTitle}
-            />
+            <ScrollView keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
+              <TextInput
+                style={[styles.input, styles.titleInput]}
+                placeholder="Title..."
+                placeholderTextColor={COLORS.textSub}
+                value={formTitle}
+                onChangeText={setFormTitle}
+              />
 
-            <TextInput
-              style={[styles.input, styles.contentInput]}
-              placeholder="Write something brilliant..."
-              placeholderTextColor={COLORS.textSub}
-              value={formContent}
-              onChangeText={setFormContent}
-              multiline
-              textAlignVertical="top"
-            />
+              <TextInput
+                style={[styles.input, styles.contentInput]}
+                placeholder="Write something brilliant..."
+                placeholderTextColor={COLORS.textSub}
+                value={formContent}
+                onChangeText={setFormContent}
+                multiline
+                textAlignVertical="top"
+              />
 
-            <TextInput
-              style={styles.input}
-              placeholder="Tags (comma separated)..."
-              placeholderTextColor={COLORS.textSub}
-              value={formTags}
-              onChangeText={setFormTags}
-            />
+              <TextInput
+                style={styles.input}
+                placeholder="Tags (comma separated)..."
+                placeholderTextColor={COLORS.textSub}
+                value={formTags}
+                onChangeText={setFormTags}
+              />
 
-            <View style={styles.modalBtns}>
-              <TouchableOpacity onPress={() => setModalVisible(false)} style={[styles.btn, styles.btnCancel]}>
-                <Text style={styles.btnCancelText}>Cancel</Text>
-              </TouchableOpacity>
-              <TouchableOpacity onPress={addNote} style={[styles.btn, styles.btnSave]}>
-                <Text style={styles.btnSaveText}>Save</Text>
-              </TouchableOpacity>
-            </View>
+              <View style={styles.modalBtns}>
+                <TouchableOpacity onPress={() => setModalVisible(false)} style={[styles.btn, styles.btnCancel]}>
+                  <Text style={styles.btnCancelText}>Cancel</Text>
+                </TouchableOpacity>
+                <TouchableOpacity onPress={addNote} style={[styles.btn, styles.btnSave]}>
+                  <Text style={styles.btnSaveText}>Save</Text>
+                </TouchableOpacity>
+              </View>
+            </ScrollView>
           </View>
         </KeyboardAvoidingView>
       </Modal>

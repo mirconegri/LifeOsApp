@@ -28,7 +28,7 @@ export default function HabitsScreen({ habits, setHabits }) {
       } else {
         history[today] = 1;
       }
-      
+
       let streak = 0;
       const d = new Date();
       while (true) {
@@ -160,32 +160,37 @@ export default function HabitsScreen({ habits, setHabits }) {
             <View style={styles.modalHandle} />
             <Text style={styles.modalTitle}>New Habit</Text>
 
-            <View style={styles.formRow}>
-              <TextInput
-                style={[styles.input, styles.iconInput]}
-                value={formIcon}
-                onChangeText={setFormIcon}
-                maxLength={2}
-                placeholder="Icon"
-              />
-              <TextInput
-                style={[styles.input, { flex: 1 }]}
-                placeholder="Name (e.g. Reading, Running)..."
-                placeholderTextColor={COLORS.textSub}
-                value={formName}
-                onChangeText={setFormName}
-                autoFocus
-              />
-            </View>
+            {/* keyboardShouldPersistTaps="handled" fixes the bug where the
+                first tap on Create just dismisses the keyboard instead of
+                firing onPress, forcing a second tap. */}
+            <ScrollView keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
+              <View style={styles.formRow}>
+                <TextInput
+                  style={[styles.input, styles.iconInput]}
+                  value={formIcon}
+                  onChangeText={setFormIcon}
+                  maxLength={2}
+                  placeholder="Icon"
+                />
+                <TextInput
+                  style={[styles.input, { flex: 1 }]}
+                  placeholder="Name (e.g. Reading, Running)..."
+                  placeholderTextColor={COLORS.textSub}
+                  value={formName}
+                  onChangeText={setFormName}
+                  autoFocus
+                />
+              </View>
 
-            <View style={styles.modalBtns}>
-              <TouchableOpacity style={[styles.btn, styles.btnCancel]} onPress={() => setModalVisible(false)}>
-                <Text style={styles.btnCancelText}>Cancel</Text>
-              </TouchableOpacity>
-              <TouchableOpacity style={[styles.btn, styles.btnSave]} onPress={addHabit}>
-                <Text style={styles.btnSaveText}>Create</Text>
-              </TouchableOpacity>
-            </View>
+              <View style={styles.modalBtns}>
+                <TouchableOpacity style={[styles.btn, styles.btnCancel]} onPress={() => setModalVisible(false)}>
+                  <Text style={styles.btnCancelText}>Cancel</Text>
+                </TouchableOpacity>
+                <TouchableOpacity style={[styles.btn, styles.btnSave]} onPress={addHabit}>
+                  <Text style={styles.btnSaveText}>Create</Text>
+                </TouchableOpacity>
+              </View>
+            </ScrollView>
           </View>
         </KeyboardAvoidingView>
       </Modal>
@@ -247,6 +252,7 @@ const styles = StyleSheet.create({
     paddingBottom: 40,
     borderTopWidth: 1,
     borderColor: COLORS.border,
+    maxHeight: '88%',
   },
   modalHandle: {
     width: 40, height: 4, borderRadius: 2,
