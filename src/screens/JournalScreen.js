@@ -1,8 +1,13 @@
 import React, { useState, useMemo } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Modal, TextInput, Alert } from 'react-native';
+import {
+  View, Text, StyleSheet, ScrollView, TouchableOpacity, Modal,
+  TextInput, KeyboardAvoidingView, Platform,
+} from 'react-native';
 import { Card } from '../components/Card';
 import { Pill } from '../components/Pill';
 import { COLORS } from '../config/colors';
+import { CustomAlert } from '../components/CustomAlert';
+import { DatePicker } from '../components/DatePicker';
 import { todayKey, diffDays } from '../data/helpers';
 
 export default function JournalScreen({ journal, setJournal }) {
@@ -11,6 +16,7 @@ export default function JournalScreen({ journal, setJournal }) {
   const [formSubject, setFormSubject]   = useState('');
   const [formPriority, setFormPriority] = useState('medium');
   const [formDate, setFormDate]         = useState(todayKey());
+  const [alertConfig, setAlertConfig]   = useState(null);
 
   const openModal = () => {
     setFormText(''); setFormSubject(''); setFormPriority('medium'); setFormDate(todayKey());
@@ -19,8 +25,12 @@ export default function JournalScreen({ journal, setJournal }) {
 
   const addEntry = () => {
     const t = formText.trim();
-    if (!t) { Alert.alert('Error', 'Please enter a description'); return; }
-    
+    if (!t) {
+      setAlertConfig({ title: 'Error', message: 'Please enter a description.',
+        buttons: [{ text: 'OK', style: 'cancel', onPress: () => setAlertConfig(null) }] });
+      return;
+    }
+
     const newId = Math.max(0, ...journal.map(x => x.id || 0)) + 1;
     setJournal(prev => [
       ...prev,
@@ -34,10 +44,17 @@ export default function JournalScreen({ journal, setJournal }) {
   };
 
   const deleteEntry = (id) => {
-    Alert.alert('Delete entry', 'Do you want to remove this entry?', [
-      { text: 'Cancel', style: 'cancel' },
-      { text: 'Delete', style: 'destructive', onPress: () => setJournal(prev => prev.filter(t => t.id !== id)) }
-    ]);
+    setAlertConfig({
+      title: 'Delete Entry',
+      message: 'Do you want to remove this entry?',
+      buttons: [
+        { text: 'Cancel', style: 'cancel', onPress: () => setAlertConfig(null) },
+        { text: 'Delete', style: 'destructive', onPress: () => {
+          setJournal(prev => prev.filter(t => t.id !== id));
+          setAlertConfig(null);
+        }},
+      ],
+    });
   };
 
   const priorityColor = (p) => p === 'high' ? 'red' : p === 'medium' ? 'amber' : 'green';
@@ -95,31 +112,69 @@ export default function JournalScreen({ journal, setJournal }) {
         ))
       )}
 
-      {/* Add Modal */}
+      {/* Add Modal — now wrapped in KeyboardAvoidingView + a scrollable
+          inner container with keyboardShouldPersistTaps="handled", and the
+          date field uses the same calendar DatePicker as Exams/Finances/Goals. */}
       <Modal visible={modalVisible} transparent animationType="slide">
-        <View style={styles.modalOverlay}>
+        <KeyboardAvoidingView
+          style={styles.modalWrapper}
+          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        >
+          <TouchableOpacity style={styles.modalBackdrop} activeOpacity={1} onPress={() => setModalVisible(false)} />
           <View style={styles.modal}>
+            <View style={styles.modalHandle} />
             <Text style={styles.modalTitle}>New Entry</Text>
-            <TextInput style={styles.input} placeholder="What do you need to do?" placeholderTextColor={COLORS.textSub} value={formText} onChangeText={setFormText} />
-            <TextInput style={styles.input} placeholder="Subject or Category (optional)" placeholderTextColor={COLORS.textSub} value={formSubject} onChangeText={setFormSubject} />
-            <TextInput style={styles.input} placeholder={`Date (e.g. ${todayKey()})`} placeholderTextColor={COLORS.textSub} value={formDate} onChangeText={setFormDate} />
-            
-            <Text style={styles.fieldLabel}>Priority:</Text>
-            <View style={styles.pillRow}>
-              {['low', 'medium', 'high'].map((p, idx) => (
-                <TouchableOpacity key={p} onPress={() => setFormPriority(p)} style={[styles.priorityBtn, formPriority === p && styles.priorityBtnActive, idx < 2 && { marginRight: 10 }]}>
-                  <Text style={[styles.priorityText, formPriority === p && {color: COLORS.accent}]}>{p.toUpperCase()}</Text>
-                </TouchableOpacity>
-              ))}
-            </View>
 
-            <View style={styles.modalBtns}>
-              <TouchableOpacity onPress={() => setModalVisible(false)}><Text style={styles.cancelBtn}>Cancel</Text></TouchableOpacity>
-              <TouchableOpacity style={styles.confirmBtn} onPress={addEntry}><Text style={styles.confirmBtnText}>Save</Text></TouchableOpacity>
-            </View>
+            <ScrollView keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
+              <TextInput
+                style={styles.input}
+                placeholder="What do you need to do?"
+                placeholderTextColor={COLORS.textSub}
+                value={formText}
+                onChangeText={setFormText}
+                autoFocus
+              />
+              <TextInput
+                style={styles.input}
+                placeholder="Subject or Category (optional)"
+                placeholderTextColor={COLORS.textSub}
+                value={formSubject}
+                onChangeText={setFormSubject}
+              />
+
+              <Text style={styles.fieldLabel}>Date:</Text>
+              <DatePicker
+                value={formDate}
+                onChange={setFormDate}
+                mode="any"
+                label="Select date"
+              />
+
+              <Text style={styles.fieldLabel}>Priority:</Text>
+              <View style={styles.pillRow}>
+                {['low', 'medium', 'high'].map((p, idx) => (
+                  <TouchableOpacity key={p} onPress={() => setFormPriority(p)} style={[styles.priorityBtn, formPriority === p && styles.priorityBtnActive, idx < 2 && { marginRight: 10 }]}>
+                    <Text style={[styles.priorityText, formPriority === p && {color: COLORS.accent}]}>{p.toUpperCase()}</Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+
+              <View style={styles.modalBtns}>
+                <TouchableOpacity onPress={() => setModalVisible(false)}>
+                  <Text style={styles.cancelBtn}>Cancel</Text>
+                </TouchableOpacity>
+                <TouchableOpacity style={styles.confirmBtn} onPress={addEntry}>
+                  <Text style={styles.confirmBtnText}>Save</Text>
+                </TouchableOpacity>
+              </View>
+
+              <View style={{ height: 20 }} />
+            </ScrollView>
           </View>
-        </View>
+        </KeyboardAvoidingView>
       </Modal>
+
+      <CustomAlert config={alertConfig} />
     </ScrollView>
   );
 }
@@ -147,8 +202,18 @@ const styles = StyleSheet.create({
   taskSubject: { fontSize: 12, color: COLORS.textMuted, marginTop: 4 },
   trashBtn: { padding: 8, marginLeft: 8 },
   trashIcon: { color: COLORS.textSub, fontSize: 16 },
-  modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.7)', justifyContent: 'flex-end' },
-  modal: { backgroundColor: COLORS.bg2, borderTopLeftRadius: 24, borderTopRightRadius: 24, padding: 24, paddingBottom: 40 },
+
+  // Modal
+  modalWrapper:  { flex: 1, justifyContent: 'flex-end' },
+  modalBackdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.7)' },
+  modal: {
+    backgroundColor: COLORS.bg2,
+    borderTopLeftRadius: 24, borderTopRightRadius: 24,
+    padding: 24, paddingBottom: 40,
+    borderTopWidth: 1, borderColor: COLORS.border,
+    maxHeight: '88%',
+  },
+  modalHandle: { width: 40, height: 4, borderRadius: 2, backgroundColor: COLORS.bg4, alignSelf: 'center', marginBottom: 16 },
   modalTitle: { fontSize: 20, fontWeight: '700', color: COLORS.text, marginBottom: 20, textAlign: 'center' },
   input: { backgroundColor: COLORS.bg3, borderWidth: 1, borderColor: COLORS.border, borderRadius: 10, padding: 12, color: COLORS.text, fontSize: 15, marginBottom: 12 },
   fieldLabel: { color: COLORS.textSub, fontSize: 13, marginBottom: 8 },

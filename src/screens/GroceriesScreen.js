@@ -124,35 +124,40 @@ export default function GroceriesScreen({ groceries, setGroceries }) {
             <View style={styles.modalHandle} />
             <Text style={styles.modalTitle}>Add Product</Text>
 
-            <TextInput
-              style={styles.input}
-              placeholder="What do you need to buy?"
-              placeholderTextColor={COLORS.textSub}
-              value={formText}
-              onChangeText={setFormText}
-              autoFocus
-              returnKeyType="done"
-              onSubmitEditing={addItem}
-            />
+            {/* keyboardShouldPersistTaps="handled" fixes the bug where the
+                first tap on Add just dismisses the keyboard instead of
+                firing onPress, forcing the user to tap twice. */}
+            <ScrollView keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
+              <TextInput
+                style={styles.input}
+                placeholder="What do you need to buy?"
+                placeholderTextColor={COLORS.textSub}
+                value={formText}
+                onChangeText={setFormText}
+                autoFocus
+                returnKeyType="done"
+                onSubmitEditing={addItem}
+              />
 
-            <Text style={styles.fieldLabel}>Category:</Text>
-            <View style={styles.catRow}>
-              {CATEGORIES.map(c => (
-                <TouchableOpacity key={c} onPress={() => setFormCat(c)}
-                  style={[styles.catChip, formCat === c && styles.catChipActive, { marginRight: 8, marginBottom: 8 }]}>
-                  <Text style={[styles.catChipText, formCat === c && { color: COLORS.accent }]}>{c}</Text>
+              <Text style={styles.fieldLabel}>Category:</Text>
+              <View style={styles.catRow}>
+                {CATEGORIES.map(c => (
+                  <TouchableOpacity key={c} onPress={() => setFormCat(c)}
+                    style={[styles.catChip, formCat === c && styles.catChipActive, { marginRight: 8, marginBottom: 8 }]}>
+                    <Text style={[styles.catChipText, formCat === c && { color: COLORS.accent }]}>{c}</Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+
+              <View style={styles.modalBtns}>
+                <TouchableOpacity onPress={() => setModalVisible(false)}>
+                  <Text style={styles.cancelBtn}>Cancel</Text>
                 </TouchableOpacity>
-              ))}
-            </View>
-
-            <View style={styles.modalBtns}>
-              <TouchableOpacity onPress={() => setModalVisible(false)}>
-                <Text style={styles.cancelBtn}>Cancel</Text>
-              </TouchableOpacity>
-              <TouchableOpacity style={styles.confirmBtn} onPress={addItem}>
-                <Text style={styles.confirmBtnText}>Add</Text>
-              </TouchableOpacity>
-            </View>
+                <TouchableOpacity style={styles.confirmBtn} onPress={addItem}>
+                  <Text style={styles.confirmBtnText}>Add</Text>
+                </TouchableOpacity>
+              </View>
+            </ScrollView>
           </View>
         </KeyboardAvoidingView>
       </Modal>
@@ -200,6 +205,7 @@ const styles = StyleSheet.create({
     borderTopLeftRadius: 24, borderTopRightRadius: 24,
     padding: 24, paddingBottom: 40,
     borderTopWidth: 1, borderColor: COLORS.border,
+    maxHeight: '88%',
   },
   modalHandle: { width: 40, height: 4, borderRadius: 2, backgroundColor: COLORS.bg4, alignSelf: 'center', marginBottom: 16 },
   modalTitle:  { fontSize: 18, fontWeight: '700', color: COLORS.text, marginBottom: 16, textAlign: 'center' },
@@ -209,7 +215,7 @@ const styles = StyleSheet.create({
   catChip:     { paddingHorizontal: 14, paddingVertical: 7, borderRadius: 12, backgroundColor: COLORS.bg4 },
   catChipActive:{ backgroundColor: COLORS.accentGlow },
   catChipText: { fontSize: 13, color: COLORS.textMuted },
-  modalBtns:   { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
+  modalBtns:   { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: 4 },
   cancelBtn:   { color: COLORS.textSub, fontSize: 15, padding: 10 },
   confirmBtn:  { backgroundColor: COLORS.accent, paddingVertical: 12, paddingHorizontal: 22, borderRadius: 10 },
   confirmBtnText: { color: '#fff', fontSize: 14, fontWeight: '700' },

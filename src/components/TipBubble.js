@@ -4,7 +4,7 @@ import { COLORS } from '../config/colors';
 
 /**
  * TipBubble – floating tooltip shown during onboarding.
- * 
+ *
  * Props:
  *   visible  – bool
  *   text     – string

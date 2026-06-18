@@ -1,8 +1,14 @@
+// src/screens/GoalsScreen.js
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Modal, TextInput, Alert } from 'react-native';
+import {
+  View, Text, StyleSheet, ScrollView, TouchableOpacity, Modal,
+  TextInput, KeyboardAvoidingView, Platform,
+} from 'react-native';
 import { Card } from '../components/Card';
 import { Pill } from '../components/Pill';
 import { COLORS } from '../config/colors';
+import { CustomAlert } from '../components/CustomAlert';
+import { DatePicker } from '../components/DatePicker';
 
 export default function GoalsScreen({ goals, setGoals }) {
   const [modalVisible, setModalVisible] = useState(false);
@@ -14,6 +20,7 @@ export default function GoalsScreen({ goals, setGoals }) {
   const [priority, setPriority]         = useState('medium');
   const [deadline, setDeadline]         = useState('');
   const [filter, setFilter]             = useState('All');
+  const [alertConfig, setAlertConfig]   = useState(null);
 
   const GOAL_CATEGORIES = ['Study', 'Sport', 'Finance', 'Health', 'Personal', 'Work'];
   const PRIORITY_OPTS   = ['low', 'medium', 'high'];
@@ -29,11 +36,17 @@ export default function GoalsScreen({ goals, setGoals }) {
   const addGoal = () => {
     const t = title.trim();
     const target = parseFloat(targetInput.replace(',', '.')) || 0;
-    if (!t) { Alert.alert('Error', 'Please enter a title'); return; }
-    if (target <= 0) { Alert.alert('Error', 'Please enter a valid target'); return; }
-    
+    if (!t) {
+      setAlertConfig({ title: 'Error', message: 'Please enter a title.',
+        buttons: [{ text: 'OK', style: 'cancel', onPress: () => setAlertConfig(null) }] }); return;
+    }
+    if (target <= 0) {
+      setAlertConfig({ title: 'Error', message: 'Please enter a valid target.',
+        buttons: [{ text: 'OK', style: 'cancel', onPress: () => setAlertConfig(null) }] }); return;
+    }
+
     const newId = Math.max(0, ...goals.map(o => o.id || 0)) + 1;
-    
+
     const goal = {
       id: newId,
       title: t,
@@ -45,7 +58,7 @@ export default function GoalsScreen({ goals, setGoals }) {
       deadline: deadline.trim(),
       completed: false,
     };
-    
+
     setGoals(prev => [goal, ...prev]);
     setModalVisible(false);
   };
@@ -67,12 +80,17 @@ export default function GoalsScreen({ goals, setGoals }) {
   };
 
   const deleteGoal = (id) => {
-    Alert.alert('Delete Goal?', '', [
-      { text: 'Cancel', style: 'cancel' },
-      { text: 'Delete', style: 'destructive', onPress: () => {
-        setGoals(prev => prev.filter(o => o.id !== id));
-      }}
-    ]);
+    setAlertConfig({
+      title: 'Delete Goal?',
+      message: '',
+      buttons: [
+        { text: 'Cancel', style: 'cancel', onPress: () => setAlertConfig(null) },
+        { text: 'Delete', style: 'destructive', onPress: () => {
+          setGoals(prev => prev.filter(o => o.id !== id));
+          setAlertConfig(null);
+        }},
+      ],
+    });
   };
 
   const priorityColor = (p) => p === 'high' ? COLORS.red : p === 'medium' ? COLORS.amber : COLORS.green;
@@ -190,62 +208,84 @@ export default function GoalsScreen({ goals, setGoals }) {
         );
       })}
 
-      {/* Create Modal */}
+      {/* Create Modal — now wrapped in KeyboardAvoidingView so it scrolls
+          above the keyboard instead of being covered by it */}
       <Modal visible={modalVisible} transparent animationType="slide">
-        <View style={styles.modalOverlay}>
+        <KeyboardAvoidingView
+          style={styles.modalWrapper}
+          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        >
+          <TouchableOpacity
+            style={styles.modalBackdrop}
+            activeOpacity={1}
+            onPress={() => setModalVisible(false)}
+          />
           <View style={styles.modal}>
+            <View style={styles.modalHandle} />
             <Text style={styles.modalTitle}>🎯 New Goal</Text>
 
-            <TextInput style={styles.input} placeholder="Goal title"
-              placeholderTextColor={COLORS.textSub} value={title} onChangeText={setTitle} />
-            <TextInput style={[styles.input, styles.noteInput]} placeholder="Description (opt.)"
-              placeholderTextColor={COLORS.textSub} value={description}
-              onChangeText={setDescription} multiline />
+            <ScrollView showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
+              <TextInput style={styles.input} placeholder="Goal title"
+                placeholderTextColor={COLORS.textSub} value={title} onChangeText={setTitle} />
+              <TextInput style={[styles.input, styles.noteInput]} placeholder="Description (opt.)"
+                placeholderTextColor={COLORS.textSub} value={description}
+                onChangeText={setDescription} multiline />
 
-            <View style={styles.row2}>
-              <TextInput style={[styles.input, styles.smallInput, { marginRight: 10 }]} placeholder="Numeric target"
-                placeholderTextColor={COLORS.textSub} value={targetInput}
-                onChangeText={setTargetInput} keyboardType="decimal-pad" />
-              <TextInput style={[styles.input, styles.smallInput]} placeholder="Start (e.g. 0)"
-                placeholderTextColor={COLORS.textSub} value={currentProgress}
-                onChangeText={setCurrentProgress} keyboardType="decimal-pad" />
-            </View>
+              <View style={styles.row2}>
+                <TextInput style={[styles.input, styles.smallInput, { marginRight: 10 }]} placeholder="Numeric target"
+                  placeholderTextColor={COLORS.textSub} value={targetInput}
+                  onChangeText={setTargetInput} keyboardType="decimal-pad" />
+                <TextInput style={[styles.input, styles.smallInput]} placeholder="Start (e.g. 0)"
+                  placeholderTextColor={COLORS.textSub} value={currentProgress}
+                  onChangeText={setCurrentProgress} keyboardType="decimal-pad" />
+              </View>
 
-            <Text style={styles.fieldLabel}>Category:</Text>
-            <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{marginBottom: 10}}>
-              {GOAL_CATEGORIES.map(c => (
-                <TouchableOpacity key={c} onPress={() => setCategory(c)} style={[styles.catPill, category === c && styles.catPillActive]}>
-                   <Text style={[styles.catPillText, category === c && {color: COLORS.accent}]}>{c}</Text>
+              <Text style={styles.fieldLabel}>Category:</Text>
+              <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{marginBottom: 10}}>
+                {GOAL_CATEGORIES.map(c => (
+                  <TouchableOpacity key={c} onPress={() => setCategory(c)} style={[styles.catPill, category === c && styles.catPillActive]}>
+                    <Text style={[styles.catPillText, category === c && {color: COLORS.accent}]}>{c}</Text>
+                  </TouchableOpacity>
+                ))}
+              </ScrollView>
+
+              <Text style={styles.fieldLabel}>Priority:</Text>
+              <View style={styles.priorityRow}>
+                {PRIORITY_OPTS.map((p, idx) => (
+                  <TouchableOpacity key={p} onPress={() => setPriority(p)}
+                    style={[styles.priorityBtn, priority === p && { borderColor: priorityColor(p), backgroundColor: priorityColor(p) + '22' }, idx < 2 && { marginRight: 10 }]}>
+                    <Text style={[styles.priorityText, priority === p && { color: priorityColor(p) }]}>
+                      {priorityLabel(p)}
+                    </Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+
+              {/* Deadline now uses the same DatePicker as exams/finances */}
+              <Text style={styles.fieldLabel}>Deadline (optional):</Text>
+              <DatePicker
+                value={deadline}
+                onChange={setDeadline}
+                mode="any"
+                label="Select deadline"
+              />
+
+              <View style={styles.modalBtns}>
+                <TouchableOpacity onPress={() => setModalVisible(false)}>
+                  <Text style={styles.cancelBtn}>Cancel</Text>
                 </TouchableOpacity>
-              ))}
+                <TouchableOpacity style={styles.confirmBtn} onPress={addGoal}>
+                  <Text style={styles.confirmBtnText}>Create Goal</Text>
+                </TouchableOpacity>
+              </View>
+
+              <View style={{ height: 20 }} />
             </ScrollView>
-
-            <Text style={styles.fieldLabel}>Priority:</Text>
-            <View style={styles.priorityRow}>
-              {PRIORITY_OPTS.map((p, idx) => (
-                <TouchableOpacity key={p} onPress={() => setPriority(p)}
-                  style={[styles.priorityBtn, priority === p && { borderColor: priorityColor(p), backgroundColor: priorityColor(p) + '22' }, idx < 2 && { marginRight: 10 }]}>
-                  <Text style={[styles.priorityText, priority === p && { color: priorityColor(p) }]}>
-                    {priorityLabel(p)}
-                  </Text>
-                </TouchableOpacity>
-              ))}
-            </View>
-
-            <TextInput style={styles.input} placeholder="Deadline (e.g. 2026-12-31)"
-              placeholderTextColor={COLORS.textSub} value={deadline} onChangeText={setDeadline} />
-
-            <View style={styles.modalBtns}>
-              <TouchableOpacity onPress={() => setModalVisible(false)}>
-                <Text style={styles.cancelBtn}>Cancel</Text>
-              </TouchableOpacity>
-              <TouchableOpacity style={styles.confirmBtn} onPress={addGoal}>
-                <Text style={styles.confirmBtnText}>Create Goal</Text>
-              </TouchableOpacity>
-            </View>
           </View>
-        </View>
+        </KeyboardAvoidingView>
       </Modal>
+
+      <CustomAlert config={alertConfig} />
     </ScrollView>
   );
 }
@@ -266,45 +306,55 @@ const styles = StyleSheet.create({
   cardCompleted: { opacity: 0.7 },
   cardExpired: { borderColor: COLORS.red + '44', borderWidth: 1 },
   obHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 4 },
-  obTitleRow: { flex: 1, flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap' },
-  obTitle: { fontSize: 16, fontWeight: '700', color: COLORS.text, flex: 1, marginRight: 6 },
-  obDone: { textDecorationLine: 'line-through', color: COLORS.textSub },
-  checkEmoji: { fontSize: 14, marginRight: 6 },
-  trashBtn: { fontSize: 16, marginLeft: 8, padding: 4, color: COLORS.textMuted },
-  obDesc: { fontSize: 13, color: COLORS.textMuted, marginBottom: 8, lineHeight: 18 },
-  obMeta: { flexDirection: 'row', alignItems: 'center', marginBottom: 12, flexWrap: 'wrap' },
+  obTitleRow: { flexDirection: 'row', alignItems: 'center', flex: 1, marginRight: 8 },
+  obTitle: { fontSize: 16, fontWeight: '700', color: COLORS.text, flex: 1 },
+  obDone: { textDecorationLine: 'line-through', color: COLORS.textMuted },
+  checkEmoji: { fontSize: 14, marginLeft: 6 },
+  trashBtn: { color: COLORS.textSub, fontSize: 14, padding: 4 },
+  obDesc: { fontSize: 13, color: COLORS.textMuted, marginBottom: 8 },
+  obMeta: { flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', marginBottom: 12 },
   deadline: { fontSize: 12, color: COLORS.textMuted },
   deadlineExpired: { color: COLORS.red, fontWeight: '600' },
-  progressSection: { flexDirection: 'row', alignItems: 'center', marginBottom: 4 },
-  progressBar: { flex: 1, height: 8, backgroundColor: COLORS.bg4, borderRadius: 4, overflow: 'hidden', marginRight: 10 },
+  progressSection: { flexDirection: 'row', alignItems: 'center', marginBottom: 6 },
+  progressBar: { flex: 1, height: 8, backgroundColor: COLORS.bg4, borderRadius: 4, marginRight: 10, overflow: 'hidden' },
   progressFill: { height: '100%', borderRadius: 4 },
-  progressText: { fontSize: 13, color: COLORS.accent, fontWeight: '700', minWidth: 36, textAlign: 'right' },
+  progressText: { fontSize: 12, color: COLORS.textMuted, fontWeight: '600', width: 36, textAlign: 'right' },
   progressNumbers: { flexDirection: 'row', alignItems: 'baseline', marginBottom: 12 },
-  progressCurr: { fontSize: 14, color: COLORS.text },
-  progressTarget: { fontSize: 13, color: COLORS.textSub },
+  progressCurr: { fontSize: 18, fontWeight: '700', color: COLORS.text },
+  progressTarget: { fontSize: 14, color: COLORS.textMuted },
   stepperRow: { flexDirection: 'row', alignItems: 'center' },
-  stepBtn: { width: 36, height: 36, borderRadius: 8, backgroundColor: COLORS.bg4, alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: COLORS.border, marginRight: 8 },
-  stepBtnText: { fontSize: 18, color: COLORS.text, fontWeight: '600' },
-  stepInput: { width: 70, backgroundColor: COLORS.bg3, borderWidth: 1, borderColor: COLORS.border, borderRadius: 8, padding: 6, color: COLORS.text, fontSize: 14, textAlign: 'center', marginRight: 8 },
-  completeBtn: { backgroundColor: COLORS.accent, paddingVertical: 8, paddingHorizontal: 16, borderRadius: 8 },
-  completeBtnDone: { backgroundColor: COLORS.green },
-  completeBtnText: { color: '#fff', fontSize: 13, fontWeight: '700' },
-  modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.7)', justifyContent: 'flex-end' },
-  modal: { backgroundColor: COLORS.bg2, borderTopLeftRadius: 24, borderTopRightRadius: 24, padding: 24, paddingBottom: 40 },
-  modalTitle: { fontSize: 20, fontWeight: '700', color: COLORS.text, marginBottom: 20, textAlign: 'center' },
-  input: { backgroundColor: COLORS.bg3, borderWidth: 1, borderColor: COLORS.border, borderRadius: 10, padding: 12, color: COLORS.text, fontSize: 15, marginBottom: 10 },
-  row2: { flexDirection: 'row' },
+  stepBtn: { width: 32, height: 32, borderRadius: 16, backgroundColor: COLORS.bg4, alignItems: 'center', justifyContent: 'center' },
+  stepBtnText: { fontSize: 18, color: COLORS.text, fontWeight: '700' },
+  stepInput: { width: 56, marginHorizontal: 8, textAlign: 'center', backgroundColor: COLORS.bg3, borderRadius: 8, paddingVertical: 6, color: COLORS.text, fontSize: 13 },
+  completeBtn: { backgroundColor: COLORS.bg4, paddingHorizontal: 14, paddingVertical: 8, borderRadius: 10 },
+  completeBtnDone: { backgroundColor: COLORS.green + '33' },
+  completeBtnText: { fontSize: 12, color: COLORS.text, fontWeight: '700' },
+
+  // Modal
+  modalWrapper:  { flex: 1, justifyContent: 'flex-end' },
+  modalBackdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.6)' },
+  modal: {
+    backgroundColor: COLORS.bg2,
+    borderTopLeftRadius: 24, borderTopRightRadius: 24,
+    padding: 24, paddingBottom: 40,
+    borderWidth: 1, borderColor: COLORS.border, borderBottomWidth: 0,
+    maxHeight: '88%',
+  },
+  modalHandle: { width: 40, height: 4, borderRadius: 2, backgroundColor: COLORS.bg4, alignSelf: 'center', marginBottom: 16 },
+  modalTitle: { fontSize: 18, fontWeight: '700', color: COLORS.text, marginBottom: 16, textAlign: 'center' },
+  input: { backgroundColor: COLORS.bg3, borderWidth: 1, borderColor: COLORS.border, borderRadius: 10, padding: 12, color: COLORS.text, fontSize: 14, marginBottom: 12 },
+  noteInput: { height: 70, textAlignVertical: 'top' },
+  row2: { flexDirection: 'row', marginBottom: 4 },
   smallInput: { flex: 1 },
-  noteInput: { height: 60, textAlignVertical: 'top' },
   fieldLabel: { color: COLORS.textSub, fontSize: 13, marginBottom: 8, marginTop: 4 },
-  catPill: { paddingHorizontal: 12, paddingVertical: 6, borderRadius: 16, backgroundColor: COLORS.bg4, marginRight: 8},
-  catPillActive: {backgroundColor: COLORS.accentGlow},
-  catPillText: {fontSize: 12, color: COLORS.textMuted},
-  priorityRow: { flexDirection: 'row', marginBottom: 10 },
-  priorityBtn: { flex: 1, paddingVertical: 8, borderRadius: 10, borderWidth: 1, borderColor: COLORS.border, alignItems: 'center', backgroundColor: COLORS.bg3 },
-  priorityText: { fontSize: 13, color: COLORS.textSub },
-  modalBtns: { flexDirection: 'row', justifyContent: 'space-between', marginTop: 20 },
-  cancelBtn: { color: COLORS.textSub, fontSize: 15, paddingVertical: 12, paddingHorizontal: 20 },
-  confirmBtn: { backgroundColor: COLORS.accent, paddingVertical: 12, paddingHorizontal: 24, borderRadius: 10 },
-  confirmBtnText: { color: '#fff', fontSize: 15, fontWeight: '700' },
+  catPill: { paddingHorizontal: 14, paddingVertical: 8, borderRadius: 14, backgroundColor: COLORS.bg4, marginRight: 8 },
+  catPillActive: { backgroundColor: COLORS.accentGlow, borderWidth: 1, borderColor: COLORS.accent },
+  catPillText: { fontSize: 13, color: COLORS.textMuted, fontWeight: '500' },
+  priorityRow: { flexDirection: 'row', marginBottom: 14 },
+  priorityBtn: { flex: 1, paddingVertical: 10, borderRadius: 10, backgroundColor: COLORS.bg4, alignItems: 'center', borderWidth: 1, borderColor: 'transparent' },
+  priorityText: { fontSize: 12, color: COLORS.textMuted, fontWeight: '600' },
+  modalBtns: { flexDirection: 'row', justifyContent: 'flex-end', alignItems: 'center', marginTop: 16 },
+  cancelBtn: { color: COLORS.textMuted, fontSize: 14, fontWeight: '600', paddingHorizontal: 16, paddingVertical: 12 },
+  confirmBtn: { backgroundColor: COLORS.accent, paddingHorizontal: 20, paddingVertical: 12, borderRadius: 10 },
+  confirmBtnText: { color: '#fff', fontWeight: '700', fontSize: 14 },
 });

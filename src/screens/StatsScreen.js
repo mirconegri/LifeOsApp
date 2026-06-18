@@ -14,7 +14,7 @@ export default function StatsScreen({ exams, tasks, habits, heatmap }) {
   const studyDays       = Object.keys(heatmap).length;
   const studyHours      = Object.values(heatmap).reduce((a, v) => a + v, 0).toFixed(1);
 
-  // Uses the updated english helper function
+  // Uses the centralized helper, which is now 30L-aware
   const { average, weightedAverage } = calculateAverages(exams);
   const uniPct         = exams.length > 0 ? (passedExams / exams.length) * 100 : 0;
   const weightedAvgPct = weightedAverage ? (weightedAverage / 30) * 100 : 0;

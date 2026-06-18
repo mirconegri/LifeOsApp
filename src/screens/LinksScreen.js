@@ -126,42 +126,44 @@ export default function LinksScreen({ links, setLinks }) {
             <View style={styles.modalHandle} />
             <Text style={styles.modalTitle}>New Link</Text>
 
-            <View style={styles.formRow}>
-              <TextInput
-                style={[styles.input, styles.iconInput]}
-                placeholder="Icon"
-                placeholderTextColor={COLORS.textSub}
-                value={formIcon}
-                onChangeText={setFormIcon}
-                maxLength={2}
-              />
-              <TextInput
-                style={[styles.input, { flex: 1 }]}
-                placeholder="Site name..."
-                placeholderTextColor={COLORS.textSub}
-                value={formName}
-                onChangeText={setFormName}
-              />
-            </View>
+            <ScrollView keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
+              <View style={styles.formRow}>
+                <TextInput
+                  style={[styles.input, styles.iconInput]}
+                  placeholder="Icon"
+                  placeholderTextColor={COLORS.textSub}
+                  value={formIcon}
+                  onChangeText={setFormIcon}
+                  maxLength={2}
+                />
+                <TextInput
+                  style={[styles.input, { flex: 1 }]}
+                  placeholder="Site name..."
+                  placeholderTextColor={COLORS.textSub}
+                  value={formName}
+                  onChangeText={setFormName}
+                />
+              </View>
 
-            <TextInput
-              style={styles.input}
-              placeholder="URL (e.g. google.com)..."
-              placeholderTextColor={COLORS.textSub}
-              value={formUrl}
-              onChangeText={setFormUrl}
-              keyboardType="url"
-              autoCapitalize="none"
-            />
+              <TextInput
+                style={styles.input}
+                placeholder="URL (e.g. google.com)..."
+                placeholderTextColor={COLORS.textSub}
+                value={formUrl}
+                onChangeText={setFormUrl}
+                keyboardType="url"
+                autoCapitalize="none"
+              />
 
-            <View style={styles.modalBtns}>
-              <TouchableOpacity onPress={() => setModalVisible(false)} style={[styles.btn, styles.btnCancel]}>
-                <Text style={styles.btnCancelText}>Cancel</Text>
-              </TouchableOpacity>
-              <TouchableOpacity onPress={handleSave} style={[styles.btn, styles.btnSave]}>
-                <Text style={styles.btnSaveText}>Save</Text>
-              </TouchableOpacity>
-            </View>
+              <View style={styles.modalBtns}>
+                <TouchableOpacity onPress={() => setModalVisible(false)} style={[styles.btn, styles.btnCancel]}>
+                  <Text style={styles.btnCancelText}>Cancel</Text>
+                </TouchableOpacity>
+                <TouchableOpacity onPress={handleSave} style={[styles.btn, styles.btnSave]}>
+                  <Text style={styles.btnSaveText}>Save</Text>
+                </TouchableOpacity>
+              </View>
+            </ScrollView>
           </View>
         </KeyboardAvoidingView>
       </Modal>
@@ -205,6 +207,7 @@ const styles = StyleSheet.create({
     borderTopLeftRadius: 24, borderTopRightRadius: 24,
     padding: 24, paddingBottom: 40,
     borderTopWidth: 1, borderColor: COLORS.border,
+    maxHeight: '88%',
   },
   modalHandle: { width: 40, height: 4, borderRadius: 2, backgroundColor: COLORS.bg4, alignSelf: 'center', marginBottom: 16 },
   modalTitle:  { fontSize: 18, fontWeight: '700', color: COLORS.text, marginBottom: 16, textAlign: 'center' },

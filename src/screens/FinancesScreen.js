@@ -1,3 +1,4 @@
+// src/screens/FinancesScreen.js
 import React, { useState } from 'react';
 import {
   View, Text, ScrollView, StyleSheet, TextInput,
@@ -7,29 +8,34 @@ import { COLORS } from '../config/colors';
 import { Card } from '../components/Card';
 import { StatCard } from '../components/StatCard';
 import { CustomAlert } from '../components/CustomAlert';
+import { DatePicker } from '../components/DatePicker';
 
 const CAT_COLORS = {
-  work:        COLORS.green,
-  university:  COLORS.accent,
-  food:        COLORS.amber,
-  transport:   COLORS.blue,
-  other:       COLORS.textMuted,
+  work:       COLORS.green,
+  university: COLORS.accent,
+  food:       COLORS.amber,
+  transport:  COLORS.blue,
+  other:      COLORS.textMuted,
 };
 
 const CATEGORIES = Object.keys(CAT_COLORS);
 
+function todayStr() {
+  return new Date().toISOString().slice(0, 10);
+}
+
 export default function FinancesScreen({ finances, setFinances }) {
   const [modalVisible, setModalVisible] = useState(false);
-  const [formDesc,    setFormDesc]    = useState('');
-  const [formAmount,  setFormAmount]  = useState('');
-  const [formType,    setFormType]    = useState('expense');
-  const [formCat,     setFormCat]     = useState('other');
-  const [formDate,    setFormDate]    = useState('');
-  const [alertConfig, setAlertConfig] = useState(null);
+  const [formDesc,     setFormDesc]     = useState('');
+  const [formAmount,   setFormAmount]   = useState('');
+  const [formType,     setFormType]     = useState('expense');
+  const [formCat,      setFormCat]      = useState('other');
+  const [formDate,     setFormDate]     = useState(todayStr());
+  const [alertConfig,  setAlertConfig]  = useState(null);
 
   const showAlert = (cfg) => setAlertConfig(cfg);
 
-  // ── Computed ─────────────────────────────────────────────────────────────
+  // ── Computed ──────────────────────────────────────────────────────────────
   const balance  = finances.reduce((a, t) => a + t.amount, 0);
   const incomes  = finances.filter(t => t.type === 'income').reduce((a, t) => a + t.amount, 0);
   const expenses = Math.abs(finances.filter(t => t.type === 'expense').reduce((a, t) => a + t.amount, 0));
@@ -42,7 +48,6 @@ export default function FinancesScreen({ finances, setFinances }) {
       key:   d.toISOString().slice(0, 7),
     };
   });
-
   const monthBars = months.map(m => {
     const entries = finances.filter(t => t.date && t.date.startsWith(m.key));
     return entries.reduce((a, t) => a + t.amount, 0);
@@ -50,29 +55,36 @@ export default function FinancesScreen({ finances, setFinances }) {
   const maxAbs = Math.max(...monthBars.map(Math.abs), 1);
 
   // ── Actions ───────────────────────────────────────────────────────────────
+  const openModal = () => {
+    setFormDesc(''); setFormAmount('');
+    setFormType('expense'); setFormCat('other');
+    setFormDate(todayStr());
+    setModalVisible(true);
+  };
+
   const addTransaction = () => {
     if (!formDesc.trim()) {
-      showAlert({ title: 'Error', message: 'Enter a description',
-        buttons: [{ text: 'OK', style: 'cancel', onPress: () => setAlertConfig(null) }] });
-      return;
+      showAlert({ title: 'Error', message: 'Enter a description.',
+        buttons: [{ text: 'OK', style: 'cancel', onPress: () => setAlertConfig(null) }] }); return;
     }
     const imp = parseFloat(formAmount) || 0;
     if (imp === 0) {
-      showAlert({ title: 'Error', message: 'Enter a valid amount',
-        buttons: [{ text: 'OK', style: 'cancel', onPress: () => setAlertConfig(null) }] });
-      return;
+      showAlert({ title: 'Error', message: 'Enter a valid amount.',
+        buttons: [{ text: 'OK', style: 'cancel', onPress: () => setAlertConfig(null) }] }); return;
+    }
+    if (!formDate) {
+      showAlert({ title: 'Error', message: 'Select a date.',
+        buttons: [{ text: 'OK', style: 'cancel', onPress: () => setAlertConfig(null) }] }); return;
     }
     const newId = Math.max(0, ...finances.map(f => f.id)) + 1;
     setFinances(prev => [...prev, {
       id:       newId,
-      date:     formDate || new Date().toISOString().slice(0, 10),
+      date:     formDate,
       desc:     formDesc.trim(),
       amount:   formType === 'expense' ? -Math.abs(imp) : Math.abs(imp),
       type:     formType,
       category: formCat,
     }]);
-    setFormDesc(''); setFormAmount(''); setFormType('expense');
-    setFormCat('other'); setFormDate('');
     setModalVisible(false);
   };
 
@@ -90,27 +102,29 @@ export default function FinancesScreen({ finances, setFinances }) {
     });
   };
 
-  const recentTransactions = [...finances].sort((a, b) => b.date.localeCompare(a.date)).slice(0, 15);
+  const recentTransactions = [...finances]
+    .sort((a, b) => b.date.localeCompare(a.date))
+    .slice(0, 15);
 
   return (
     <View style={styles.root}>
       <ScrollView style={styles.scroll} contentContainerStyle={styles.content}>
 
-        {/* ── Stats ── */}
+        {/* Stats */}
         <Text style={styles.sectionTitle}>💶 Overview</Text>
         <View style={styles.statsRow}>
           <View style={{ flex: 1, marginRight: 8 }}>
-             <StatCard label="Balance"   value={balance >= 0 ? `+${balance}` : `${balance}`} sub="€" color={balance >= 0 ? COLORS.green : COLORS.red} />
+            <StatCard label="Balance"  value={balance >= 0 ? `+${balance}` : `${balance}`} sub="€" color={balance >= 0 ? COLORS.green : COLORS.red} />
           </View>
           <View style={{ flex: 1, marginRight: 8 }}>
-             <StatCard label="Income" value={`+${incomes}`} sub="€" color={COLORS.green} />
+            <StatCard label="Income"   value={`+${incomes}`} sub="€" color={COLORS.green} />
           </View>
           <View style={{ flex: 1 }}>
-             <StatCard label="Expenses"  value={`-${expenses}`}  sub="€" color={COLORS.red}   />
+            <StatCard label="Expenses" value={`-${expenses}`}  sub="€" color={COLORS.red} />
           </View>
         </View>
 
-        {/* ── Chart ── */}
+        {/* Chart */}
         <Text style={styles.sectionTitle}>📈 Last 6 months</Text>
         <Card style={styles.chartCard}>
           <View style={styles.chart}>
@@ -128,10 +142,10 @@ export default function FinancesScreen({ finances, setFinances }) {
           </View>
         </Card>
 
-        {/* ── Transactions ── */}
+        {/* Transactions */}
         <View style={styles.listHeader}>
           <Text style={styles.sectionTitle}>📋 Transactions ({recentTransactions.length})</Text>
-          <TouchableOpacity onPress={() => setModalVisible(true)}>
+          <TouchableOpacity onPress={openModal}>
             <Text style={styles.addBtn}>+ Add</Text>
           </TouchableOpacity>
         </View>
@@ -155,7 +169,7 @@ export default function FinancesScreen({ finances, setFinances }) {
         ))}
       </ScrollView>
 
-      {/* ── Add Modal ── */}
+      {/* Add Modal */}
       <Modal visible={modalVisible} transparent animationType="slide">
         <KeyboardAvoidingView
           style={styles.modalWrapper}
@@ -171,21 +185,43 @@ export default function FinancesScreen({ finances, setFinances }) {
             <Text style={styles.modalTitle}>New Transaction</Text>
 
             <ScrollView showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
-              <TextInput style={styles.input} placeholder="Description"
-                placeholderTextColor={COLORS.textSub} value={formDesc} onChangeText={setFormDesc} autoFocus />
-              <TextInput style={styles.input} placeholder="Amount (€)"
-                placeholderTextColor={COLORS.textSub} keyboardType="numeric" value={formAmount} onChangeText={setFormAmount} />
-              <TextInput style={styles.input} placeholder="Date (YYYY-MM-DD)"
-                placeholderTextColor={COLORS.textSub} value={formDate} onChangeText={setFormDate} />
+              <TextInput
+                style={styles.input}
+                placeholder="Description *"
+                placeholderTextColor={COLORS.textSub}
+                value={formDesc}
+                onChangeText={setFormDesc}
+                autoFocus
+              />
+              <TextInput
+                style={styles.input}
+                placeholder="Amount (€) *"
+                placeholderTextColor={COLORS.textSub}
+                keyboardType="numeric"
+                value={formAmount}
+                onChangeText={setFormAmount}
+              />
+
+              {/* Date with Today shortcut */}
+              <Text style={styles.fieldLabel}>Date</Text>
+              <DatePicker
+                value={formDate}
+                onChange={setFormDate}
+                mode="any"
+                label="Select date"
+              />
 
               <Text style={styles.fieldLabel}>Type:</Text>
               <View style={styles.typeRow}>
-                {[['income', '↑ Income'], ['expense', '↓ Expense']].map(([v, l], idx) => (
-                  <TouchableOpacity key={v} onPress={() => setFormType(v)}
-                    style={[styles.typeChip, formType === v && styles.typeChipActive, idx === 0 && { marginRight: 8 }]}>
-                    <Text style={[styles.typeChipText,
-                      formType === v && { color: v === 'income' ? COLORS.green : COLORS.red }
-                    ]}>{l}</Text>
+                {[['income', '↑ Income'], ['expense', '↓ Expense']].map(([v, l]) => (
+                  <TouchableOpacity
+                    key={v}
+                    onPress={() => setFormType(v)}
+                    style={[styles.typeChip, formType === v && styles.typeChipActive, { marginRight: v === 'income' ? 8 : 0 }]}
+                  >
+                    <Text style={[styles.typeChipText, formType === v && { color: v === 'income' ? COLORS.green : COLORS.red }]}>
+                      {l}
+                    </Text>
                   </TouchableOpacity>
                 ))}
               </View>
@@ -193,16 +229,20 @@ export default function FinancesScreen({ finances, setFinances }) {
               <Text style={styles.fieldLabel}>Category:</Text>
               <View style={styles.catRow}>
                 {CATEGORIES.map(c => (
-                  <TouchableOpacity key={c} onPress={() => setFormCat(c)}
-                    style={[styles.catChip, formCat === c && styles.catChipActive, { marginRight: 6, marginBottom: 6 }]}>
+                  <TouchableOpacity
+                    key={c}
+                    onPress={() => setFormCat(c)}
+                    style={[styles.catChip, formCat === c && styles.catChipActive, { marginRight: 6, marginBottom: 6 }]}
+                  >
                     <Text style={[styles.catChipText, formCat === c && { color: CAT_COLORS[c] }]}>{c}</Text>
                   </TouchableOpacity>
                 ))}
               </View>
 
               <TouchableOpacity style={styles.submitBtn} onPress={addTransaction}>
-                <Text style={styles.submitBtnText}>Add</Text>
+                <Text style={styles.submitBtnText}>Add Transaction</Text>
               </TouchableOpacity>
+              <View style={{ height: 20 }} />
             </ScrollView>
           </View>
         </KeyboardAvoidingView>
@@ -214,32 +254,32 @@ export default function FinancesScreen({ finances, setFinances }) {
 }
 
 const styles = StyleSheet.create({
-  root:   { flex: 1, backgroundColor: COLORS.bg },
-  scroll: { flex: 1 },
-  content:{ padding: 16, paddingBottom: 32 },
+  root:    { flex: 1, backgroundColor: COLORS.bg },
+  scroll:  { flex: 1 },
+  content: { padding: 16, paddingBottom: 32 },
 
   sectionTitle: { fontSize: 13, fontWeight: '600', color: COLORS.textMuted, textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 10, marginTop: 10 },
   statsRow:     { flexDirection: 'row', marginBottom: 4 },
 
-  chartCard: { marginBottom: 12 },
-  chart:     { flexDirection: 'row', justifyContent: 'space-around', alignItems: 'flex-end', height: 120, paddingVertical: 8 },
-  barCol:    { alignItems: 'center', flex: 1 },
-  bar:       { width: 24, borderRadius: 3, marginBottom: 4 },
-  barVal:    { fontSize: 9, color: COLORS.textSub, marginBottom: 2 },
-  barLabel:  { fontSize: 9, color: COLORS.textMuted },
+  chartCard:  { marginBottom: 12 },
+  chart:      { flexDirection: 'row', justifyContent: 'space-around', alignItems: 'flex-end', height: 120, paddingVertical: 8 },
+  barCol:     { alignItems: 'center', flex: 1 },
+  bar:        { width: 24, borderRadius: 3, marginBottom: 4 },
+  barVal:     { fontSize: 9, color: COLORS.textSub, marginBottom: 2 },
+  barLabel:   { fontSize: 9, color: COLORS.textMuted },
 
   listHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: 8, marginBottom: 4 },
   addBtn:     { fontSize: 13, color: COLORS.accent, fontWeight: '600' },
 
-  txCard: { marginBottom: 8, padding: 12 },
-  txRow:  { flexDirection: 'row', alignItems: 'center' },
-  txDot:  { width: 8, height: 8, borderRadius: 4, marginRight: 10 },
-  txInfo: { flex: 1, marginRight: 10 },
-  txDesc: { fontSize: 13, color: COLORS.text, fontWeight: '500' },
-  txMeta: { fontSize: 11, color: COLORS.textMuted, marginTop: 2 },
+  txCard:  { marginBottom: 8, padding: 12 },
+  txRow:   { flexDirection: 'row', alignItems: 'center' },
+  txDot:   { width: 8, height: 8, borderRadius: 4, marginRight: 10 },
+  txInfo:  { flex: 1, marginRight: 10 },
+  txDesc:  { fontSize: 13, color: COLORS.text, fontWeight: '500' },
+  txMeta:  { fontSize: 11, color: COLORS.textMuted, marginTop: 2 },
   txAmount:   { fontSize: 13, fontWeight: '600', marginRight: 10 },
   deleteBtn:  { padding: 4 },
-  deleteBtnText: { fontSize: 14, color: COLORS.textSub },
+  deleteBtnText:{ fontSize: 14, color: COLORS.textSub },
 
   // Modal
   modalWrapper:  { flex: 1, justifyContent: 'flex-end' },
@@ -249,7 +289,7 @@ const styles = StyleSheet.create({
     borderTopLeftRadius: 24, borderTopRightRadius: 24,
     padding: 24, paddingBottom: 40,
     borderTopWidth: 1, borderColor: COLORS.border,
-    maxHeight: '85%',
+    maxHeight: '88%',
   },
   modalHandle: { width: 40, height: 4, borderRadius: 2, backgroundColor: COLORS.bg4, alignSelf: 'center', marginBottom: 16 },
   modalTitle:  { fontSize: 18, fontWeight: '700', color: COLORS.text, marginBottom: 16, textAlign: 'center' },
