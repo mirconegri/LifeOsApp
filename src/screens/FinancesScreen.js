@@ -45,7 +45,8 @@ export default function FinancesScreen({ finances, setFinances }) {
     const d = new Date(now.getFullYear(), now.getMonth() - 5 + i, 1);
     return {
       label: d.toLocaleDateString('en-US', { month: 'short' }),
-      key:   d.toISOString().slice(0, 7),
+      // FIX: Creiamo la chiave usando la data locale, padStart assicura il formato "06"
+      key: `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`,
     };
   });
   const monthBars = months.map(m => {
