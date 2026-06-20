@@ -1,12 +1,13 @@
 // src/components/GradeSelector.js
 // Typeahead grade selector for Italian university grades: 18-30, 30L
 // Props:
-//   value: number | 'L' (for 30L) | null
-//   onChange: fn(numericValue) — 31 represents 30L
+//   value: number | null — 31 represents 30L internally
+//   onChange: fn(numericValue)
 //   placeholder: string
-import React, { useState, useRef } from 'react';
+//   label: string
+import React, { useState } from 'react';
 import {
-  View, Text, TextInput, TouchableOpacity, StyleSheet, FlatList,
+  View, Text, TextInput, TouchableOpacity, StyleSheet,
 } from 'react-native';
 import { COLORS } from '../config/colors';
 
@@ -70,10 +71,7 @@ export function GradeSelector({ value, onChange, placeholder = 'Grade (18–30L)
             setFocused(true);
             setQuery('');
           }}
-          onBlur={() => {
-            // small delay so tap on option registers first
-            setTimeout(() => setFocused(false), 150);
-          }}
+          onBlur={() => setFocused(false)}
           keyboardType="default"
           autoCapitalize="characters"
           maxLength={3}
@@ -92,7 +90,15 @@ export function GradeSelector({ value, onChange, placeholder = 'Grade (18–30L)
             <TouchableOpacity
               key={g.label}
               style={[styles.option, value === g.value && styles.optionSelected]}
-              onPress={() => handleSelect(g)}
+              // onPressIn fires on touch-down, before the TextInput's onBlur
+              // fires on touch-release. That ordering used to race against a
+              // 150ms setTimeout — fast enough taps, or anything below that
+              // on a slower device, could lose the race and have the
+              // dropdown disappear (closed by onBlur) before onPress ever
+              // registered the selection. onPressIn removes the race
+              // entirely: the selection is committed before blur can close
+              // anything, so there's nothing left to time.
+              onPressIn={() => handleSelect(g)}
             >
               <Text style={[styles.optionText, value === g.value && styles.optionTextSelected]}>
                 {g.label}
@@ -106,7 +112,7 @@ export function GradeSelector({ value, onChange, placeholder = 'Grade (18–30L)
 }
 
 const styles = StyleSheet.create({
-  wrapper:   { marginBottom: 12, zIndex: 100 },
+  wrapper:   { marginBottom: 12, zIndex: 100, elevation: 100 },
   label:     { color: COLORS.textSub, fontSize: 13, marginBottom: 6 },
   inputRow:  { flexDirection: 'row', alignItems: 'center', backgroundColor: COLORS.bg3, borderWidth: 1, borderColor: COLORS.border, borderRadius: 10 },
   input:     {
@@ -124,8 +130,9 @@ const styles = StyleSheet.create({
     borderWidth: 1, borderColor: COLORS.border,
     borderRadius: 10,
     zIndex: 999,
-    elevation: 10,
+    elevation: 999,
     overflow: 'hidden',
+    maxHeight: 220,
   },
   option: {
     paddingHorizontal: 16, paddingVertical: 12,
