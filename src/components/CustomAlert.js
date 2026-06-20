@@ -1,3 +1,4 @@
+
 import React from 'react';
 import { Modal, View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import { COLORS } from '../config/colors';
@@ -114,3 +115,4 @@ const styles = StyleSheet.create({
     color: COLORS.textMuted,
   },
 });
+
