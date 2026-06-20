@@ -1,3 +1,4 @@
+
 import React from 'react';
 import { View, StyleSheet } from 'react-native';
 import { COLORS } from '../config/colors';
@@ -19,3 +20,4 @@ const styles = StyleSheet.create({
     padding: 16,
   },
 });
+
