@@ -1,3 +1,4 @@
+
 import React from 'react';
 import { View } from 'react-native';
 import Svg, { Circle } from 'react-native-svg';
@@ -29,3 +30,4 @@ export function ProgressRing({ pct = 0, size = 64, color = COLORS.accent }) {
     </View>
   );
 }
+
