@@ -1,3 +1,4 @@
+
 // App.js — LifeOS root component
 import React, { useState, useEffect, useRef } from 'react';
 import {
@@ -10,7 +11,7 @@ import { COLORS } from './src/config/colors';
 import { NAV } from './src/config/nav';
 import { todayKey } from './src/data/helpers';
 import {
-  INIT_EXAMS, INIT_TASKS, INIT_HABITS, INIT_FINANCES,
+  INIT_EXAMS, INIT_HABITS, INIT_FINANCES,
   INIT_GROCERIES, INIT_GOALS, INIT_NOTES, INIT_LINKS,
 } from './src/data/seedData';
 
@@ -18,7 +19,6 @@ import {
 import OnboardingScreen from './src/screens/OnboardingScreen';
 import HomeScreen       from './src/screens/HomeScreen';
 import UniScreen        from './src/screens/UniScreen';
-import StudyScreen      from './src/screens/StudyScreen';
 import FinancesScreen   from './src/screens/FinancesScreen';
 import HabitsScreen     from './src/screens/HabitsScreen';
 import GroceriesScreen  from './src/screens/GroceriesScreen';
@@ -69,7 +69,6 @@ export default function App() {
   const [totalCredits, setTotalCredits] = useState(180);
   const [tipsShown,    setTipsShown]    = useState([]);
   const [exams,        setExams]        = useState([]);
-  const [tasks,        setTasks]        = useState([]);
   const [habits,       setHabits]       = useState([]);
   const [finances,     setFinances]     = useState([]);
   const [groceries,    setGroceries]    = useState([]);
@@ -95,7 +94,6 @@ export default function App() {
       setTotalCredits( await loadJSON('totalCredits',  180));
       setTipsShown(    await loadJSON('tipsShown',     []));
       setExams(        await loadJSON('exams',         INIT_EXAMS));
-      setTasks(        await loadJSON('tasks',         INIT_TASKS));
       setHabits(       await loadJSON('habits',        INIT_HABITS));
       setFinances(     await loadJSON('finances',      INIT_FINANCES));
       setGroceries(    await loadJSON('groceries',     INIT_GROCERIES));
@@ -162,7 +160,6 @@ export default function App() {
   };
 
   const pExams      = usePersist('exams',      setExams);
-  const pTasks      = usePersist('tasks',      setTasks);
   const pHabits     = usePersist('habits',     setHabits);
   const pFinances   = usePersist('finances',   setFinances);
   const pGroceries  = usePersist('groceries',  setGroceries);
@@ -199,7 +196,7 @@ export default function App() {
   const SCREENS = {
     home: (
       <HomeScreen
-        exams={exams} tasks={tasks} habits={habits}
+        exams={exams} tasks={journal} habits={habits}
         finances={finances} heatmap={heatmap} links={links}
         userName={userName} course={course} isFirstUse={isFirstUse}
         tipsShown={tipsShown} onDismissTip={dismissTip}
@@ -208,7 +205,6 @@ export default function App() {
       />
     ),
     uni:       <UniScreen       exams={exams}         setExams={pExams} totalCredits={totalCredits} />,
-    study:     <StudyScreen     tasks={tasks}         setTasks={pTasks}        {...timerProps} />,
     finances:  <FinancesScreen  finances={finances}   setFinances={pFinances}  />,
     habits:    <HabitsScreen    habits={habits}       setHabits={pHabits}      />,
     groceries: <GroceriesScreen groceries={groceries} setGroceries={pGroceries} />,
@@ -217,7 +213,7 @@ export default function App() {
     links:     <LinksScreen     links={links}         setLinks={pLinks}        />,
     journal:   <JournalScreen   journal={journal}     setJournal={pJournal}    />,
     stats:     <StatsScreen
-                 exams={exams} tasks={tasks} habits={habits}
+                 exams={exams} tasks={journal} habits={habits}
                  journal={journal} heatmap={heatmap}
                  loggedSeconds={loggedSeconds + timerSec}
                />,
@@ -360,3 +356,4 @@ const styles = StyleSheet.create({
   bottomNavLabel: { fontSize: 10, color: COLORS.textSub, marginTop: 4 },
   bottomNavLabelActive: { color: COLORS.accent, fontWeight: '600' },
 });
+
