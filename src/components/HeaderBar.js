@@ -1,3 +1,4 @@
+
 import React from 'react';
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import { COLORS } from '../config/colors';
@@ -23,3 +24,4 @@ const styles = StyleSheet.create({
   logo:       { fontSize: 15, fontWeight: 'bold', color: COLORS.text },
   screenName: { fontSize: 13, color: COLORS.textMuted },
 });
+
