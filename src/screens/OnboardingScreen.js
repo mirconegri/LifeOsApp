@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import {
   View, Text, TextInput, TouchableOpacity, ScrollView,
@@ -340,3 +341,4 @@ const styles = StyleSheet.create({
   dotActive: { backgroundColor: COLORS.accent, width: 18 },
   dotDone:   { backgroundColor: COLORS.accentDim },
 });
+
