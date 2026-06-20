@@ -1,3 +1,4 @@
+
 import { todayKey } from './helpers';
 
 export const INIT_EXAMS = [
@@ -53,3 +54,4 @@ export const INIT_LINKS = [
 
 // Prevents missing import errors if imported in App.js
 export const INIT_GOALS = [];
+
