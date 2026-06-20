@@ -15,7 +15,7 @@ export function HeaderBar({ title, onMenuPress }) {
       <Text style={styles.screenName}>{title}</Text>
     </View>
   );
-}
+} 
 
 const styles = StyleSheet.create({
   bar:        { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 16, height: 52, borderBottomWidth: 1, borderBottomColor: COLORS.border, backgroundColor: COLORS.bg },
