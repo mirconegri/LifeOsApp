@@ -1,3 +1,4 @@
+
 // src/config/colors.js
 export const COLORS = {
   // Backgrounds
@@ -29,3 +30,4 @@ export const COLORS = {
   border:    '#232333',
   border2:   '#3a3a52',
 };
+
