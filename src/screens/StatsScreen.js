@@ -1,10 +1,11 @@
+
 import React, { useMemo } from 'react';
 import { View, Text, ScrollView, StyleSheet } from 'react-native';
 import { COLORS } from '../config/colors';
 import { Card } from '../components/Card';
 import { ProgressBar } from '../components/ProgressBar';
 import { StatCard } from '../components/StatCard';
-import { calculateAverages, predictedDegreeGrade, todayKey } from '../data/helpers';
+import { calculateAverages, predictedDegreeGrade, todayKey, localDateKey } from '../data/helpers';
 
 export default function StatsScreen({ exams, tasks, habits, heatmap }) {
   // ─── Computed Metrics ──────────────────────────────────────────────────────
@@ -34,7 +35,7 @@ export default function StatsScreen({ exams, tasks, habits, heatmap }) {
         const offset = (14 - c) * 7 + (6 - r);
         const d = new Date(now);
         d.setDate(d.getDate() - offset);
-        const k = d.toISOString().slice(0, 10);
+        const k = localDateKey(d);
         colDays.push({ key: k, val: heatmap[k] || 0 });
       }
       cols.push(colDays);
@@ -169,3 +170,4 @@ const styles = StyleSheet.create({
   legendBox: { width: 9, height: 9, borderRadius: 1.5, marginHorizontal: 2 },
   legendText: { fontSize: 10, color: COLORS.textSub, marginHorizontal: 4 }
 });
+
