@@ -1,3 +1,4 @@
+
 // src/components/DatePicker.js
 // Custom date picker: shows a month calendar, restricts which dates are
 // selectable depending on `mode`.
@@ -241,3 +242,4 @@ const styles = StyleSheet.create({
   closeBtn:  { paddingHorizontal: 18, paddingVertical: 8 },
   closeBtnText:{ color: COLORS.textMuted, fontSize: 13 },
 });
+
