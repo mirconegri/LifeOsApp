@@ -1,3 +1,4 @@
+
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 const PREFIX = 'lifeos_';
@@ -18,3 +19,4 @@ export async function saveJSON(key, value) {
     console.warn('saveJSON error:', e);
   }
 }
+
