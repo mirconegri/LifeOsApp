@@ -1,3 +1,4 @@
+
 // src/screens/FinancesScreen.js
 import React, { useState } from 'react';
 import {
@@ -10,6 +11,8 @@ import { StatCard } from '../components/StatCard';
 import { CustomAlert } from '../components/CustomAlert';
 import { DatePicker } from '../components/DatePicker';
 
+import { localDateKey } from '../data/helpers';
+
 const CAT_COLORS = {
   work:       COLORS.green,
   university: COLORS.accent,
@@ -20,8 +23,12 @@ const CAT_COLORS = {
 
 const CATEGORIES = Object.keys(CAT_COLORS);
 
+// Fixed: this used to be `new Date().toISOString().slice(0,10)`, which
+// converts to UTC first. Between midnight and 1-2am local time in any
+// timezone ahead of UTC (Italy included), that returned YESTERDAY's date
+// as "today" for a brand new transaction.
 function todayStr() {
-  return new Date().toISOString().slice(0, 10);
+  return localDateKey(new Date());
 }
 
 export default function FinancesScreen({ finances, setFinances }) {
@@ -41,12 +48,22 @@ export default function FinancesScreen({ finances, setFinances }) {
   const expenses = Math.abs(finances.filter(t => t.type === 'expense').reduce((a, t) => a + t.amount, 0));
 
   const now    = new Date();
+  // Fixed: month keys used to come from `d.toISOString().slice(0,7)`.
+  // toISOString() always converts to UTC first — for any timezone ahead of
+  // UTC (like Italy, UTC+1/+2), local midnight on the 1st of the month
+  // becomes 22:00 or 23:00 on the LAST DAY of the PREVIOUS month in UTC.
+  // So the "June" bucket was actually keyed as "2026-05", and every
+  // transaction landed one month off from what the chart label showed.
+  // Building the key from the local year/month directly avoids the UTC
+  // round-trip entirely.
+  function monthKey(d) {
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+  }
   const months = Array.from({ length: 6 }, (_, i) => {
     const d = new Date(now.getFullYear(), now.getMonth() - 5 + i, 1);
     return {
       label: d.toLocaleDateString('en-US', { month: 'short' }),
-      // FIX: Creiamo la chiave usando la data locale, padStart assicura il formato "06"
-      key: `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`,
+      key:   monthKey(d),
     };
   });
   const monthBars = months.map(m => {
@@ -307,3 +324,4 @@ const styles = StyleSheet.create({
   submitBtn:   { backgroundColor: COLORS.accent, borderRadius: 10, paddingVertical: 13, alignItems: 'center', marginTop: 4 },
   submitBtnText:{ color: '#fff', fontSize: 14, fontWeight: '700' },
 });
+
