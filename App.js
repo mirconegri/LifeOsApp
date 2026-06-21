@@ -11,7 +11,7 @@ import { COLORS } from './src/config/colors';
 import { NAV } from './src/config/nav';
 import { todayKey } from './src/data/helpers';
 import {
-  INIT_EXAMS, INIT_HABITS, INIT_FINANCES,
+  INIT_EXAMS, INIT_FINANCES,
   INIT_GROCERIES, INIT_GOALS, INIT_NOTES, INIT_LINKS,
 } from './src/data/seedData';
 
@@ -20,13 +20,12 @@ import OnboardingScreen from './src/screens/OnboardingScreen';
 import HomeScreen       from './src/screens/HomeScreen';
 import UniScreen        from './src/screens/UniScreen';
 import FinancesScreen   from './src/screens/FinancesScreen';
-import HabitsScreen     from './src/screens/HabitsScreen';
+import StatsScreen      from './src/screens/StatsScreen';
 import GroceriesScreen  from './src/screens/GroceriesScreen';
 import GoalsScreen      from './src/screens/GoalsScreen';
 import NotesScreen      from './src/screens/NotesScreen';
 import LinksScreen      from './src/screens/LinksScreen';
 import JournalScreen    from './src/screens/JournalScreen';
-import StatsScreen      from './src/screens/StatsScreen';
 
 const PREFIX = 'lifeos_';
 
@@ -69,7 +68,6 @@ export default function App() {
   const [totalCredits, setTotalCredits] = useState(180);
   const [tipsShown,    setTipsShown]    = useState([]);
   const [exams,        setExams]        = useState([]);
-  const [habits,       setHabits]       = useState([]);
   const [finances,     setFinances]     = useState([]);
   const [groceries,    setGroceries]    = useState([]);
   const [goals,        setGoals]        = useState([]);
@@ -94,15 +92,49 @@ export default function App() {
       setTotalCredits( await loadJSON('totalCredits',  180));
       setTipsShown(    await loadJSON('tipsShown',     []));
       setExams(        await loadJSON('exams',         INIT_EXAMS));
-      setHabits(       await loadJSON('habits',        INIT_HABITS));
       setFinances(     await loadJSON('finances',      INIT_FINANCES));
       setGroceries(    await loadJSON('groceries',     INIT_GROCERIES));
       setGoals(        await loadJSON('goals',         INIT_GOALS));
       setNotes(        await loadJSON('notes',         INIT_NOTES));
-      setJournal(      await loadJSON('journal',       []));
       setLinks(        await loadJSON('links',         INIT_LINKS));
       setHeatmap(      await loadJSON('heatmap',       {}));
       setLogged(       await loadJSON('loggedSeconds', 0));
+
+      let loadedJournal = await loadJSON('journal', []);
+
+      // One-time migration: Habits used to be its own AsyncStorage list
+      // (key 'habits'). Now that Habits is folded into Tasks, anything
+      // already saved there needs to land inside `journal` as
+      // recurring:true entries instead of just disappearing because
+      // HabitsScreen no longer reads that key. Guarded by a flag so this
+      // only ever runs once, even though the old 'habits' key itself is
+      // left on disk afterward (harmless, just unused) rather than
+      // deleted — deleting user data as a side effect of a migration is
+      // riskier than leaving an orphaned key behind.
+      const habitsMigrated = await loadJSON('habitsMigrated', false);
+      if (!habitsMigrated) {
+        const oldHabits = await loadJSON('habits', []);
+        if (oldHabits.length > 0) {
+          const existingIds = new Set(loadedJournal.map(j => j.id));
+          let nextId = Math.max(0, ...loadedJournal.map(j => j.id || 0), ...oldHabits.map(h => h.id || 0)) + 1;
+          const migrated = oldHabits.map(h => ({
+            id: existingIds.has(h.id) ? nextId++ : h.id,
+            text: h.name,
+            icon: h.icon || '🌟',
+            recurring: true,
+            history: h.history || {},
+            streak: h.streak || 0,
+            date: null,
+            priority: 'medium',
+            done: false,
+          }));
+          loadedJournal = [...loadedJournal, ...migrated];
+          saveJSON('journal', loadedJournal);
+        }
+        saveJSON('habitsMigrated', true);
+      }
+      setJournal(loadedJournal);
+
       setReady(true);
     })();
   }, []);
@@ -160,7 +192,6 @@ export default function App() {
   };
 
   const pExams      = usePersist('exams',      setExams);
-  const pHabits     = usePersist('habits',     setHabits);
   const pFinances   = usePersist('finances',   setFinances);
   const pGroceries  = usePersist('groceries',  setGroceries);
   const pGoals      = usePersist('goals',      setGoals);
@@ -196,7 +227,7 @@ export default function App() {
   const SCREENS = {
     home: (
       <HomeScreen
-        exams={exams} tasks={journal} habits={habits}
+        exams={exams} tasks={journal}
         finances={finances} heatmap={heatmap} links={links}
         userName={userName} course={course} isFirstUse={isFirstUse}
         tipsShown={tipsShown} onDismissTip={dismissTip}
@@ -206,15 +237,14 @@ export default function App() {
     ),
     uni:       <UniScreen       exams={exams}         setExams={pExams} totalCredits={totalCredits} />,
     finances:  <FinancesScreen  finances={finances}   setFinances={pFinances}  />,
-    habits:    <HabitsScreen    habits={habits}       setHabits={pHabits}      />,
     groceries: <GroceriesScreen groceries={groceries} setGroceries={pGroceries} />,
     goals:     <GoalsScreen     goals={goals}         setGoals={pGoals}        />,
     notes:     <NotesScreen     notes={notes}         setNotes={pNotes}        />,
     links:     <LinksScreen     links={links}         setLinks={pLinks}        />,
     journal:   <JournalScreen   journal={journal}     setJournal={pJournal}    />,
     stats:     <StatsScreen
-                 exams={exams} tasks={journal} habits={habits}
-                 journal={journal} heatmap={heatmap}
+                 exams={exams} journal={journal} heatmap={heatmap}
+                 finances={finances}
                  loggedSeconds={loggedSeconds + timerSec}
                />,
   };
