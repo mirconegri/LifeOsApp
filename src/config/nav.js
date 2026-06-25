@@ -17,4 +17,3 @@ export const NAV = [
   { id: 'notes',     label: 'Notes',      icon: '💡', bottomNav: false },
   { id: 'links',     label: 'Links',      icon: '🔗', bottomNav: false },
 ];
-
