@@ -1,18 +1,18 @@
-
 // App.js — LifeOS root component
 import React, { useState, useEffect, useRef } from 'react';
 import {
   View, Text, TouchableOpacity, SafeAreaView,
   ScrollView, StatusBar, Modal, StyleSheet, Platform
 } from 'react-native';
-import AsyncStorage from '@react-native-async-storage/async-storage';
+import { BlurView } from 'expo-blur';
 
 import { COLORS } from './src/config/colors';
 import { NAV } from './src/config/nav';
 import { todayKey } from './src/data/helpers';
+import { loadJSON, saveJSON } from './src/data/storage';
 import {
   INIT_EXAMS, INIT_FINANCES,
-  INIT_GROCERIES, INIT_GOALS, INIT_NOTES, INIT_LINKS,
+  INIT_GROCERIES, INIT_GOALS, INIT_NOTES, INIT_LINKS, INIT_JOURNAL,
 } from './src/data/seedData';
 
 // Screens
@@ -26,25 +26,6 @@ import GoalsScreen      from './src/screens/GoalsScreen';
 import NotesScreen      from './src/screens/NotesScreen';
 import LinksScreen      from './src/screens/LinksScreen';
 import JournalScreen    from './src/screens/JournalScreen';
-
-const PREFIX = 'lifeos_';
-
-async function loadJSON(key, fallback) {
-  try {
-    const raw = await AsyncStorage.getItem(PREFIX + key);
-    return raw !== null ? JSON.parse(raw) : fallback;
-  } catch {
-    return fallback;
-  }
-}
-
-async function saveJSON(key, value) {
-  try {
-    await AsyncStorage.setItem(PREFIX + key, JSON.stringify(value));
-  } catch (e) {
-    console.warn('saveJSON error:', e);
-  }
-}
 
 function usePersist(key, setter) {
   return (valOrFn) => {
@@ -100,7 +81,13 @@ export default function App() {
       setHeatmap(      await loadJSON('heatmap',       {}));
       setLogged(       await loadJSON('loggedSeconds', 0));
 
-      let loadedJournal = await loadJSON('journal', []);
+      // Fixed: this used to fall back to [] for a brand-new install, so
+      // INIT_JOURNAL (seed tasks + habits) was dead data that nothing ever
+      // loaded — a fresh install always opened to an empty Tasks screen
+      // no matter how much seed data existed in seedData.js. Existing
+      // installs are unaffected: loadJSON only falls back when the
+      // 'lifeos_journal' key doesn't exist yet in AsyncStorage at all.
+      let loadedJournal = await loadJSON('journal', INIT_JOURNAL);
 
       // One-time migration: Habits used to be its own AsyncStorage list
       // (key 'habits'). Now that Habits is folded into Tasks, anything
@@ -256,7 +243,14 @@ export default function App() {
     <SafeAreaView style={styles.root}>
       <StatusBar barStyle="light-content" backgroundColor={COLORS.bg} />
 
-      {/* ── Top Bar ── */}
+      {/* ── Top Bar ──
+          Deliberately NOT given a BlurView: it sits in normal flex flow
+          above `content`, not overlapping it, so there's no scrolling
+          content positioned underneath it for a blur to actually show
+          through — it would just render as a flat tinted rectangle,
+          indistinguishable from the solid color already here. Real glass
+          here would need an edge-to-edge layout where content scrolls
+          UNDER this bar; that's a bigger, separate layout change. */}
       <View style={styles.topBar}>
         <TouchableOpacity onPress={() => setDrawerOpen(true)} style={styles.menuBtn}>
           <Text style={styles.menuIcon}>☰</Text>
@@ -270,6 +264,11 @@ export default function App() {
       </View>
 
       {/* ── Drawer ──
+          This one DOES get a real BlurView: it's rendered inside a Modal,
+          which RN puts in its own native layer above the entire screen —
+          so the blur has actual app content behind it to blur, not just
+          a flat background. Genuine "Liquid Glass" case, unlike the top
+          bar / bottom nav above and below.
           Opens from the LEFT edge of the screen. The overlay puts the
           dismiss-tap area AFTER the drawer panel in source order, and the
           drawer itself is anchored with borderRightWidth (not left), so it
@@ -277,6 +276,7 @@ export default function App() {
       <Modal visible={drawerOpen} animationType="fade" transparent>
         <View style={styles.drawerOverlay}>
           <View style={styles.drawer}>
+            <BlurView intensity={70} tint="dark" style={StyleSheet.absoluteFill} />
             <View style={styles.drawerHeader}>
               <Text style={styles.logo}>
                 <Text style={{ color: COLORS.accent }}>Life</Text>OS
@@ -305,7 +305,7 @@ export default function App() {
       {/* ── Main Content ── */}
       <View style={styles.content}>{SCREENS[screen]}</View>
 
-      {/* ── Bottom Nav ── */}
+      {/* ── Bottom Nav ── same reasoning as Top Bar above: kept solid. */}
       <View style={styles.bottomNav}>
         {bottomNavItems.map((n) => (
           <TouchableOpacity
@@ -349,8 +349,9 @@ const styles = StyleSheet.create({
     flex: 1, flexDirection: 'row', backgroundColor: 'rgba(0,0,0,0.6)',
   },
   drawer: {
-    width: 240, backgroundColor: COLORS.bg2,
+    width: 240,
     borderRightWidth: 1, borderRightColor: COLORS.border,
+    overflow: 'hidden', // clips the BlurView to the drawer's edges
   },
   drawerHeader: {
     padding: 16, borderBottomWidth: 1, borderBottomColor: COLORS.border, marginBottom: 8,
@@ -386,4 +387,3 @@ const styles = StyleSheet.create({
   bottomNavLabel: { fontSize: 10, color: COLORS.textSub, marginTop: 4 },
   bottomNavLabelActive: { color: COLORS.accent, fontWeight: '600' },
 });
-
