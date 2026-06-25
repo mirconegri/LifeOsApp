@@ -2,7 +2,7 @@
 
 [![React Native](https://img.shields.io/badge/React_Native-20232A?style=for-the-badge&logo=react&logoColor=61DAFB)](https://reactnative.dev/) [![Expo](https://img.shields.io/badge/Expo-000020?style=for-the-badge&logo=expo&logoColor=white)](https://expo.dev/) [![License](https://img.shields.io/badge/License-MIT-green?style=for-the-badge)](LICENSE)
 
-I needed an application that could **centralize my entire life**—from university tracking and finances to habits and daily journaling.  
+I needed an application that could **centralize my life**—from university tracking and finances to habits and daily journaling.  
 So, I created **Life OS**, a personal life operating system built with **React Native** and **Expo**.  
 Designed specifically for Android with a clean, premium dark theme, it acts as the ultimate daily dashboard.
 
