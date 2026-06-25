@@ -41,4 +41,3 @@ export const COLORS = {
   border2:   '#3a3a52',
   hairline:  '#ffffff14',
 };
-
