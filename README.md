@@ -84,7 +84,7 @@ LifeOS/
 Clone the repository:
 
 ```bash
-git clone [https://github.com/mirconegri/LifeOS.git](https://github.com/mirconegri/LifeOS.git)
+git clone https://github.com/mirconegri/LifeOS.git
 cd LifeOS
 
 ```
