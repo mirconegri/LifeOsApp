@@ -9,24 +9,30 @@ Designed specifically for Android with a clean, premium dark theme, it acts as t
 ---
 
 ## 📸 Preview
+## 📸 Preview
 
 Here are some screenshots of the different sections of the app:
 
-| ![Home](images/home.png) | ![Uni & Study](images/uni.png) |
+| ![Home](images/home.png) | ![Uni & Study](images/university.png) |
 |:--:|:--:|
 | **Home Dashboard** | **University & Exams** |
 
-| ![Finances](images/finances.png) | ![Habits](images/habits.png) |
+| ![Finances](images/finances.png) | ![Tasks](images/tasks.png) |
 |:--:|:--:|
-| **Finance Tracker** | **Habits & Streaks** |
+| **Finance Tracker** | **Tasks & Habits** |
 
 | ![Groceries](images/groceries.png) | ![Goals](images/goals.png) |
 |:--:|:--:|
 | **Groceries List** | **Life Goals** |
 
-| ![Notes & Links](images/notes.png) | ![Journal & Stats](images/journal.png) |
+| ![Notes](images/notes.png) | ![Links](images/links.png) |
 |:--:|:--:|
-| **Notes & Links** | **Journal & Statistics** |
+| **Notes** | **Links** |
+
+| ![Statistics](images/stats.png) | |
+|:--:|:--:|
+| **Statistics** | |
+
 
 ---
 
