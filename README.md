@@ -9,7 +9,6 @@ Designed specifically for Android with a clean, premium dark theme, it acts as t
 ---
 
 ## 📸 Preview
-## 📸 Preview
 
 Here are some screenshots of the different sections of the app:
 
