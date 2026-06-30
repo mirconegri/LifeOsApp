@@ -2,14 +2,15 @@
 import React, { useState, useEffect, useRef } from 'react';
 import {
   View, Text, TouchableOpacity, SafeAreaView,
-  ScrollView, StatusBar, Modal, StyleSheet, Platform
+  ScrollView, StatusBar, Modal, StyleSheet, Platform,
+  Animated, Easing, BackHandler,
 } from 'react-native';
-import { BlurView } from 'expo-blur';
 
 import { COLORS } from './src/config/colors';
 import { NAV } from './src/config/nav';
 import { todayKey } from './src/data/helpers';
 import { loadJSON, saveJSON } from './src/data/storage';
+import { FadeSlideIn } from './src/components/FadeSlideIn';
 import {
   INIT_EXAMS, INIT_FINANCES,
   INIT_GROCERIES, INIT_GOALS, INIT_NOTES, INIT_LINKS, INIT_JOURNAL,
@@ -27,6 +28,8 @@ import NotesScreen      from './src/screens/NotesScreen';
 import LinksScreen      from './src/screens/LinksScreen';
 import JournalScreen    from './src/screens/JournalScreen';
 
+const DRAWER_WIDTH = 240;
+
 function usePersist(key, setter) {
   return (valOrFn) => {
     setter((prev) => {
@@ -39,7 +42,6 @@ function usePersist(key, setter) {
 
 export default function App() {
   const [screen, setScreen]         = useState('home');
-  const [drawerOpen, setDrawerOpen] = useState(false);
   const [ready, setReady]           = useState(false);
   const [isFirstUse, setIsFirstUse] = useState(false);
 
@@ -63,6 +65,64 @@ export default function App() {
   const [timerSec,      setTimerSec]      = useState(0);
   const [timerSubject,  setTimerSubject]  = useState('');
   const timerRef = useRef(null);
+
+  // ── Drawer: now a solid sliding panel instead of a faded-in BlurView ──
+  // (see drawer styles/JSX below for why BlurView was dropped entirely).
+  // `drawerMounted` controls whether the Modal exists at all; `drawerX`
+  // drives the slide. Kept as two pieces of state/ref so closing can
+  // finish its slide-out animation BEFORE the Modal unmounts, instead of
+  // the panel just vanishing mid-slide.
+  const [drawerMounted, setDrawerMounted] = useState(false);
+  const drawerX = useRef(new Animated.Value(-DRAWER_WIDTH)).current;
+
+  const openDrawer = () => {
+    setDrawerMounted(true);
+    drawerX.setValue(-DRAWER_WIDTH);
+    requestAnimationFrame(() => {
+      Animated.timing(drawerX, {
+        toValue: 0, duration: 260, easing: Easing.out(Easing.cubic), useNativeDriver: true,
+      }).start();
+    });
+  };
+  const closeDrawer = () => {
+    Animated.timing(drawerX, {
+      toValue: -DRAWER_WIDTH, duration: 220, easing: Easing.in(Easing.cubic), useNativeDriver: true,
+    }).start(() => setDrawerMounted(false));
+  };
+
+  // ── Android hardware back button ──────────────────────────────────────
+  // Previously unhandled entirely, so back always fell through to the OS
+  // default of exiting the app. This adds: (1) close the drawer if it's
+  // open, (2) otherwise pop a real navigation history stack back to
+  // whatever screen the user was actually on before, rather than just
+  // jumping to Home. Each screen's own Modals (add/edit forms, date
+  // picker, alerts) handle back via their own `onRequestClose`, so this
+  // only needs to care about drawer + screen-level navigation.
+  const screenHistoryRef = useRef([]);
+
+  const goToScreen = (id) => {
+    if (id === screen) return;
+    screenHistoryRef.current.push(screen);
+    setScreen(id);
+  };
+
+  useEffect(() => {
+    const onBackPress = () => {
+      if (drawerMounted) {
+        closeDrawer();
+        return true;
+      }
+      if (screenHistoryRef.current.length > 0) {
+        const prev = screenHistoryRef.current.pop();
+        setScreen(prev);
+        return true;
+      }
+      return false; // nothing left in history — let the OS handle it (exit/minimize)
+    };
+    const sub = BackHandler.addEventListener('hardwareBackPress', onBackPress);
+    return () => sub.remove();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [drawerMounted]);
 
   useEffect(() => {
     (async () => {
@@ -196,8 +256,28 @@ export default function App() {
   };
 
   // Used by HomeScreen's per-section "jump to" arrows, so tapping a
-  // section title on the Home screen navigates straight into it.
-  const navigateTo = (screenId) => setScreen(screenId);
+  // section title on the Home screen navigates straight into it — and now
+  // also registers in the back-button history stack like any other nav.
+  const navigateTo = (screenId) => goToScreen(screenId);
+
+  // ── Bottom nav icon "pop" animation ────────────────────────────────────
+  // One persistent Animated.Value per nav item (created lazily, kept in a
+  // ref so it survives re-renders), bounced whenever that item becomes
+  // the active screen.
+  const navScalesRef = useRef({});
+  const getNavScale = (id) => {
+    if (!navScalesRef.current[id]) navScalesRef.current[id] = new Animated.Value(1);
+    return navScalesRef.current[id];
+  };
+  useEffect(() => {
+    const scale = getNavScale(screen);
+    scale.setValue(1);
+    Animated.sequence([
+      Animated.timing(scale, { toValue: 1.25, duration: 110, easing: Easing.out(Easing.quad), useNativeDriver: true }),
+      Animated.spring(scale, { toValue: 1, useNativeDriver: true, speed: 16, bounciness: 8 }),
+    ]).start();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [screen]);
 
   if (!ready) {
     return (
@@ -243,16 +323,11 @@ export default function App() {
     <SafeAreaView style={styles.root}>
       <StatusBar barStyle="light-content" backgroundColor={COLORS.bg} />
 
-      {/* ── Top Bar ──
-          Deliberately NOT given a BlurView: it sits in normal flex flow
-          above `content`, not overlapping it, so there's no scrolling
-          content positioned underneath it for a blur to actually show
-          through — it would just render as a flat tinted rectangle,
-          indistinguishable from the solid color already here. Real glass
-          here would need an edge-to-edge layout where content scrolls
-          UNDER this bar; that's a bigger, separate layout change. */}
+      {/* ── Top Bar ── kept solid: it sits in normal flex flow above
+          `content`, not overlapping scrolling content, so there was never
+          anything for a blur to actually show through here anyway. */}
       <View style={styles.topBar}>
-        <TouchableOpacity onPress={() => setDrawerOpen(true)} style={styles.menuBtn}>
+        <TouchableOpacity onPress={openDrawer} style={styles.menuBtn}>
           <Text style={styles.menuIcon}>☰</Text>
         </TouchableOpacity>
         <Text style={styles.logo}>
@@ -264,19 +339,21 @@ export default function App() {
       </View>
 
       {/* ── Drawer ──
-          This one DOES get a real BlurView: it's rendered inside a Modal,
-          which RN puts in its own native layer above the entire screen —
-          so the blur has actual app content behind it to blur, not just
-          a flat background. Genuine "Liquid Glass" case, unlike the top
-          bar / bottom nav above and below.
-          Opens from the LEFT edge of the screen. The overlay puts the
-          dismiss-tap area AFTER the drawer panel in source order, and the
-          drawer itself is anchored with borderRightWidth (not left), so it
-          slides in from the left side rather than the right. */}
-      <Modal visible={drawerOpen} animationType="fade" transparent>
+          Redesigned as a solid sliding panel. It used to use a real-time
+          BlurView, reasoned (in a now-outdated comment) as "genuine glass"
+          because a Modal sits above real app content. That reasoning held
+          on iOS — but on this project's pinned Expo SDK (54), expo-blur's
+          BlurView does not blur on Android at all; it falls back to a
+          flat semi-transparent rectangle. On the actual Android device
+          this app is tested on, the drawer has therefore never been
+          "glass" — it's been a cheap-looking tinted overlay the whole
+          time, which is exactly the complaint. Fix: drop the blur
+          entirely here and make the drawer a confidently solid panel that
+          slides in from the left (translateX, not a fade), with its own
+          backgroundColor instead of relying on a blur to provide one. */}
+      <Modal visible={drawerMounted} animationType="none" transparent onRequestClose={closeDrawer}>
         <View style={styles.drawerOverlay}>
-          <View style={styles.drawer}>
-            <BlurView intensity={70} tint="dark" style={StyleSheet.absoluteFill} />
+          <Animated.View style={[styles.drawer, { transform: [{ translateX: drawerX }] }]}>
             <View style={styles.drawerHeader}>
               <Text style={styles.logo}>
                 <Text style={{ color: COLORS.accent }}>Life</Text>OS
@@ -287,7 +364,7 @@ export default function App() {
               {NAV.map((n) => (
                 <TouchableOpacity
                   key={n.id}
-                  onPress={() => { setScreen(n.id); setDrawerOpen(false); }}
+                  onPress={() => { goToScreen(n.id); closeDrawer(); }}
                   style={[styles.drawerItem, screen === n.id && styles.drawerItemActive]}
                 >
                   <Text style={{ fontSize: 18 }}>{n.icon}</Text>
@@ -297,26 +374,41 @@ export default function App() {
                 </TouchableOpacity>
               ))}
             </ScrollView>
-          </View>
-          <TouchableOpacity style={{ flex: 1 }} onPress={() => setDrawerOpen(false)} />
+          </Animated.View>
+          <TouchableOpacity style={{ flex: 1 }} onPress={closeDrawer} />
         </View>
       </Modal>
 
-      {/* ── Main Content ── */}
-      <View style={styles.content}>{SCREENS[screen]}</View>
+      {/* ── Main Content ── crossfades/slides in on every screen switch.
+          Keying FadeSlideIn by `screen` forces a fresh mount (and so a
+          fresh play of its entrance animation) each time the active
+          screen changes, without needing a more complex overlapping
+          unmount/mount transition. */}
+      <View style={styles.content}>
+        <FadeSlideIn key={screen} style={{ flex: 1 }}>
+          {SCREENS[screen]}
+        </FadeSlideIn>
+      </View>
 
-      {/* ── Bottom Nav ── same reasoning as Top Bar above: kept solid. */}
+      {/* ── Bottom Nav ── kept solid, same reasoning as Top Bar. Icons get
+          a quick scale "pop" when they become active. */}
       <View style={styles.bottomNav}>
         {bottomNavItems.map((n) => (
           <TouchableOpacity
             key={n.id}
-            onPress={() => setScreen(n.id)}
+            onPress={() => goToScreen(n.id)}
             style={styles.bottomNavItem}
           >
             <View style={[styles.bottomNavIconWrap, screen === n.id && styles.bottomNavIconWrapActive]}>
-              <Text style={[styles.bottomNavIcon, screen === n.id && styles.bottomNavIconActive]}>
+              <Animated.Text
+                style={[
+                  styles.bottomNavIcon,
+                  screen === n.id && styles.bottomNavIconActive,
+                  { transform: [{ scale: getNavScale(n.id) }] },
+                ]}
+              >
                 {n.icon}
-              </Text>
+              </Animated.Text>
             </View>
             <Text style={[styles.bottomNavLabel, screen === n.id && styles.bottomNavLabelActive]}>
               {n.label}
@@ -349,12 +441,35 @@ const styles = StyleSheet.create({
     flex: 1, flexDirection: 'row', backgroundColor: 'rgba(0,0,0,0.6)',
   },
   drawer: {
-    width: 240,
+    width: DRAWER_WIDTH,
+    height: '100%',
+    backgroundColor: COLORS.bg2,
     borderRightWidth: 1, borderRightColor: COLORS.border,
-    overflow: 'hidden', // clips the BlurView to the drawer's edges
+    // Solid panel now carries its own subtle depth instead of relying on
+    // a blur to look "lifted" off the backdrop.
+    shadowColor: '#000',
+    shadowOffset: { width: 4, height: 0 },
+    shadowOpacity: 0.35,
+    shadowRadius: 12,
+    elevation: 16,
   },
   drawerHeader: {
-    padding: 16, borderBottomWidth: 1, borderBottomColor: COLORS.border, marginBottom: 8,
+    padding: 16,
+    // The Modal this lives in is its own native layer — it does NOT
+    // inherit the root SafeAreaView's top inset (that padding only
+    // applies to the normally-rendered screen tree). Without an explicit
+    // top offset here, this header starts at literal y=0 of the physical
+    // screen and the logo/subtitle land directly under the status bar
+    // icons (wifi/battery/clock) instead of below them. Reusing
+    // StatusBar.currentHeight — the same value already used for `root`'s
+    // padding — keeps this consistent with the rest of the app rather
+    // than introducing a second, different mechanism for the same
+    // problem. [Guessing] on iOS this is rougher (StatusBar.currentHeight
+    // is Android-only and undefined there); 44 is a reasonable flat
+    // estimate for non-notched devices, but this hasn't been verified on
+    // an actual iPhone since the test device is the Nothing Phone 2a.
+    paddingTop: 16 + (Platform.OS === 'android' ? (StatusBar.currentHeight || 24) : 44),
+    borderBottomWidth: 1, borderBottomColor: COLORS.border, marginBottom: 8,
   },
   drawerSubtitle: { fontSize: 11, color: COLORS.textSub, marginTop: 2 },
   drawerItem: {
