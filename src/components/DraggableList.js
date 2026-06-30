@@ -5,29 +5,56 @@
 // then drag it anywhere — the list reflows live under your finger as you
 // move, and releasing drops it in place.
 //
-// ── Perf fix on top of the original gesture fix ──────────────────────────
-// The previous version called `makeResponderFor(key)` inside the render
-// loop, which created a BRAND NEW PanResponder object (with its own timer
-// ref and `armed` flag) for every visible row on every single re-render of
-// this component. Since this list typically lives inside a screen with
-// other interactive state above it (e.g. JournalScreen toggling a
-// checkbox triggers a re-render of the whole section), that meant every
-// unrelated tap anywhere in the list was silently rebuilding every row's
-// gesture recognizer — wasted allocation, and on a real device with many
-// rows (seed data now ships dozens of tasks) this is a visible, measurable
-// per-render cost, not an academic one.
+// ── Fix: drag tracked at ~2x finger speed once it crosses a row boundary ──
+// The previous version drove the Animated transform directly off the raw
+// gesture delta (`dragY.setValue(gesture.dy)`), while ALSO re-sorting
+// `liveOrder` (which changes the dragged row's position in the rendered
+// list by ±itemHeight every time it crosses a neighbor). Both of those
+// move the row visually — the transform AND the reflow — and they stack:
+// once the row has crossed one neighbor, the user has moved their finger
+// `itemHeight` px, the reflow has already shifted the row `itemHeight` px,
+// and the transform is ALSO still applying the full `itemHeight` raw
+// delta on top of that. The row ends up roughly twice as far from the
+// start point as the finger is, and the effect compounds with every row
+// crossed — exactly the "drag feels 2x speed, especially going up"
+// symptom. The fix: every time the reflow moves the row by N slots, the
+// transform is reduced by N * itemHeight, so the transform only ever
+// represents the leftover delta the reflow hasn't already accounted for.
+// Total visual displacement = transform + reflow = gesture.dy, always.
 //
-// The fix: each row's PanResponder is created ONCE and cached by key in
-// `responderCacheRef`, then reused across every render for as long as
-// that key exists in the list. The risk with caching a closure long-term
-// is the classic React stale-closure bug — a handler created on render #1
-// would otherwise keep calling render #1's `onReorder`/`itemHeight`/
-// `itemsByKey` forever, even after the parent re-renders with new props.
-// `latestRef` solves that: every render updates `latestRef.current` with
-// the freshest onReorder/itemHeight/itemsByKey, and the cached handlers
-// read through that ref instead of closing over the values directly —
-// the same pattern as `useLatestCallback`. The PanResponder object itself
-// can be ancient; what it reads at call-time is always current.
+// ── Perf fix (kept from the previous pass) ────────────────────────────────
+// Each row's PanResponder is created ONCE and cached by key in
+// `responderCacheRef`, then reused across renders, instead of being
+// rebuilt on every render (which used to happen on every unrelated state
+// change anywhere in the parent screen). `latestRef` avoids the resulting
+// stale-closure problem: cached handlers read the freshest
+// onReorder/itemHeight/itemsByKey through this ref instead of closing
+// over render-time values directly.
+//
+// ── Android fix: nested checkbox/buttons not registering taps reliably ───
+// `onShouldBlockNativeResponder: () => false` tells Android not to let
+// this PanResponder's responder grant block a nested native touchable
+// (e.g. the checkbox TouchableOpacity rendered inside a row) from getting
+// its own touch events. This is the documented Android-only escape hatch
+// for exactly this class of bug — an ancestor PanResponder intermittently
+// swallowing taps meant for a child Touchable — and costs nothing on iOS,
+// where the prop is a no-op.
+//
+// ── Fix: row "pops" on long-press, then snaps back the instant you move ──
+// Symptom: hold a row, it scales up (armed = true fired), but as soon as
+// the finger moves at all, it deselects instead of dragging. Cause: this
+// responder was granted at touch-down, but nothing told it to REFUSE
+// giving that grant back up. A parent ScrollView watches for vertical
+// movement and, the moment it sees any, asks the current responder to
+// terminate so IT can take over and scroll. Without
+// `onPanResponderTerminationRequest`, RN's default answer to that request
+// is "yes" — which fires `onPanResponderTerminate` on this responder,
+// running the exact same cleanup as a normal release. So the row was
+// being "released" by the OS one frame after being armed, every time,
+// regardless of how deliberate the press was. The fix returns `false`
+// once `armed` is true, so the parent can't reclaim the touch mid-drag;
+// before arming, it still returns `true` so an ordinary scroll gesture on
+// the list is never blocked.
 import React, { useRef, useState, useEffect } from 'react';
 import { View, PanResponder, Animated, StyleSheet, Vibration } from 'react-native';
 import { COLORS } from '../config/colors';
@@ -75,6 +102,10 @@ export function DraggableList({ items, keyExtractor, renderItem, onReorder, item
     latestOnReorder(liveOrderRef.current.map(k => latestItemsByKey[k]));
   }
 
+  // Computes the target slot for the dragged row given the raw finger
+  // delta, reflows liveOrder if the slot changed, and sets the Animated
+  // transform to ONLY the portion of clientDy not already represented by
+  // that reflow (see file header for why this compensation is needed).
   function moveDraggedTo(clientDy) {
     const { itemHeight: latestItemHeight } = latestRef.current;
     if (!latestItemHeight) return;
@@ -92,6 +123,8 @@ export function DraggableList({ items, keyExtractor, renderItem, onReorder, item
         return next;
       });
     }
+    const reflowOffset = (targetIndex - draggedFromIndexRef.current) * latestItemHeight;
+    dragY.setValue(clientDy - reflowOffset);
   }
 
   // One PanResponder per row KEY, created lazily and cached forever (for
@@ -131,6 +164,20 @@ export function DraggableList({ items, keyExtractor, renderItem, onReorder, item
         if (armed) return true;
         return Math.abs(gesture.dy) < MOVE_CANCEL_THRESHOLD && Math.abs(gesture.dx) < MOVE_CANCEL_THRESHOLD;
       },
+      // Android-only: don't let this responder's grant block a nested
+      // native touchable (checkbox, trash button, etc.) from receiving
+      // its own touch. See file header for the full rationale.
+      onShouldBlockNativeResponder: () => false,
+      // Without this, the row pops on long-press (armed = true) but
+      // reverts the instant the finger moves: a parent ScrollView asks
+      // to take the responder back as soon as it sees vertical movement,
+      // and by default RN grants that request, which fires
+      // onPanResponderTerminate — same cleanup path as a release, so the
+      // row snaps back exactly as if it had been dropped. Refusing the
+      // request (but only once armed; an unarmed press still yields
+      // normally so plain scrolling isn't broken) is what actually keeps
+      // the drag alive once it starts.
+      onPanResponderTerminationRequest: () => !armed,
 
       onPanResponderGrant: () => {
         clearTimeout(longPressTimer);
@@ -152,7 +199,6 @@ export function DraggableList({ items, keyExtractor, renderItem, onReorder, item
 
       onPanResponderMove: (evt, gesture) => {
         if (!armed) return;
-        dragY.setValue(gesture.dy);
         moveDraggedTo(gesture.dy);
       },
 
