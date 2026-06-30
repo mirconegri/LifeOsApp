@@ -96,6 +96,8 @@ export default function UniScreen({ exams, setExams, totalCredits }) {
   const [simGrade,  setSimGrade]  = useState(null);
   const [simCredits,setSimCredits] = useState('6');
 
+  const closeModal = () => setModalVisible(false);
+
   // ─── Computed ─────────────────────────────────────────────────────────────
   const {
     average, weightedAverage,
@@ -227,6 +229,20 @@ export default function UniScreen({ exams, setExams, totalCredits }) {
     });
   };
 
+  const confirmClearAll = () => {
+    setAlertConfig({
+      title: 'Clear All Exams',
+      message: `This will permanently delete all ${exams.length} exams. This can't be undone.`,
+      buttons: [
+        { text: 'Cancel', style: 'cancel', onPress: () => setAlertConfig(null) },
+        { text: 'Clear All', style: 'destructive', onPress: () => {
+          setExams([]);
+          setAlertConfig(null);
+        }},
+      ],
+    });
+  };
+
   // Date mode: both directions are capped at 5 years, exactly as requested.
   const dateMode = formStatus === 'passed' ? 'past5' : 'future5';
 
@@ -234,7 +250,13 @@ export default function UniScreen({ exams, setExams, totalCredits }) {
     <View style={styles.container}>
       <CustomAlert config={alertConfig} />
 
-      <ScrollView contentContainerStyle={styles.scrollContent}>
+      {/* keyboardShouldPersistTaps="always": without it, the first tap on
+          anything in this scroll view (GradeSelector's dropdown rows
+          included) while the keyboard is open just dismisses the
+          keyboard instead of registering — every other screen's modal
+          form already sets this; this top-level scroll view never had
+          it. */}
+      <ScrollView contentContainerStyle={styles.scrollContent} keyboardShouldPersistTaps="always">
 
         {/* ─── Stat Grid ─── */}
         <Text style={styles.sectionTitle}>📊 Overview</Text>
@@ -281,10 +303,17 @@ export default function UniScreen({ exams, setExams, totalCredits }) {
           <Text style={styles.simSubtitle}>How would a new grade affect your average?</Text>
 
           {/* Grade picker sits ABOVE the CFU field, not beside it.
-              GradeSelector's dropdown opens downward and is as wide as its
-              own column; stacking these vertically means the open dropdown
-              can never land on top of the CFU input and swallow its taps —
-              that overlap was the main reason the simulator felt broken. */}
+              GradeSelector's dropdown opens downward; stacking these
+              vertically means the open dropdown can never land on top of
+              the CFU input. `elevation` (not just zIndex — Android's
+              touch dispatch for overlapping siblings needs the real
+              native elevation property, zIndex alone is mostly an
+              iOS/web concept) is set high here too, defensively, so this
+              row's dropdown wins against whatever renders after it in
+              this Card on Android. The actual reported bug (dropdown taps
+              only registering via the keyboard's Enter key) was a
+              different, separate issue inside GradeSelector itself — see
+              GradeSelector.js for that fix. */}
           <View style={styles.simGradeRow}>
             <GradeSelector
               value={simGrade}
@@ -343,7 +372,14 @@ export default function UniScreen({ exams, setExams, totalCredits }) {
         </TouchableOpacity>
 
         {/* ─── Exams List ─── */}
-        <Text style={styles.sectionTitle}>📋 Exams ({exams.length})</Text>
+        <View style={styles.listHeaderRow}>
+          <Text style={styles.sectionTitle}>📋 Exams ({exams.length})</Text>
+          {exams.length > 0 && (
+            <TouchableOpacity onPress={confirmClearAll}>
+              <Text style={styles.clearAllText}>Clear All</Text>
+            </TouchableOpacity>
+          )}
+        </View>
         {exams.length === 0 ? (
           <Card><Text style={styles.emptyText}>No exams yet. Add your first one!</Text></Card>
         ) : (
@@ -393,12 +429,12 @@ export default function UniScreen({ exams, setExams, totalCredits }) {
       </ScrollView>
 
       {/* ─── Add / Edit Modal ─── */}
-      <Modal visible={modalVisible} animationType="slide" transparent>
+      <Modal visible={modalVisible} animationType="slide" transparent onRequestClose={closeModal}>
         <KeyboardAvoidingView
           behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
           style={styles.modalWrapper}
         >
-          <TouchableOpacity style={styles.modalBackdrop} onPress={() => setModalVisible(false)} />
+          <TouchableOpacity style={styles.modalBackdrop} onPress={closeModal} />
           <GlassSheet maxHeight="92%">
             <Text style={styles.modalTitle}>{editingId ? 'Edit Exam' : 'Add Exam'}</Text>
 
@@ -484,7 +520,7 @@ export default function UniScreen({ exams, setExams, totalCredits }) {
                     <Text style={styles.btnDeleteText}>Delete</Text>
                   </TouchableOpacity>
                 ) : (
-                  <TouchableOpacity onPress={() => setModalVisible(false)} style={[styles.formBtn, styles.btnCancel]}>
+                  <TouchableOpacity onPress={closeModal} style={[styles.formBtn, styles.btnCancel]}>
                     <Text style={styles.btnCancelText}>Cancel</Text>
                   </TouchableOpacity>
                 )}
@@ -513,6 +549,8 @@ const styles = StyleSheet.create({
   scrollContent:{ padding: 16, paddingBottom: 40 },
 
   sectionTitle: { fontSize: 13, fontWeight: '600', color: COLORS.textMuted, textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 10, marginTop: 10 },
+  listHeaderRow:{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
+  clearAllText: { fontSize: 12, color: COLORS.red, fontWeight: '600' },
 
   statsGrid:   { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between', marginBottom: 8 },
   gridItem:    { width: '48%', marginBottom: 10 },
@@ -525,7 +563,7 @@ const styles = StyleSheet.create({
   // Simulator
   simCard:     { marginBottom: 16, padding: 16, overflow: 'visible' },
   simSubtitle: { fontSize: 12, color: COLORS.textMuted, marginBottom: 12 },
-  simGradeRow: { zIndex: 200, marginBottom: 4 },
+  simGradeRow: { zIndex: 200, elevation: 200, marginBottom: 4 },
   simResults:  { flexDirection: 'row', justifyContent: 'space-between', flexWrap: 'wrap', marginTop: 4 },
   simResultItem:{ alignItems: 'center', flex: 1, minWidth: '30%' },
   simResultLabel:{ fontSize: 11, color: COLORS.textSub, marginBottom: 4, textAlign: 'center' },
