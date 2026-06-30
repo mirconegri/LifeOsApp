@@ -28,9 +28,9 @@ Here are some screenshots of the different sections of the app:
 |:--:|:--:|
 | **Notes** | **Links** |
 
-| ![Statistics](images/stats.png) | |
+| ![Statistics](images/stats.png) | ![Screen](images/screen.png) |
 |:--:|:--:|
-| **Statistics** | |
+| **Statistics** | **Screen List** |
 
 
 ---
