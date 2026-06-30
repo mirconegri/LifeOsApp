@@ -19,7 +19,7 @@
 //   it), and all characters are lowercased as you type.
 import React, { useState, useRef } from 'react';
 import {
-  View, Text, TextInput, TouchableOpacity, StyleSheet,
+  View, Text, TextInput, TouchableOpacity, ScrollView, StyleSheet,
 } from 'react-native';
 import { COLORS } from '../config/colors';
 
@@ -120,18 +120,30 @@ export function TagInput({ tags, onChangeTags, allKnownTags = [], placeholder = 
       />
 
       {focused && suggestions.length > 0 && (
+        // Same clipping bug as GradeSelector's dropdown: 6 rows at ~43px
+        // each is ~258px against a 220px non-scrolling maxHeight, so the
+        // 6th suggestion was partially outside the touchable area.
+        // Flagged proactively, not reported — applying the same
+        // ScrollView fix here for consistency since it's the same root
+        // cause in the same dropdown pattern.
         <View style={styles.dropdown}>
-          {suggestions.slice(0, 6).map((s, i) => (
-            <TouchableOpacity
-              key={s}
-              style={[styles.option, i < suggestions.length - 1 && styles.optionDivider]}
-              onPressIn={() => commitTag(s)}
-            >
-              <Text style={styles.optionText}>
-                {s === cleanQuery && showCreateOption && !allKnownTags.includes(s) ? `Create "#${s}"` : `#${s}`}
-              </Text>
-            </TouchableOpacity>
-          ))}
+          <ScrollView
+            nestedScrollEnabled
+            keyboardShouldPersistTaps="always"
+            showsVerticalScrollIndicator={false}
+          >
+            {suggestions.slice(0, 6).map((s, i) => (
+              <TouchableOpacity
+                key={s}
+                style={[styles.option, i < suggestions.length - 1 && styles.optionDivider]}
+                onPressIn={() => commitTag(s)}
+              >
+                <Text style={styles.optionText}>
+                  {s === cleanQuery && showCreateOption && !allKnownTags.includes(s) ? `Create "#${s}"` : `#${s}`}
+                </Text>
+              </TouchableOpacity>
+            ))}
+          </ScrollView>
         </View>
       )}
     </View>
