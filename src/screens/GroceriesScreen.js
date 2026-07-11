@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import {
   View, Text, ScrollView, StyleSheet, TextInput,
@@ -7,6 +8,7 @@ import { COLORS } from '../config/colors';
 import { Card } from '../components/Card';
 import { Pill } from '../components/Pill';
 import { CustomAlert } from '../components/CustomAlert';
+import { GlassSheet } from '../components/GlassSheet';
 
 const CATEGORIES = ['supermarket', 'pharmacy', 'home', 'other'];
 
@@ -18,6 +20,7 @@ export default function GroceriesScreen({ groceries, setGroceries }) {
   const [alertConfig, setAlertConfig]   = useState(null);
 
   const showAlert = (cfg) => setAlertConfig(cfg);
+  const closeModal = () => setModalVisible(false);
 
   const toggleItem = (id) => {
     setGroceries(prev => prev.map(item => item.id === id ? { ...item, done: !item.done } : item));
@@ -31,6 +34,20 @@ export default function GroceriesScreen({ groceries, setGroceries }) {
         { text: 'Cancel', style: 'cancel', onPress: () => setAlertConfig(null) },
         { text: 'Delete', style: 'destructive', onPress: () => {
           setGroceries(prev => prev.filter(item => item.id !== id));
+          setAlertConfig(null);
+        }},
+      ],
+    });
+  };
+
+  const confirmClearAll = () => {
+    showAlert({
+      title: 'Clear All Items',
+      message: `This will permanently delete all ${groceries.length} items from the list. This can't be undone.`,
+      buttons: [
+        { text: 'Cancel', style: 'cancel', onPress: () => setAlertConfig(null) },
+        { text: 'Clear All', style: 'destructive', onPress: () => {
+          setGroceries([]);
           setAlertConfig(null);
         }},
       ],
@@ -81,13 +98,20 @@ export default function GroceriesScreen({ groceries, setGroceries }) {
         </View>
 
         {/* Filters */}
-        <View style={styles.filters}>
-          {[['all', 'All'], ['to buy', 'To Buy'], ['completed', 'Completed']].map(([f, l]) => (
-            <TouchableOpacity key={f} onPress={() => setFilter(f)}
-              style={[styles.filterPill, filter === f && styles.filterPillActive, { marginRight: 8 }]}>
-              <Text style={[styles.filterText, filter === f && { color: COLORS.accent }]}>{l}</Text>
+        <View style={styles.filtersRow}>
+          <View style={styles.filters}>
+            {[['all', 'All'], ['to buy', 'To Buy'], ['completed', 'Completed']].map(([f, l]) => (
+              <TouchableOpacity key={f} onPress={() => setFilter(f)}
+                style={[styles.filterPill, filter === f && styles.filterPillActive, { marginRight: 8 }]}>
+                <Text style={[styles.filterText, filter === f && { color: COLORS.accent }]}>{l}</Text>
+              </TouchableOpacity>
+            ))}
+          </View>
+          {groceries.length > 0 && (
+            <TouchableOpacity onPress={confirmClearAll}>
+              <Text style={styles.clearAllText}>Clear All</Text>
             </TouchableOpacity>
-          ))}
+          )}
         </View>
 
         {filteredGroceries.length === 0 ? (
@@ -114,20 +138,19 @@ export default function GroceriesScreen({ groceries, setGroceries }) {
       </ScrollView>
 
       {/* ── Modal ── */}
-      <Modal visible={modalVisible} transparent animationType="slide">
+      <Modal visible={modalVisible} transparent animationType="slide" onRequestClose={closeModal}>
         <KeyboardAvoidingView
           style={styles.modalWrapper}
           behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         >
-          <TouchableOpacity style={styles.modalBackdrop} activeOpacity={1} onPress={() => setModalVisible(false)} />
-          <View style={styles.modal}>
-            <View style={styles.modalHandle} />
+          <TouchableOpacity style={styles.modalBackdrop} activeOpacity={1} onPress={closeModal} />
+          <GlassSheet>
             <Text style={styles.modalTitle}>Add Product</Text>
 
-            {/* keyboardShouldPersistTaps="handled" fixes the bug where the
+            {/* keyboardShouldPersistTaps="always" fixes the bug where the
                 first tap on Add just dismisses the keyboard instead of
                 firing onPress, forcing the user to tap twice. */}
-            <ScrollView keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
+            <ScrollView keyboardShouldPersistTaps="always" showsVerticalScrollIndicator={false}>
               <TextInput
                 style={styles.input}
                 placeholder="What do you need to buy?"
@@ -150,7 +173,7 @@ export default function GroceriesScreen({ groceries, setGroceries }) {
               </View>
 
               <View style={styles.modalBtns}>
-                <TouchableOpacity onPress={() => setModalVisible(false)}>
+                <TouchableOpacity onPress={closeModal}>
                   <Text style={styles.cancelBtn}>Cancel</Text>
                 </TouchableOpacity>
                 <TouchableOpacity style={styles.confirmBtn} onPress={addItem}>
@@ -158,7 +181,7 @@ export default function GroceriesScreen({ groceries, setGroceries }) {
                 </TouchableOpacity>
               </View>
             </ScrollView>
-          </View>
+          </GlassSheet>
         </KeyboardAvoidingView>
       </Modal>
 
@@ -181,10 +204,12 @@ const styles = StyleSheet.create({
   counterNum:  { fontSize: 22, fontWeight: '700', color: COLORS.accent },
   counterLbl:  { fontSize: 11, color: COLORS.textSub, marginTop: 2 },
 
-  filters:         { flexDirection: 'row', marginBottom: 14 },
+  filtersRow:      { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 },
+  filters:         { flexDirection: 'row' },
   filterPill:      { paddingHorizontal: 12, paddingVertical: 6, borderRadius: 20, backgroundColor: COLORS.bg2 },
   filterPillActive:{ backgroundColor: COLORS.accentGlow },
   filterText:      { fontSize: 12, color: COLORS.textMuted },
+  clearAllText:    { fontSize: 12, color: COLORS.red, fontWeight: '600' },
   emptyText:       { fontSize: 13, color: COLORS.textSub, textAlign: 'center', marginTop: 20 },
 
   itemCard:    { marginBottom: 8, padding: 12 },
@@ -200,14 +225,6 @@ const styles = StyleSheet.create({
   // Modal
   modalWrapper:  { flex: 1, justifyContent: 'flex-end' },
   modalBackdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.6)' },
-  modal: {
-    backgroundColor: COLORS.bg2,
-    borderTopLeftRadius: 24, borderTopRightRadius: 24,
-    padding: 24, paddingBottom: 40,
-    borderTopWidth: 1, borderColor: COLORS.border,
-    maxHeight: '88%',
-  },
-  modalHandle: { width: 40, height: 4, borderRadius: 2, backgroundColor: COLORS.bg4, alignSelf: 'center', marginBottom: 16 },
   modalTitle:  { fontSize: 18, fontWeight: '700', color: COLORS.text, marginBottom: 16, textAlign: 'center' },
   input:       { backgroundColor: COLORS.bg3, borderWidth: 1, borderColor: COLORS.border, borderRadius: 10, padding: 12, color: COLORS.text, fontSize: 14, marginBottom: 12 },
   fieldLabel:  { color: COLORS.textSub, fontSize: 13, marginBottom: 8 },

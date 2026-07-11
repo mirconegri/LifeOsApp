@@ -3,25 +3,43 @@ import {
   View, Text, TextInput, TouchableOpacity, ScrollView,
   StyleSheet, KeyboardAvoidingView, Platform, StatusBar,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { COLORS } from '../config/colors';
+import { CustomAlert } from '../components/CustomAlert';
 
-const STEPS = [
-  { id: 'welcome',  title: null },
-  { id: 'name',     title: 'What is your name?' },
-  { id: 'uni',      title: 'Your university' },
-  { id: 'goals',    title: 'What matters most to you?' },
-  { id: 'done',     title: null },
-];
-
-export default function OnboardingScreen({ onComplete }) {
+export default function OnboardingScreen({
+  onComplete, 
+  onGoogleSignIn,
+  onResolveConflictKeepGoogleAccount, 
+  onResolveConflictKeepThisDevice,
+}) {
+  // Navigation & UI States
   const [step, setStep] = useState(0);
+  const [alertConfig, setAlertConfig] = useState(null);
+  const [googleLoading, setGoogleLoading] = useState(false);
 
-  // Fields
-  const [name,         setName]         = useState('');
-  const [course,       setCourse]       = useState('');
-  const [year,         setYear]         = useState('');
-  const [totalCredits, setTotalCredits] = useState('');
+  // Form Fields
+  const [name, setName] = useState('');
+  const [course, setCourse] = useState('');
+  const [year, setYear] = useState('1');
+  const [totalCredits, setTotalCredits] = useState(180);
   const [selectedGoals, setSelectedGoals] = useState([]);
+
+  const STEPS = [
+    { id: 'welcome',  title: null },
+    { id: 'name',     title: 'What is your name?' },
+    { id: 'uni',      title: 'Your university' },
+    { id: 'goals',    title: 'What matters most to you?' },
+    { id: 'done',     title: null },
+  ];
+
+  const CREDIT_OPTIONS = [
+    { label: 'Triennale (180 CFU)',  value: 180 },
+    { label: 'Magistrale (120 CFU)', value: 120 },
+    { label: 'Ciclo Unico (300 CFU)', value: 300 },
+  ];
+  
+  const YEAR_OPTIONS = ['1', '2', '3', '4', '5'];
 
   const GOAL_OPTIONS = [
     { id: 'uni',       label: '🎓 Graduate',          key: 'uni'      },
@@ -45,6 +63,45 @@ export default function OnboardingScreen({ onComplete }) {
     return true;
   };
 
+  const applyGoogleProfile = (profile) => {
+    if (profile?.name) setName(profile.name);
+    setStep(2);
+  };
+
+  const handleGoogleSignIn = async () => {
+    setGoogleLoading(true);
+    try {
+      const result = await onGoogleSignIn();
+      if (result.status === 'cancelled') return;
+
+      if (result.status === 'conflict') {
+        setAlertConfig({
+          title: 'Account already in use',
+          message: 'This Google account is already linked to another LifeOS profile. You can stay on this device, or switch to that account — data created here so far won\'t follow.',
+          buttons: [
+            { text: 'Stay here', style: 'cancel', onPress: () => setAlertConfig(null) },
+            { text: 'Use that account', style: 'destructive', onPress: async () => {
+              await onResolveConflictKeepGoogleAccount(result.credential);
+              setAlertConfig(null);
+              applyGoogleProfile(result.profile);
+            }},
+          ],
+        });
+        return;
+      }
+
+      applyGoogleProfile(result.profile);
+    } catch (e) {
+      setAlertConfig({
+        title: 'Sign-in failed',
+        message: 'Something went wrong with Google sign-in. You can continue by entering your name manually.',
+        buttons: [{ text: 'OK', style: 'cancel', onPress: () => setAlertConfig(null) }],
+      });
+    } finally {
+      setGoogleLoading(false);
+    }
+  };
+
   const next = () => {
     if (step < STEPS.length - 1) setStep(s => s + 1);
     else handleDone();
@@ -54,8 +111,8 @@ export default function OnboardingScreen({ onComplete }) {
     onComplete({
       name: name.trim(),
       course: course.trim(),
-      year: year.trim(),
-      totalCredits: parseInt(totalCredits) || 180,
+      year,
+      totalCredits,
       goals: selectedGoals,
     });
   };
@@ -73,12 +130,13 @@ export default function OnboardingScreen({ onComplete }) {
   ));
 
   return (
-    <KeyboardAvoidingView
-      style={styles.root}
-      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-    >
-      <StatusBar barStyle="light-content" backgroundColor={COLORS.bg} />
-      <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
+    <SafeAreaView style={styles.safeRoot}>
+      <KeyboardAvoidingView
+        style={styles.root}
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+      >
+        <StatusBar barStyle="light-content" backgroundColor={COLORS.bg} />
+        <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="always">
 
         {/* ── Welcome ── */}
         {step === 0 && (
@@ -113,6 +171,22 @@ export default function OnboardingScreen({ onComplete }) {
               returnKeyType="done"
               onSubmitEditing={canNext() ? next : undefined}
             />
+
+            <View style={styles.dividerRow}>
+              <View style={styles.dividerLine} />
+              <Text style={styles.dividerText}>or</Text>
+              <View style={styles.dividerLine} />
+            </View>
+
+            <TouchableOpacity
+              style={styles.googleBtn}
+              onPress={handleGoogleSignIn}
+              disabled={googleLoading}
+            >
+              <Text style={styles.googleBtnText}>
+                {googleLoading ? 'Connecting…' : 'Continue with Google'}
+              </Text>
+            </TouchableOpacity>
           </View>
         )}
 
@@ -131,22 +205,35 @@ export default function OnboardingScreen({ onComplete }) {
               onChangeText={setCourse}
               autoFocus
             />
-            <TextInput
-              style={styles.input}
-              placeholder="Year (e.g. 2nd)"
-              placeholderTextColor={COLORS.textSub}
-              value={year}
-              onChangeText={setYear}
-              keyboardType="default"
-            />
-            <TextInput
-              style={styles.input}
-              placeholder="Total credits of your plan (e.g. 180)"
-              placeholderTextColor={COLORS.textSub}
-              value={totalCredits}
-              onChangeText={setTotalCredits}
-              keyboardType="numeric"
-            />
+
+            <Text style={styles.fieldLabel}>Current year</Text>
+            <View style={styles.chipRow}>
+              {YEAR_OPTIONS.map(y => (
+                <TouchableOpacity
+                  key={y}
+                  onPress={() => setYear(y)}
+                  style={[styles.yearChip, year === y && styles.yearChipActive]}
+                >
+                  <Text style={[styles.yearChipText, year === y && styles.yearChipTextActive]}>{y}°</Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+
+            <Text style={styles.fieldLabel}>Degree type</Text>
+            <View style={{ marginBottom: 4 }}>
+              {CREDIT_OPTIONS.map(opt => (
+                <TouchableOpacity
+                  key={opt.value}
+                  onPress={() => setTotalCredits(opt.value)}
+                  style={[styles.creditOption, totalCredits === opt.value && styles.creditOptionActive]}
+                >
+                  <Text style={[styles.creditOptionText, totalCredits === opt.value && styles.creditOptionTextActive]}>
+                    {opt.label}
+                  </Text>
+                  {totalCredits === opt.value && <Text style={styles.creditCheck}>✓</Text>}
+                </TouchableOpacity>
+              ))}
+            </View>
           </View>
         )}
 
@@ -210,12 +297,18 @@ export default function OnboardingScreen({ onComplete }) {
           <View style={styles.dotsRowCenter}>{dots}</View>
         )}
 
-      </ScrollView>
-    </KeyboardAvoidingView>
+        </ScrollView>
+      </KeyboardAvoidingView>
+      <CustomAlert config={alertConfig} />
+    </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
+  safeRoot: {
+    flex: 1,
+    backgroundColor: COLORS.bg,
+  },
   root: {
     flex: 1,
     backgroundColor: COLORS.bg,
@@ -287,6 +380,36 @@ const styles = StyleSheet.create({
     fontSize: 16,
     marginBottom: 14,
   },
+
+  dividerRow: { flexDirection: 'row', alignItems: 'center', marginTop: 18, marginBottom: 18 },
+  dividerLine: { flex: 1, height: 1, backgroundColor: COLORS.border },
+  dividerText: { color: COLORS.textSub, fontSize: 12, marginHorizontal: 10 },
+  googleBtn: {
+    backgroundColor: COLORS.bg2, borderWidth: 1, borderColor: COLORS.border,
+    borderRadius: 14, paddingVertical: 15, alignItems: 'center',
+  },
+  googleBtnText: { color: COLORS.text, fontSize: 15, fontWeight: '600' },
+
+  // Year / credit-type selectors
+  fieldLabel: { fontSize: 13, fontWeight: '600', color: COLORS.textMuted, marginBottom: 8, marginTop: 4 },
+  chipRow: { flexDirection: 'row', marginBottom: 18 },
+  yearChip: {
+    width: 44, height: 44, borderRadius: 12, marginRight: 10,
+    backgroundColor: COLORS.bg2, borderWidth: 1, borderColor: COLORS.border,
+    alignItems: 'center', justifyContent: 'center',
+  },
+  yearChipActive: { backgroundColor: COLORS.accentGlow, borderColor: COLORS.accent },
+  yearChipText: { fontSize: 15, fontWeight: '600', color: COLORS.textMuted },
+  yearChipTextActive: { color: COLORS.accent },
+  creditOption: {
+    flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
+    backgroundColor: COLORS.bg2, borderWidth: 1, borderColor: COLORS.border,
+    borderRadius: 14, paddingHorizontal: 16, paddingVertical: 14, marginBottom: 10,
+  },
+  creditOptionActive: { backgroundColor: COLORS.accentGlow, borderColor: COLORS.accent },
+  creditOptionText: { fontSize: 14, color: COLORS.textMuted, fontWeight: '500' },
+  creditOptionTextActive: { color: COLORS.accent, fontWeight: '700' },
+  creditCheck: { color: COLORS.accent, fontWeight: '700', fontSize: 14 },
 
   // Goals
   goalGrid: {

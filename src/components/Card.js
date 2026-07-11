@@ -1,3 +1,4 @@
+
 import React from 'react';
 import { View, StyleSheet } from 'react-native';
 import { COLORS } from '../config/colors';
@@ -12,10 +13,10 @@ export function Card({ children, style, borderColor }) {
 
 const styles = StyleSheet.create({
   card: {
-    backgroundColor: COLORS.bg2,
+    backgroundColor: COLORS.bgElevated,
     borderWidth: 1,
-    borderColor: COLORS.border,
-    borderRadius: 12,
+    borderColor: COLORS.hairline,
+    borderRadius: 18,
     padding: 16,
   },
 });

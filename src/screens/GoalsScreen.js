@@ -9,9 +9,15 @@ import { Pill } from '../components/Pill';
 import { COLORS } from '../config/colors';
 import { CustomAlert } from '../components/CustomAlert';
 import { DatePicker } from '../components/DatePicker';
+import { GlassSheet } from '../components/GlassSheet';
+
+const GOAL_CATEGORIES = ['Study', 'Sport', 'Finance', 'Health', 'Personal', 'Work'];
+const PRIORITY_OPTS   = ['low', 'medium', 'high'];
+const FILTERS         = ['All', 'Active', 'Completed', 'Expired'];
 
 export default function GoalsScreen({ goals, setGoals }) {
   const [modalVisible, setModalVisible] = useState(false);
+  const [editingId, setEditingId]       = useState(null);
   const [title, setTitle]               = useState('');
   const [description, setDescription]   = useState('');
   const [targetInput, setTargetInput]   = useState('');
@@ -22,20 +28,40 @@ export default function GoalsScreen({ goals, setGoals }) {
   const [filter, setFilter]             = useState('All');
   const [alertConfig, setAlertConfig]   = useState(null);
 
-  const GOAL_CATEGORIES = ['Study', 'Sport', 'Finance', 'Health', 'Personal', 'Work'];
-  const PRIORITY_OPTS   = ['low', 'medium', 'high'];
-  const FILTERS         = ['All', 'Active', 'Completed', 'Expired'];
+  const closeModal = () => setModalVisible(false);
 
-  const openModal = () => {
+  const resetForm = () => {
     setTitle(''); setDescription(''); setTargetInput('');
     setCurrentProgress('0'); setCategory('Study');
     setPriority('medium'); setDeadline('');
+  };
+
+  const openAddModal = () => {
+    setEditingId(null);
+    resetForm();
     setModalVisible(true);
   };
 
-  const addGoal = () => {
+  // New: tapping any goal card opens it here, pre-filled, instead of only
+  // ever being able to create new ones. This was the main "not editable"
+  // bug — there was no openEditModal/editingId at all before.
+  const openEditModal = (goal) => {
+    setEditingId(goal.id);
+    setTitle(goal.title);
+    setDescription(goal.description || '');
+    setTargetInput(String(goal.target));
+    setCurrentProgress(String(goal.progress));
+    setCategory(goal.category);
+    setPriority(goal.priority);
+    setDeadline(goal.deadline || '');
+    setModalVisible(true);
+  };
+
+  const saveGoal = () => {
     const t = title.trim();
     const target = parseFloat(targetInput.replace(',', '.')) || 0;
+    const progress = parseFloat(currentProgress.replace(',', '.')) || 0;
+
     if (!t) {
       setAlertConfig({ title: 'Error', message: 'Please enter a title.',
         buttons: [{ text: 'OK', style: 'cancel', onPress: () => setAlertConfig(null) }] }); return;
@@ -45,21 +71,26 @@ export default function GoalsScreen({ goals, setGoals }) {
         buttons: [{ text: 'OK', style: 'cancel', onPress: () => setAlertConfig(null) }] }); return;
     }
 
-    const newId = Math.max(0, ...goals.map(o => o.id || 0)) + 1;
-
-    const goal = {
-      id: newId,
-      title: t,
-      description: description.trim(),
-      target,
-      progress: parseFloat(currentProgress.replace(',', '.')) || 0,
-      category,
-      priority,
-      deadline: deadline.trim(),
-      completed: false,
-    };
-
-    setGoals(prev => [goal, ...prev]);
+    if (editingId) {
+      setGoals(prev => prev.map(o => o.id === editingId ? {
+        ...o,
+        title: t,
+        description: description.trim(),
+        target,
+        progress: Math.max(0, Math.min(target, progress)),
+        category, priority,
+        deadline: deadline.trim(),
+        completed: progress >= target,
+      } : o));
+    } else {
+      const newId = Math.max(0, ...goals.map(o => o.id || 0)) + 1;
+      setGoals(prev => [{
+        id: newId, title: t, description: description.trim(), target,
+        progress: Math.max(0, Math.min(target, progress)),
+        category, priority, deadline: deadline.trim(),
+        completed: progress >= target,
+      }, ...prev]);
+    }
     setModalVisible(false);
   };
 
@@ -87,6 +118,20 @@ export default function GoalsScreen({ goals, setGoals }) {
         { text: 'Cancel', style: 'cancel', onPress: () => setAlertConfig(null) },
         { text: 'Delete', style: 'destructive', onPress: () => {
           setGoals(prev => prev.filter(o => o.id !== id));
+          setAlertConfig(null); setModalVisible(false);
+        }},
+      ],
+    });
+  };
+
+  const confirmClearAll = () => {
+    setAlertConfig({
+      title: 'Clear All Goals',
+      message: `This will permanently delete all ${goals.length} goals and their progress. This can't be undone.`,
+      buttons: [
+        { text: 'Cancel', style: 'cancel', onPress: () => setAlertConfig(null) },
+        { text: 'Clear All', style: 'destructive', onPress: () => {
+          setGoals([]);
           setAlertConfig(null);
         }},
       ],
@@ -110,7 +155,7 @@ export default function GoalsScreen({ goals, setGoals }) {
     <ScrollView style={styles.container} contentContainerStyle={styles.content}>
       <View style={styles.header}>
         <Text style={styles.title}>🎯 Goals</Text>
-        <TouchableOpacity onPress={openModal} style={styles.addFab}>
+        <TouchableOpacity onPress={openAddModal} style={styles.addFab}>
           <Text style={styles.addFabText}>+ New</Text>
         </TouchableOpacity>
       </View>
@@ -128,13 +173,20 @@ export default function GoalsScreen({ goals, setGoals }) {
       </View>
 
       {/* Filters */}
-      <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.pillRow}>
-        {FILTERS.map(f => (
-          <View key={f} style={{ marginRight: 8 }}>
-            <Pill label={f} selected={filter === f} onPress={() => setFilter(f)} />
-          </View>
-        ))}
-      </ScrollView>
+      <View style={styles.filterHeaderRow}>
+        <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.pillRow}>
+          {FILTERS.map(f => (
+            <View key={f} style={{ marginRight: 8 }}>
+              <Pill label={f} selected={filter === f} onPress={() => setFilter(f)} />
+            </View>
+          ))}
+        </ScrollView>
+        {goals.length > 0 && (
+          <TouchableOpacity onPress={confirmClearAll}>
+            <Text style={styles.clearAllText}>Clear All</Text>
+          </TouchableOpacity>
+        )}
+      </View>
 
       {/* Goals List */}
       {filteredGoals.length === 0 ? (
@@ -144,16 +196,19 @@ export default function GoalsScreen({ goals, setGoals }) {
         const isExpired = ob.deadline && !ob.completed && new Date(ob.deadline) < new Date();
         return (
           <Card key={ob.id} style={ob.completed ? styles.cardCompleted : isExpired ? styles.cardExpired : null}>
-            <View style={styles.obHeader}>
+            {/* Tapping the title row opens the edit modal — this is the new
+                entry point for editing a goal that didn't exist before. */}
+            <TouchableOpacity onPress={() => openEditModal(ob)} style={styles.obHeader}>
               <View style={styles.obTitleRow}>
                 <Text style={[styles.obTitle, ob.completed && styles.obDone]}>{ob.title}</Text>
                 {ob.completed && <Text style={styles.checkEmoji}>✅</Text>}
                 {isExpired && <Text style={styles.checkEmoji}>⚠️</Text>}
+                <Text style={styles.editHint}>✎</Text>
               </View>
-              <TouchableOpacity onPress={() => deleteGoal(ob.id)}>
+              <TouchableOpacity onPress={() => deleteGoal(ob.id)} hitSlop={{top:8,bottom:8,left:8,right:8}}>
                 <Text style={styles.trashBtn}>✕</Text>
               </TouchableOpacity>
-            </View>
+            </TouchableOpacity>
 
             {ob.description ? <Text style={styles.obDesc}>{ob.description}</Text> : null}
 
@@ -208,9 +263,8 @@ export default function GoalsScreen({ goals, setGoals }) {
         );
       })}
 
-      {/* Create Modal — now wrapped in KeyboardAvoidingView so it scrolls
-          above the keyboard instead of being covered by it */}
-      <Modal visible={modalVisible} transparent animationType="slide">
+      {/* Create / Edit Modal */}
+      <Modal visible={modalVisible} transparent animationType="slide" onRequestClose={closeModal}>
         <KeyboardAvoidingView
           style={styles.modalWrapper}
           behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
@@ -218,29 +272,40 @@ export default function GoalsScreen({ goals, setGoals }) {
           <TouchableOpacity
             style={styles.modalBackdrop}
             activeOpacity={1}
-            onPress={() => setModalVisible(false)}
+            onPress={closeModal}
           />
-          <View style={styles.modal}>
-            <View style={styles.modalHandle} />
-            <Text style={styles.modalTitle}>🎯 New Goal</Text>
+          <GlassSheet>
+            <Text style={styles.modalTitle}>{editingId ? '🎯 Edit Goal' : '🎯 New Goal'}</Text>
 
-            <ScrollView showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
-              <TextInput style={styles.input} placeholder="Goal title"
+            <ScrollView showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="always">
+              <Text style={styles.fieldLabel}>Title</Text>
+              <TextInput style={styles.input} placeholder="e.g. Run a half marathon"
                 placeholderTextColor={COLORS.textSub} value={title} onChangeText={setTitle} />
-              <TextInput style={[styles.input, styles.noteInput]} placeholder="Description (opt.)"
+
+              <Text style={styles.fieldLabel}>Description (optional)</Text>
+              <TextInput style={[styles.input, styles.noteInput]} placeholder="More details about this goal..."
                 placeholderTextColor={COLORS.textSub} value={description}
                 onChangeText={setDescription} multiline />
 
-              <View style={styles.row2}>
-                <TextInput style={[styles.input, styles.smallInput, { marginRight: 10 }]} placeholder="Numeric target"
-                  placeholderTextColor={COLORS.textSub} value={targetInput}
-                  onChangeText={setTargetInput} keyboardType="decimal-pad" />
-                <TextInput style={[styles.input, styles.smallInput]} placeholder="Start (e.g. 0)"
-                  placeholderTextColor={COLORS.textSub} value={currentProgress}
-                  onChangeText={setCurrentProgress} keyboardType="decimal-pad" />
-              </View>
+              {/* These two fields used to be two unlabeled boxes side by
+                  side with only placeholder text ("Numeric target" /
+                  "Start (e.g. 0)") — nothing told you what they meant
+                  until you tried typing in them. Each now has its own
+                  full-width row with an explicit label above it, plus a
+                  one-line explanation of what the number represents. */}
+              <Text style={styles.fieldLabel}>Goal target — the finish line</Text>
+              <Text style={styles.fieldHint}>The number that means "done". E.g. 21 for a 21km run, or 1000 for €1000 saved.</Text>
+              <TextInput style={styles.input} placeholder="e.g. 21"
+                placeholderTextColor={COLORS.textSub} value={targetInput}
+                onChangeText={setTargetInput} keyboardType="decimal-pad" />
 
-              <Text style={styles.fieldLabel}>Category:</Text>
+              <Text style={styles.fieldLabel}>Current progress — where you are now</Text>
+              <Text style={styles.fieldHint}>How far along you already are, in the same unit as the target above.</Text>
+              <TextInput style={styles.input} placeholder="e.g. 0"
+                placeholderTextColor={COLORS.textSub} value={currentProgress}
+                onChangeText={setCurrentProgress} keyboardType="decimal-pad" />
+
+              <Text style={styles.fieldLabel}>Category</Text>
               <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{marginBottom: 10}}>
                 {GOAL_CATEGORIES.map(c => (
                   <TouchableOpacity key={c} onPress={() => setCategory(c)} style={[styles.catPill, category === c && styles.catPillActive]}>
@@ -249,7 +314,7 @@ export default function GoalsScreen({ goals, setGoals }) {
                 ))}
               </ScrollView>
 
-              <Text style={styles.fieldLabel}>Priority:</Text>
+              <Text style={styles.fieldLabel}>Priority</Text>
               <View style={styles.priorityRow}>
                 {PRIORITY_OPTS.map((p, idx) => (
                   <TouchableOpacity key={p} onPress={() => setPriority(p)}
@@ -261,8 +326,7 @@ export default function GoalsScreen({ goals, setGoals }) {
                 ))}
               </View>
 
-              {/* Deadline now uses the same DatePicker as exams/finances */}
-              <Text style={styles.fieldLabel}>Deadline (optional):</Text>
+              <Text style={styles.fieldLabel}>Deadline (optional)</Text>
               <DatePicker
                 value={deadline}
                 onChange={setDeadline}
@@ -271,17 +335,23 @@ export default function GoalsScreen({ goals, setGoals }) {
               />
 
               <View style={styles.modalBtns}>
-                <TouchableOpacity onPress={() => setModalVisible(false)}>
-                  <Text style={styles.cancelBtn}>Cancel</Text>
-                </TouchableOpacity>
-                <TouchableOpacity style={styles.confirmBtn} onPress={addGoal}>
-                  <Text style={styles.confirmBtnText}>Create Goal</Text>
+                {editingId ? (
+                  <TouchableOpacity onPress={() => deleteGoal(editingId)}>
+                    <Text style={styles.deleteTextBtn}>Delete</Text>
+                  </TouchableOpacity>
+                ) : (
+                  <TouchableOpacity onPress={closeModal}>
+                    <Text style={styles.cancelBtn}>Cancel</Text>
+                  </TouchableOpacity>
+                )}
+                <TouchableOpacity style={styles.confirmBtn} onPress={saveGoal}>
+                  <Text style={styles.confirmBtnText}>{editingId ? 'Save Changes' : 'Create Goal'}</Text>
                 </TouchableOpacity>
               </View>
 
               <View style={{ height: 20 }} />
             </ScrollView>
-          </View>
+          </GlassSheet>
         </KeyboardAvoidingView>
       </Modal>
 
@@ -301,7 +371,9 @@ const styles = StyleSheet.create({
   statCard: { backgroundColor: COLORS.bg2, borderWidth: 1, borderColor: COLORS.border, borderRadius: 14, padding: 16, alignItems: 'center' },
   statVal: { fontSize: 28, fontWeight: '700', color: COLORS.accent },
   statLbl: { fontSize: 12, color: COLORS.textSub, marginTop: 4 },
-  pillRow: { marginBottom: 16, flexDirection: 'row' },
+  filterHeaderRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 },
+  pillRow: { flexDirection: 'row', flex: 1 },
+  clearAllText: { fontSize: 12, color: COLORS.red, fontWeight: '600', marginLeft: 10 },
   emptyText: { color: COLORS.textSub, fontSize: 14, textAlign: 'center', marginVertical: 20 },
   cardCompleted: { opacity: 0.7 },
   cardExpired: { borderColor: COLORS.red + '44', borderWidth: 1 },
@@ -310,6 +382,7 @@ const styles = StyleSheet.create({
   obTitle: { fontSize: 16, fontWeight: '700', color: COLORS.text, flex: 1 },
   obDone: { textDecorationLine: 'line-through', color: COLORS.textMuted },
   checkEmoji: { fontSize: 14, marginLeft: 6 },
+  editHint: { fontSize: 12, color: COLORS.textSub, marginLeft: 8 },
   trashBtn: { color: COLORS.textSub, fontSize: 14, padding: 4 },
   obDesc: { fontSize: 13, color: COLORS.textMuted, marginBottom: 8 },
   obMeta: { flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', marginBottom: 12 },
@@ -333,28 +406,20 @@ const styles = StyleSheet.create({
   // Modal
   modalWrapper:  { flex: 1, justifyContent: 'flex-end' },
   modalBackdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.6)' },
-  modal: {
-    backgroundColor: COLORS.bg2,
-    borderTopLeftRadius: 24, borderTopRightRadius: 24,
-    padding: 24, paddingBottom: 40,
-    borderWidth: 1, borderColor: COLORS.border, borderBottomWidth: 0,
-    maxHeight: '88%',
-  },
-  modalHandle: { width: 40, height: 4, borderRadius: 2, backgroundColor: COLORS.bg4, alignSelf: 'center', marginBottom: 16 },
   modalTitle: { fontSize: 18, fontWeight: '700', color: COLORS.text, marginBottom: 16, textAlign: 'center' },
   input: { backgroundColor: COLORS.bg3, borderWidth: 1, borderColor: COLORS.border, borderRadius: 10, padding: 12, color: COLORS.text, fontSize: 14, marginBottom: 12 },
   noteInput: { height: 70, textAlignVertical: 'top' },
-  row2: { flexDirection: 'row', marginBottom: 4 },
-  smallInput: { flex: 1 },
-  fieldLabel: { color: COLORS.textSub, fontSize: 13, marginBottom: 8, marginTop: 4 },
+  fieldLabel: { color: COLORS.text, fontSize: 14, fontWeight: '600', marginBottom: 4, marginTop: 4 },
+  fieldHint: { color: COLORS.textSub, fontSize: 11, marginBottom: 8, lineHeight: 15 },
   catPill: { paddingHorizontal: 14, paddingVertical: 8, borderRadius: 14, backgroundColor: COLORS.bg4, marginRight: 8 },
   catPillActive: { backgroundColor: COLORS.accentGlow, borderWidth: 1, borderColor: COLORS.accent },
   catPillText: { fontSize: 13, color: COLORS.textMuted, fontWeight: '500' },
   priorityRow: { flexDirection: 'row', marginBottom: 14 },
   priorityBtn: { flex: 1, paddingVertical: 10, borderRadius: 10, backgroundColor: COLORS.bg4, alignItems: 'center', borderWidth: 1, borderColor: 'transparent' },
   priorityText: { fontSize: 12, color: COLORS.textMuted, fontWeight: '600' },
-  modalBtns: { flexDirection: 'row', justifyContent: 'flex-end', alignItems: 'center', marginTop: 16 },
+  modalBtns: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: 16 },
   cancelBtn: { color: COLORS.textMuted, fontSize: 14, fontWeight: '600', paddingHorizontal: 16, paddingVertical: 12 },
+  deleteTextBtn: { color: COLORS.red, fontSize: 14, fontWeight: '600', paddingHorizontal: 16, paddingVertical: 12 },
   confirmBtn: { backgroundColor: COLORS.accent, paddingHorizontal: 20, paddingVertical: 12, borderRadius: 10 },
   confirmBtnText: { color: '#fff', fontWeight: '700', fontSize: 14 },
 });

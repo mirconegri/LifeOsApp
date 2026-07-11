@@ -1,5 +1,6 @@
+
 import React from 'react';
-import { View, Text, StyleSheet } from 'react-native';
+import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import { COLORS } from '../config/colors';
 
 const PILL_COLORS = {
@@ -10,8 +11,34 @@ const PILL_COLORS = {
   muted:  { bg: COLORS.bg4,        fg: COLORS.textMuted },
 };
 
-export function Pill({ children, color = 'muted' }) {
+// Pill supports two modes:
+// 1. Static display: <Pill color="green">Done</Pill> — used everywhere a
+//    tag/status badge is just shown, not tapped.
+// 2. Interactive filter chip: <Pill label="Active" selected={..}
+//    onPress={..} /> — used for filter rows like the one in GoalsScreen.
+//    This mode was being called already but Pill silently ignored all
+//    three of those props, so the filter chips rendered but never
+//    responded to taps at all.
+export function Pill({ children, color = 'muted', label, selected, onPress }) {
   const { bg, fg } = PILL_COLORS[color] || PILL_COLORS.muted;
+
+  if (onPress) {
+    return (
+      <TouchableOpacity
+        onPress={onPress}
+        style={[
+          styles.pill,
+          { backgroundColor: selected ? COLORS.accentGlow : COLORS.bg4 },
+          selected && styles.pillSelected,
+        ]}
+      >
+        <Text style={[styles.text, { color: selected ? COLORS.accent : COLORS.textMuted }]}>
+          {label ?? children}
+        </Text>
+      </TouchableOpacity>
+    );
+  }
+
   return (
     <View style={[styles.pill, { backgroundColor: bg }]}>
       <Text style={[styles.text, { color: fg }]}>{children}</Text>
@@ -20,6 +47,7 @@ export function Pill({ children, color = 'muted' }) {
 }
 
 const styles = StyleSheet.create({
-  pill: { paddingHorizontal: 10, paddingVertical: 3, borderRadius: 20 },
-  text: { fontSize: 11, fontWeight: '500' },
+  pill: { paddingHorizontal: 12, paddingVertical: 6, borderRadius: 14 },
+  pillSelected: { borderWidth: 1, borderColor: COLORS.accent },
+  text: { fontSize: 12, fontWeight: '600' },
 });

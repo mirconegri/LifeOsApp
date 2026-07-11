@@ -1,3 +1,4 @@
+
 import React from 'react';
 import { View, Text, StyleSheet } from 'react-native';
 import { Card } from './Card';
@@ -15,7 +16,7 @@ export function StatCard({ label, value, sub, color = COLORS.accent }) {
 
 const styles = StyleSheet.create({
   card:  { flex: 1 },
-  label: { fontSize: 10, color: COLORS.textMuted, textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 4 },
-  value: { fontSize: 22, fontWeight: 'bold' },
+  label: { fontSize: 10, color: COLORS.textMuted, textTransform: 'uppercase', letterSpacing: 0.6, marginBottom: 5, fontWeight: '600' },
+  value: { fontSize: 22, fontWeight: '700' },
   sub:   { fontSize: 11, color: COLORS.textSub, marginTop: 2 },
 });

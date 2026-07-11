@@ -1,5 +1,5 @@
 // src/screens/UniScreen.js
-import React, { useState, useRef } from 'react';
+import React, { useState } from 'react';
 import {
   View, Text, ScrollView, StyleSheet, TextInput,
   TouchableOpacity, KeyboardAvoidingView, Platform, Modal,
@@ -12,12 +12,20 @@ import { StatCard } from '../components/StatCard';
 import { CustomAlert } from '../components/CustomAlert';
 import { DatePicker } from '../components/DatePicker';
 import { GradeSelector } from '../components/GradeSelector';
+import { GlassSheet } from '../components/GlassSheet';
 import {
   calculateAverages, predictedDegreeGrade as calcPredictedGrade, diffDays,
   gradeWeight, gradeLabel,
 } from '../data/helpers';
 
 const STATUSES = ['to start', 'preparing', 'passed'];
+// Same bounds the Add/Edit exam form already enforces (3–15 CFU). The
+// simulator used to have no upper bound at all — only a `|| 0` floor —
+// so a typo'd "150" silently produced a meaningless projected average
+// instead of being rejected like a real exam with that many credits
+// would be.
+const SIM_MIN_CREDITS = 3;
+const SIM_MAX_CREDITS = 15;
 
 function statusColor(s) {
   if (s === 'passed')    return 'green';
@@ -25,11 +33,12 @@ function statusColor(s) {
   return 'muted';
 }
 
-// Thin wrapper kept local to this screen for readability
 function gradeDisplay(val) {
   return gradeLabel(val);
 }
 
+// gradeWeight is already NaN-proof (returns 0 for anything invalid),
+// so every consumer below inherits that safety for free.
 function gradeToNumber(val) {
   return gradeWeight(val);
 }
@@ -38,23 +47,27 @@ function gradeToNumber(val) {
 // Also computes "projected" averages that fold in expectedGrade for
 // exams that haven't been passed yet, so the user can see where they'd
 // land if every expected grade came true.
+//
+// Fixed: every list is pre-filtered to drop anything that resolves to a
+// 0 weight (missing/invalid grade), so a single bad record can no longer
+// turn the whole average into NaN/"-".
 function calcExtended(exams) {
-  const passed = exams.filter(e => e.achievedGrade);
-  const withExpected = exams.filter(e => !e.achievedGrade && e.expectedGrade);
+  const passed = exams.filter(e => e.achievedGrade && gradeWeight(e.achievedGrade) > 0);
+  const withExpected = exams.filter(e => !e.achievedGrade && e.expectedGrade && gradeWeight(e.expectedGrade) > 0);
   const combined = [...passed, ...withExpected.map(e => ({ ...e, achievedGrade: e.expectedGrade }))];
 
   function avg(list) {
     if (!list.length) return 0;
-    const numList = list.map(e => gradeWeight(e.achievedGrade)).filter(Boolean);
+    const numList = list.map(e => gradeWeight(e.achievedGrade)).filter(n => n > 0);
     if (!numList.length) return 0;
     return numList.reduce((a, b) => a + b, 0) / numList.length;
   }
   function wavg(list) {
     if (!list.length) return 0;
-    const valid = list.filter(e => gradeWeight(e.achievedGrade));
+    const valid = list.filter(e => gradeWeight(e.achievedGrade) > 0 && (Number(e.credits) || 0) > 0);
     if (!valid.length) return 0;
-    const wp = valid.reduce((a, e) => a + gradeWeight(e.achievedGrade) * e.credits, 0);
-    const wc = valid.reduce((a, e) => a + e.credits, 0);
+    const wp = valid.reduce((a, e) => a + gradeWeight(e.achievedGrade) * Number(e.credits), 0);
+    const wc = valid.reduce((a, e) => a + Number(e.credits), 0);
     return wc ? wp / wc : 0;
   }
 
@@ -83,6 +96,8 @@ export default function UniScreen({ exams, setExams, totalCredits }) {
   const [simGrade,  setSimGrade]  = useState(null);
   const [simCredits,setSimCredits] = useState('6');
 
+  const closeModal = () => setModalVisible(false);
+
   // ─── Computed ─────────────────────────────────────────────────────────────
   const {
     average, weightedAverage,
@@ -91,24 +106,48 @@ export default function UniScreen({ exams, setExams, totalCredits }) {
 
   const predictedGrade = calcPredictedGrade(weightedAverage);
 
-  const passedExams  = exams.filter(e => e.achievedGrade);
-  const cfuAcquired  = passedExams.reduce((acc, e) => acc + e.credits, 0);
+  // Only exams with a real, valid achieved grade count toward CFU/averages.
+  const passedExams  = exams.filter(e => e.achievedGrade && gradeWeight(e.achievedGrade) > 0);
+  const cfuAcquired  = passedExams.reduce((acc, e) => acc + (Number(e.credits) || 0), 0);
   const cfuPct       = totalCredits > 0 ? (cfuAcquired / totalCredits) * 100 : 0;
 
   const thisYear     = new Date().getFullYear();
   const passedThisYear = passedExams.filter(e => e.date && e.date.startsWith(String(thisYear)));
 
-  // Simulator projection
-  const simNumGrade = simGrade ? gradeToNumber(simGrade) : null;
-  const simCredNum  = parseInt(simCredits) || 0;
+  // ── Simulator projection ──────────────────────────────────────────────────
+  // Fixed: gradeToNumber/gradeWeight never returns NaN anymore, so a
+  // malformed exam record in `exams` can no longer poison the whole
+  // projection. simGrade/simCredits are validated independently so the
+  // user gets a clear reason instead of the simulator silently doing
+  // nothing. Credits are now also capped at SIM_MAX_CREDITS, matching the
+  // Add/Edit exam form's own 3–15 validation.
+  const simNumGrade = simGrade !== null ? gradeToNumber(simGrade) : 0;
+  const simCredNum  = parseInt(simCredits, 10) || 0;
+  const simCredInRange = simCredNum >= SIM_MIN_CREDITS && simCredNum <= SIM_MAX_CREDITS;
+  const simReady     = simNumGrade > 0 && simCredInRange;
+
   let projectedAvg = null, projectedWavg = null;
-  if (simNumGrade && simCredNum > 0) {
-    const allGrades = [...passedExams.map(e => gradeToNumber(e.achievedGrade)), simNumGrade].filter(Boolean);
-    projectedAvg  = allGrades.reduce((a, b) => a + b, 0) / allGrades.length;
-    const wp = passedExams.reduce((a, e) => a + gradeToNumber(e.achievedGrade) * e.credits, 0) + simNumGrade * simCredNum;
-    const wc = passedExams.reduce((a, e) => a + e.credits, 0) + simCredNum;
+  if (simReady) {
+    const validPassedGrades = passedExams.map(e => gradeToNumber(e.achievedGrade)).filter(n => n > 0);
+    const allGrades = [...validPassedGrades, simNumGrade];
+    projectedAvg = allGrades.reduce((a, b) => a + b, 0) / allGrades.length;
+
+    const wp = passedExams.reduce((a, e) => a + gradeToNumber(e.achievedGrade) * (Number(e.credits) || 0), 0)
+             + simNumGrade * simCredNum;
+    const wc = passedExams.reduce((a, e) => a + (Number(e.credits) || 0), 0) + simCredNum;
     projectedWavg = wc ? wp / wc : 0;
   }
+
+  // What's missing, so the simulator can explain itself instead of staying mute
+  const simMissing = !simGrade && simCredNum <= 0
+    ? 'Pick a grade and enter CFU'
+    : !simGrade
+      ? 'Pick a grade to simulate'
+      : simCredNum <= 0
+        ? 'Enter the CFU for this exam'
+        : !simCredInRange
+          ? `CFU must be between ${SIM_MIN_CREDITS} and ${SIM_MAX_CREDITS}`
+          : null;
 
   // ─── Modal helpers ────────────────────────────────────────────────────────
   const openAddModal = () => {
@@ -124,7 +163,6 @@ export default function UniScreen({ exams, setExams, totalCredits }) {
     setFormName(exam.name);
     setFormCredits(String(exam.credits));
     setFormDate(exam.date || '');
-    // Convert 30 → check if it was 30L (we store 31 for 30L)
     setFormExpectedGrade(exam.expectedGrade || null);
     setFormAchievedGrade(exam.achievedGrade || null);
     setFormStatus(exam.status || 'to start');
@@ -139,7 +177,7 @@ export default function UniScreen({ exams, setExams, totalCredits }) {
   };
 
   const handleSave = () => {
-    const credits = parseInt(formCredits) || 0;
+    const credits = parseInt(formCredits, 10) || 0;
 
     // Validation
     if (!formName.trim()) {
@@ -154,7 +192,7 @@ export default function UniScreen({ exams, setExams, totalCredits }) {
       setAlertConfig({ title: 'Required', message: 'Select an exam date.',
         buttons: [{ text: 'OK', style: 'cancel', onPress: () => setAlertConfig(null) }] }); return;
     }
-    if (formStatus === 'passed' && !formAchievedGrade) {
+    if (formStatus === 'passed' && (!formAchievedGrade || gradeWeight(formAchievedGrade) <= 0)) {
       setAlertConfig({ title: 'Required', message: 'Enter the achieved grade for a passed exam.',
         buttons: [{ text: 'OK', style: 'cancel', onPress: () => setAlertConfig(null) }] }); return;
     }
@@ -191,16 +229,34 @@ export default function UniScreen({ exams, setExams, totalCredits }) {
     });
   };
 
+  const confirmClearAll = () => {
+    setAlertConfig({
+      title: 'Clear All Exams',
+      message: `This will permanently delete all ${exams.length} exams. This can't be undone.`,
+      buttons: [
+        { text: 'Cancel', style: 'cancel', onPress: () => setAlertConfig(null) },
+        { text: 'Clear All', style: 'destructive', onPress: () => {
+          setExams([]);
+          setAlertConfig(null);
+        }},
+      ],
+    });
+  };
+
   // Date mode: both directions are capped at 5 years, exactly as requested.
-  // 'future5'  → to-start/preparing exams: today through +5 years.
-  // 'past5'    → passed exams: -5 years through today.
   const dateMode = formStatus === 'passed' ? 'past5' : 'future5';
 
   return (
     <View style={styles.container}>
       <CustomAlert config={alertConfig} />
 
-      <ScrollView contentContainerStyle={styles.scrollContent}>
+      {/* keyboardShouldPersistTaps="always": without it, the first tap on
+          anything in this scroll view (GradeSelector's dropdown rows
+          included) while the keyboard is open just dismisses the
+          keyboard instead of registering — every other screen's modal
+          form already sets this; this top-level scroll view never had
+          it. */}
+      <ScrollView contentContainerStyle={styles.scrollContent} keyboardShouldPersistTaps="always">
 
         {/* ─── Stat Grid ─── */}
         <Text style={styles.sectionTitle}>📊 Overview</Text>
@@ -245,40 +301,53 @@ export default function UniScreen({ exams, setExams, totalCredits }) {
         <Text style={styles.sectionTitle}>🧮 Grade Simulator</Text>
         <Card style={styles.simCard}>
           <Text style={styles.simSubtitle}>How would a new grade affect your average?</Text>
-          <View style={styles.simRow}>
-            <View style={{ flex: 1, marginRight: 10, zIndex: 200 }}>
-              <GradeSelector
-                value={simGrade}
-                onChange={setSimGrade}
-                placeholder="Grade"
-              />
-            </View>
-            <TextInput
-              style={[styles.input, { width: 80, marginBottom: 0 }]}
-              placeholder="CFU"
-              placeholderTextColor={COLORS.textSub}
-              keyboardType="numeric"
-              value={simCredits}
-              onChangeText={v => setSimCredits(v.replace(/[^0-9]/g, ''))}
+
+          {/* Grade picker sits ABOVE the CFU field, not beside it.
+              GradeSelector's dropdown opens downward; stacking these
+              vertically means the open dropdown can never land on top of
+              the CFU input. `elevation` (not just zIndex — Android's
+              touch dispatch for overlapping siblings needs the real
+              native elevation property, zIndex alone is mostly an
+              iOS/web concept) is set high here too, defensively, so this
+              row's dropdown wins against whatever renders after it in
+              this Card on Android. The actual reported bug (dropdown taps
+              only registering via the keyboard's Enter key) was a
+              different, separate issue inside GradeSelector itself — see
+              GradeSelector.js for that fix. */}
+          <View style={styles.simGradeRow}>
+            <GradeSelector
+              value={simGrade}
+              onChange={setSimGrade}
+              placeholder="Grade (18–30L)"
             />
           </View>
-          {projectedAvg !== null ? (
+          <TextInput
+            style={styles.input}
+            placeholder={`CFU for this exam (${SIM_MIN_CREDITS}–${SIM_MAX_CREDITS})`}
+            placeholderTextColor={COLORS.textSub}
+            keyboardType="numeric"
+            value={simCredits}
+            onChangeText={v => setSimCredits(v.replace(/[^0-9]/g, ''))}
+            maxLength={2}
+          />
+
+          {simReady ? (
             <View style={styles.simResults}>
               <View style={styles.simResultItem}>
                 <Text style={styles.simResultLabel}>New Arithmetic</Text>
-                <Text style={[styles.simResultVal, { color: projectedAvg > average ? COLORS.green : COLORS.red }]}>
+                <Text style={[styles.simResultVal, { color: projectedAvg >= average ? COLORS.green : COLORS.red }]}>
                   {projectedAvg.toFixed(2)}
                   <Text style={styles.simDelta}>
-                    {' '}({projectedAvg > average ? '+' : ''}{(projectedAvg - average).toFixed(2)})
+                    {' '}({projectedAvg >= average ? '+' : ''}{(projectedAvg - average).toFixed(2)})
                   </Text>
                 </Text>
               </View>
               <View style={styles.simResultItem}>
                 <Text style={styles.simResultLabel}>New Weighted</Text>
-                <Text style={[styles.simResultVal, { color: projectedWavg > weightedAverage ? COLORS.green : COLORS.red }]}>
+                <Text style={[styles.simResultVal, { color: projectedWavg >= weightedAverage ? COLORS.green : COLORS.red }]}>
                   {projectedWavg.toFixed(2)}
                   <Text style={styles.simDelta}>
-                    {' '}({projectedWavg > weightedAverage ? '+' : ''}{(projectedWavg - weightedAverage).toFixed(2)})
+                    {' '}({projectedWavg >= weightedAverage ? '+' : ''}{(projectedWavg - weightedAverage).toFixed(2)})
                   </Text>
                 </Text>
               </View>
@@ -290,7 +359,10 @@ export default function UniScreen({ exams, setExams, totalCredits }) {
               </View>
             </View>
           ) : (
-            <Text style={styles.simHint}>Enter a grade and CFU to see the projection</Text>
+            // Explains exactly what's missing instead of staying silent —
+            // this was the other source of "it doesn't work": the simulator
+            // used to just render nothing with no explanation.
+            <Text style={styles.simHint}>{simMissing}</Text>
           )}
         </Card>
 
@@ -300,7 +372,14 @@ export default function UniScreen({ exams, setExams, totalCredits }) {
         </TouchableOpacity>
 
         {/* ─── Exams List ─── */}
-        <Text style={styles.sectionTitle}>📋 Exams ({exams.length})</Text>
+        <View style={styles.listHeaderRow}>
+          <Text style={styles.sectionTitle}>📋 Exams ({exams.length})</Text>
+          {exams.length > 0 && (
+            <TouchableOpacity onPress={confirmClearAll}>
+              <Text style={styles.clearAllText}>Clear All</Text>
+            </TouchableOpacity>
+          )}
+        </View>
         {exams.length === 0 ? (
           <Card><Text style={styles.emptyText}>No exams yet. Add your first one!</Text></Card>
         ) : (
@@ -350,19 +429,18 @@ export default function UniScreen({ exams, setExams, totalCredits }) {
       </ScrollView>
 
       {/* ─── Add / Edit Modal ─── */}
-      <Modal visible={modalVisible} animationType="slide" transparent>
+      <Modal visible={modalVisible} animationType="slide" transparent onRequestClose={closeModal}>
         <KeyboardAvoidingView
           behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
           style={styles.modalWrapper}
         >
-          <TouchableOpacity style={styles.modalBackdrop} onPress={() => setModalVisible(false)} />
-          <View style={styles.modal}>
-            <View style={styles.modalHandle} />
+          <TouchableOpacity style={styles.modalBackdrop} onPress={closeModal} />
+          <GlassSheet maxHeight="92%">
             <Text style={styles.modalTitle}>{editingId ? 'Edit Exam' : 'Add Exam'}</Text>
 
             <ScrollView
               showsVerticalScrollIndicator={false}
-              keyboardShouldPersistTaps="handled"
+              keyboardShouldPersistTaps="always"
             >
               {/* Name */}
               <TextInput
@@ -442,7 +520,7 @@ export default function UniScreen({ exams, setExams, totalCredits }) {
                     <Text style={styles.btnDeleteText}>Delete</Text>
                   </TouchableOpacity>
                 ) : (
-                  <TouchableOpacity onPress={() => setModalVisible(false)} style={[styles.formBtn, styles.btnCancel]}>
+                  <TouchableOpacity onPress={closeModal} style={[styles.formBtn, styles.btnCancel]}>
                     <Text style={styles.btnCancelText}>Cancel</Text>
                   </TouchableOpacity>
                 )}
@@ -459,7 +537,7 @@ export default function UniScreen({ exams, setExams, totalCredits }) {
               {/* Extra padding for keyboard */}
               <View style={{ height: 40 }} />
             </ScrollView>
-          </View>
+          </GlassSheet>
         </KeyboardAvoidingView>
       </Modal>
     </View>
@@ -471,6 +549,8 @@ const styles = StyleSheet.create({
   scrollContent:{ padding: 16, paddingBottom: 40 },
 
   sectionTitle: { fontSize: 13, fontWeight: '600', color: COLORS.textMuted, textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 10, marginTop: 10 },
+  listHeaderRow:{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
+  clearAllText: { fontSize: 12, color: COLORS.red, fontWeight: '600' },
 
   statsGrid:   { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between', marginBottom: 8 },
   gridItem:    { width: '48%', marginBottom: 10 },
@@ -481,10 +561,10 @@ const styles = StyleSheet.create({
   creditValue: { fontSize: 13, color: COLORS.accent, fontWeight: 'bold' },
 
   // Simulator
-  simCard:     { marginBottom: 16, padding: 16 },
+  simCard:     { marginBottom: 16, padding: 16, overflow: 'visible' },
   simSubtitle: { fontSize: 12, color: COLORS.textMuted, marginBottom: 12 },
-  simRow:      { flexDirection: 'row', alignItems: 'flex-end', marginBottom: 12 },
-  simResults:  { flexDirection: 'row', justifyContent: 'space-between', flexWrap: 'wrap' },
+  simGradeRow: { zIndex: 200, elevation: 200, marginBottom: 4 },
+  simResults:  { flexDirection: 'row', justifyContent: 'space-between', flexWrap: 'wrap', marginTop: 4 },
   simResultItem:{ alignItems: 'center', flex: 1, minWidth: '30%' },
   simResultLabel:{ fontSize: 11, color: COLORS.textSub, marginBottom: 4, textAlign: 'center' },
   simResultVal: { fontSize: 16, fontWeight: '700', textAlign: 'center' },
@@ -512,14 +592,6 @@ const styles = StyleSheet.create({
   // Modal
   modalWrapper:  { flex: 1, justifyContent: 'flex-end' },
   modalBackdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.6)' },
-  modal: {
-    backgroundColor: COLORS.bg2,
-    borderTopLeftRadius: 24, borderTopRightRadius: 24,
-    padding: 24, paddingBottom: 40,
-    borderTopWidth: 1, borderColor: COLORS.border,
-    maxHeight: '92%',
-  },
-  modalHandle: { width: 40, height: 4, borderRadius: 2, backgroundColor: COLORS.bg4, alignSelf: 'center', marginBottom: 16 },
   modalTitle:  { fontSize: 18, fontWeight: '700', color: COLORS.text, marginBottom: 20, textAlign: 'center' },
   input:       { backgroundColor: COLORS.bg3, borderWidth: 1, borderColor: COLORS.border, borderRadius: 10, padding: 12, color: COLORS.text, fontSize: 14, marginBottom: 12 },
   fieldLabel:  { color: COLORS.textSub, fontSize: 13, marginBottom: 8, marginTop: 4 },

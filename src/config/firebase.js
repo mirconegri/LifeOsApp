@@ -7,7 +7,12 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 // Not read from that file at runtime: the JS SDK wants its own config
 // object, separate from what the native plugin uses at Android build time.
 const firebaseConfig = {
-  
+  apiKey: 'AIzaSyDoCJqDqjpya39Fj8cnjXeAmzZu12GgluU',
+  authDomain: 'lifeos-93904.firebaseapp.com',
+  projectId: 'lifeos-93904',
+  storageBucket: 'lifeos-93904.firebasestorage.app',
+  messagingSenderId: '611050453713',
+  appId: '1:611050453713:android:181b38571ccae8656323f0',
 };
 
 // getApps().length avoids "Firebase App named '[DEFAULT]' already exists"

@@ -1,3 +1,4 @@
+
 // src/components/DatePicker.js
 // Custom date picker: shows a month calendar, restricts which dates are
 // selectable depending on `mode`.
@@ -11,10 +12,27 @@
 //         'any'     — no restriction
 //   maxYearsBack: number (default 5) — used by 'future5' and 'past5'
 //   label: string
+//
+// ── Fix: hardware back button closed the whole app instead of this modal ─
+// `onRequestClose` on the Modal makes Android route the hardware back
+// button to closing THIS overlay (same as tapping the backdrop), instead
+// of the event falling through to the OS, which previously had no open
+// React Native Modal to dismiss and so exited the app instead.
+//
+// ── Fix: "glass" panel was never actually blurring on this Android phone ─
+// expo-blur's BlurView only produces a real blur on iOS while pinned to
+// the project's current Expo SDK (54) — on Android it silently renders as
+// a plain semi-transparent View instead (this only changes starting in
+// SDK 55, which this project isn't on). So on Mirco's Nothing Phone 2a,
+// every "glass" surface in this app has only ever been a flat tinted
+// rectangle, not blurred glass — which is the actual transparency
+// complaint. iOS keeps the real BlurView (it works there); Android now
+// gets a deliberately-designed solid panel instead of a fake-blur one.
 import React, { useState } from 'react';
 import {
-  View, Text, TouchableOpacity, StyleSheet, ScrollView, Modal,
+  View, Text, TouchableOpacity, StyleSheet, ScrollView, Modal, Platform,
 } from 'react-native';
+import { BlurView } from 'expo-blur';
 import { COLORS } from '../config/colors';
 
 const WEEKDAYS = ['Su', 'Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa'];
@@ -87,12 +105,36 @@ export function DatePicker({ value, onChange, mode = 'any', maxYearsBack = 5, la
     }
   }
 
-  // Build grid for the current month
+  // Build grid for the current month — see note below on why this is
+  // chunked into fixed rows of 7 instead of left as a flat array for
+  // flexWrap to lay out.
   const firstDow = new Date(viewYear, viewMonth, 1).getDay();
   const daysInMonth = new Date(viewYear, viewMonth + 1, 0).getDate();
   const cells = [];
   for (let i = 0; i < firstDow; i++) cells.push(null);
   for (let d = 1; d <= daysInMonth; d++) cells.push(d);
+  // Pad the end of the grid too, so the LAST row is also always exactly 7
+  // cells — without this, a short trailing row (e.g. just "30" alone) is
+  // fine on its own, but it's a symptom of the same root issue as the
+  // missing-week bug: nothing here is fixed-width by construction.
+  while (cells.length % 7 !== 0) cells.push(null);
+
+  // Chunk the flat cells array into rows of exactly 7. This is the actual
+  // fix for the bug in the screenshot, where an entire week (14-19) was
+  // missing and the following week was shifted into the wrong weekday
+  // column. That happened because the grid was a single flexWrap View —
+  // wrapping is a layout-engine decision based on calculated widths, not a
+  // guaranteed "7 per row". Any rounding error in cell width (font
+  // scaling, device density, a stray margin) can make a row hold 6 or 8
+  // cells instead of 7, and every subsequent row drifts from there.
+  // Building literal rows of 7 and rendering each as its own flexDirection
+  // 'row' View removes the layout engine's discretion entirely — a row
+  // can't silently "decide" to wrap early or late because there's no wrap
+  // happening, just 7 fixed-width children in a row, every time.
+  const rows = [];
+  for (let i = 0; i < cells.length; i += 7) {
+    rows.push(cells.slice(i, i + 7));
+  }
 
   const displayValue = value
     ? new Date(value + 'T00:00:00').toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })
@@ -112,9 +154,14 @@ export function DatePicker({ value, onChange, mode = 'any', maxYearsBack = 5, la
         ) : null}
       </TouchableOpacity>
 
-      <Modal visible={open} transparent animationType="fade">
+      <Modal visible={open} transparent animationType="fade" onRequestClose={() => setOpen(false)}>
         <TouchableOpacity style={styles.backdrop} activeOpacity={1} onPress={() => setOpen(false)} />
         <View style={styles.pickerContainer}>
+          {Platform.OS === 'ios' ? (
+            <BlurView intensity={70} tint="dark" style={StyleSheet.absoluteFill} />
+          ) : (
+            <View style={styles.androidPanelFill} />
+          )}
           {/* Header */}
           <View style={styles.header}>
             <TouchableOpacity onPress={prevMonth} style={styles.navBtn}>
@@ -133,37 +180,41 @@ export function DatePicker({ value, onChange, mode = 'any', maxYearsBack = 5, la
             ))}
           </View>
 
-          {/* Calendar grid */}
+          {/* Calendar grid — one explicit row per week, 7 fixed cells each */}
           <View style={styles.grid}>
-            {cells.map((day, i) => {
-              if (!day) return <View key={`e${i}`} style={styles.cell} />;
-              const dateStr = toDateStr(viewYear, viewMonth, day);
-              const disabled = isDisabled(dateStr);
-              const selected = dateStr === value;
-              const isToday  = dateStr === todayStr;
-              return (
-                <TouchableOpacity
-                  key={dateStr}
-                  style={[
-                    styles.cell,
-                    selected && styles.cellSelected,
-                    isToday && !selected && styles.cellToday,
-                    disabled && styles.cellDisabled,
-                  ]}
-                  onPress={() => selectDate(dateStr)}
-                  disabled={disabled}
-                >
-                  <Text style={[
-                    styles.cellText,
-                    selected && styles.cellTextSelected,
-                    isToday && !selected && styles.cellTextToday,
-                    disabled && styles.cellTextDisabled,
-                  ]}>
-                    {day}
-                  </Text>
-                </TouchableOpacity>
-              );
-            })}
+            {rows.map((row, rowIdx) => (
+              <View key={`row-${rowIdx}`} style={styles.gridRow}>
+                {row.map((day, i) => {
+                  if (!day) return <View key={`e-${rowIdx}-${i}`} style={styles.cell} />;
+                  const dateStr = toDateStr(viewYear, viewMonth, day);
+                  const disabled = isDisabled(dateStr);
+                  const selected = dateStr === value;
+                  const isToday  = dateStr === todayStr;
+                  return (
+                    <TouchableOpacity
+                      key={dateStr}
+                      style={[
+                        styles.cell,
+                        selected && styles.cellSelected,
+                        isToday && !selected && styles.cellToday,
+                        disabled && styles.cellDisabled,
+                      ]}
+                      onPress={() => selectDate(dateStr)}
+                      disabled={disabled}
+                    >
+                      <Text style={[
+                        styles.cellText,
+                        selected && styles.cellTextSelected,
+                        isToday && !selected && styles.cellTextToday,
+                        disabled && styles.cellTextDisabled,
+                      ]}>
+                        {day}
+                      </Text>
+                    </TouchableOpacity>
+                  );
+                })}
+              </View>
+            ))}
           </View>
 
           {/* Today shortcut */}
@@ -208,11 +259,19 @@ const styles = StyleSheet.create({
     position: 'absolute',
     left: 16, right: 16,
     top: '20%',
-    backgroundColor: COLORS.bg2,
     borderRadius: 20,
     padding: 16,
     borderWidth: 1, borderColor: COLORS.border,
     elevation: 10,
+    overflow: 'hidden', // clips the BlurView/panel to the rounded corners
+  },
+  // Android substitute for the (non-functional, pre-SDK55) blur: a solid,
+  // deliberately-toned panel rather than a flat semi-transparent rectangle
+  // sitting over a dark backdrop, which is what BlurView was actually
+  // rendering as on this device regardless of the intensity/tint props.
+  androidPanelFill: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: COLORS.bg2,
   },
 
   header:    { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 },
@@ -223,7 +282,8 @@ const styles = StyleSheet.create({
   weekRow:   { flexDirection: 'row', marginBottom: 8 },
   weekLabel: { width: CELL, textAlign: 'center', fontSize: 11, color: COLORS.textMuted, fontWeight: '600' },
 
-  grid:      { flexDirection: 'row', flexWrap: 'wrap' },
+  grid:      { flexDirection: 'column' },
+  gridRow:   { flexDirection: 'row' },
   cell:      { width: CELL, height: CELL, alignItems: 'center', justifyContent: 'center', borderRadius: 20 },
   cellSelected:   { backgroundColor: COLORS.accent },
   cellToday:      { borderWidth: 1.5, borderColor: COLORS.accent },

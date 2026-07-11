@@ -1,21 +1,28 @@
 // src/screens/HomeScreen.js
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View, Text, ScrollView, StyleSheet, TouchableOpacity, Linking,
 } from 'react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { COLORS } from '../config/colors';
 import { Card } from '../components/Card';
 import { Pill } from '../components/Pill';
 import { StatCard } from '../components/StatCard';
 import { TipBubble } from '../components/TipBubble';
+import { DraggableList } from '../components/DraggableList';
 import { greet, todayKey, fmt, diffDays, calculateAverages } from '../data/helpers';
 
 const MAX_STARRED = 6;
+const HOME_TASKS_LIMIT = 6;
+const SECTION_ORDER_KEY = 'lifeos_home_section_order';
+// 'dailyRoutine' removed: Habits no longer gets its own Home module (it
+// already lives inside Tasks, one tap away via the section's own link).
+const DEFAULT_SECTION_ORDER = ['nextTarget', 'todaysTasks', 'quickLinks'];
 
 // Tips shown during first use — one per section
 const TIPS = [
   { id: 'links',    text: 'Tap ★ in the Links screen to add your favorite sites here.' },
-  { id: 'habits',   text: 'Add your habits from the Habits section: build your daily routine.' },
+  { id: 'habits',   text: 'Add habits from the Tasks section: build your daily routine.' },
   { id: 'finances', text: 'Log your transactions in Finances to keep your balance under control.' },
   { id: 'exams',    text: 'Add your exams in University to see your degree grade prediction.' },
 ];
@@ -40,24 +47,42 @@ function SectionHeader({ title, onPress }) {
 }
 
 export default function HomeScreen({
-  exams, tasks, habits, finances, heatmap, links,
+  exams, tasks, finances, heatmap, links,
   userName, course, isFirstUse, tipsShown, onDismissTip,
   onNavigate,
 }) {
   const today    = todayKey();
   const dateLabel = new Date().toLocaleDateString('en-US', { weekday: 'long', day: 'numeric', month: 'long' });
 
+  // Habits are entries inside the unified Tasks list (journal) flagged
+  // with recurring:true. They no longer get a Home module of their own —
+  // only one-off tasks are previewed here now.
+  const oneTimeTasks = tasks.filter(t => !t.recurring);
+
   // ── Metrics ──
   const activeExams = exams.filter(e => e.status === 'preparing' || e.status === 'to start');
   const nextExam    = activeExams.sort((a, b) => new Date(a.date) - new Date(b.date))[0];
   const { average } = calculateAverages(exams);
 
-  const completedTasks = tasks.filter(t => t.done).length;
-  const totalTasks     = tasks.length;
+  const completedTasks = oneTimeTasks.filter(t => t.done).length;
+  const totalTasks     = oneTimeTasks.length;
 
-  // Today's study tasks — used both for the Mission Control counter and
-  // for the dedicated "Today's Study Tasks" list below.
-  const todaysTasks    = tasks.filter(t => t.date === today);
+  // "Tasks" preview — was filtered to t.date === today only; now shows
+  // ALL incomplete one-off tasks (overdue + today + future + no-date),
+  // sorted by urgency (no-date last), capped at HOME_TASKS_LIMIT with a
+  // "+N more" link. A dashboard preview that scrolled forever every time
+  // the seed/backlog grew would push every other Home section off-screen,
+  // so this is a deliberate cap rather than the literal "show everything"
+  // — full uncapped list lives one tap away in Tasks itself.
+  const incompleteTasks = oneTimeTasks.filter(t => !t.done);
+  const sortedIncomplete = [...incompleteTasks].sort((a, b) => {
+    if (!a.date && !b.date) return 0;
+    if (!a.date) return 1;
+    if (!b.date) return -1;
+    return a.date.localeCompare(b.date);
+  });
+  const homeTasks = sortedIncomplete.slice(0, HOME_TASKS_LIMIT);
+  const remainingTasksCount = Math.max(0, incompleteTasks.length - homeTasks.length);
 
   const currentBalance = finances.reduce((acc, f) => acc + f.amount, 0);
   const starredLinks   = links.filter(l => l.starred).slice(0, MAX_STARRED);
@@ -67,6 +92,158 @@ export default function HomeScreen({
 
   const go = (screenId) => {
     if (onNavigate) onNavigate(screenId);
+  };
+
+  // ── Section reorder state ──
+  // The Home page's section blocks (not their inner items — those are
+  // reordered from within their own screens) can be held-and-dragged to
+  // change which one shows up first. The chosen order is persisted
+  // separately from the rest of the app's data, under its own storage key,
+  // since it's purely a Home-screen display preference, not a data model.
+  const [sectionOrder, setSectionOrder] = useState(DEFAULT_SECTION_ORDER);
+
+  useEffect(() => {
+    (async () => {
+      try {
+        const raw = await AsyncStorage.getItem(SECTION_ORDER_KEY);
+        if (raw) {
+          const saved = JSON.parse(raw);
+          // Guard against a stale saved order missing/containing unknown
+          // ids (e.g. after this app update removed 'dailyRoutine') by
+          // falling back to default for anything that doesn't match
+          // exactly — otherwise an order saved before this change would
+          // still contain 'dailyRoutine' forever and silently no-op.
+          const valid = Array.isArray(saved) &&
+            saved.length === DEFAULT_SECTION_ORDER.length &&
+            DEFAULT_SECTION_ORDER.every(id => saved.includes(id));
+          if (valid) setSectionOrder(saved);
+        }
+      } catch {
+        // fall back to default order silently
+      }
+    })();
+  }, []);
+
+  const persistSectionOrder = (newOrder) => {
+    setSectionOrder(newOrder);
+    AsyncStorage.setItem(SECTION_ORDER_KEY, JSON.stringify(newOrder)).catch(() => {});
+  };
+
+  // Each section is a self-contained render function, keyed by id. Only
+  // sections that currently have content to show are included in the
+  // draggable list — e.g. "Next Target" disappears entirely when there's
+  // no upcoming exam, exactly like before, it just also participates in
+  // the reordering when it IS present.
+  const sectionRenderers = {
+    nextTarget: nextExam ? (
+      <View>
+        <SectionHeader title="Next Target" onPress={() => go('uni')} />
+        <TouchableOpacity onPress={() => go('uni')} activeOpacity={0.8}>
+          <Card style={styles.examCard}>
+            <View style={styles.examCardHeader}>
+              <Text style={styles.examName}>{nextExam.name}</Text>
+              <Pill color="accent">{diffDays(nextExam.date)} days left</Pill>
+            </View>
+            <Text style={styles.examDate}>📅 {nextExam.date}</Text>
+          </Card>
+        </TouchableOpacity>
+      </View>
+    ) : null,
+
+    todaysTasks: (
+      <View>
+        <SectionHeader title="Tasks" onPress={() => go('journal')} />
+        {homeTasks.length === 0 ? (
+          <Card style={styles.emptyCard}>
+            <Text style={styles.emptyText}>No pending tasks. You're clear!</Text>
+          </Card>
+        ) : (
+          <Card style={styles.tasksCard}>
+            {homeTasks.map((t, idx) => {
+              const isOverdue = t.date && t.date < today;
+              return (
+                <View
+                  key={t.id}
+                  style={[styles.taskRow, idx < homeTasks.length - 1 && styles.taskRowDivider]}
+                >
+                  <View style={[styles.taskCheck, t.done && styles.taskCheckDone]}>
+                    {t.done && <Text style={styles.taskCheckMark}>✓</Text>}
+                  </View>
+                  <View style={styles.taskTextWrap}>
+                    <Text style={[styles.taskText, t.done && styles.taskTextDone]} numberOfLines={1}>
+                      {t.text}
+                    </Text>
+                    <View style={styles.taskMetaRow}>
+                      {t.subject ? <Text style={styles.taskSubject}>📚 {t.subject}</Text> : null}
+                      {isOverdue ? (
+                        <Text style={styles.taskOverdue}>⚠ overdue · {t.date}</Text>
+                      ) : (t.date && t.date !== today ? (
+                        <Text style={styles.taskSubject}>📅 {t.date}</Text>
+                      ) : null)}
+                    </View>
+                  </View>
+                  <Pill color={t.priority === 'high' ? 'red' : t.priority === 'medium' ? 'amber' : 'muted'}>
+                    {t.priority}
+                  </Pill>
+                </View>
+              );
+            })}
+            {remainingTasksCount > 0 && (
+              <TouchableOpacity onPress={() => go('journal')} style={styles.moreTasksRow}>
+                <Text style={styles.moreTasksText}>
+                  +{remainingTasksCount} more pending task{remainingTasksCount === 1 ? '' : 's'} →
+                </Text>
+              </TouchableOpacity>
+            )}
+          </Card>
+        )}
+      </View>
+    ),
+
+    quickLinks: (
+      <View>
+        <SectionHeader title="Quick Links" onPress={() => go('links')} />
+        <View style={styles.linkGrid}>
+          {starredLinks.length === 0 ? (
+            <Text style={styles.emptyText}>No starred links yet.</Text>
+          ) : (
+            starredLinks.map(l => (
+              <TouchableOpacity key={l.id} onPress={() => Linking.openURL(l.url)} style={styles.linkChip}>
+                <Text style={styles.linkChipIcon}>{l.icon}</Text>
+                <Text style={styles.linkChipLabel} numberOfLines={1}>{l.name}</Text>
+              </TouchableOpacity>
+            ))
+          )}
+        </View>
+      </View>
+    ),
+  };
+
+  // Build the draggable items list from the persisted order, skipping any
+  // section that currently has nothing to render (e.g. no upcoming exam).
+  const draggableSections = sectionOrder
+    .map(id => ({ id, content: sectionRenderers[id] }))
+    .filter(s => s.content !== null);
+
+  const handleSectionReorder = (reorderedSections) => {
+    // Reordering only ever touches the sections that were visible (had
+    // content) at drag time. Any hidden section (e.g. "Next Target" with
+    // no upcoming exam right now) keeps its relative position by being
+    // re-inserted at its old slot in the full order — this avoids a
+    // hidden section silently jumping to the end once it reappears later.
+    const visibleIds = reorderedSections.map(s => s.id);
+    const hiddenIds = sectionOrder.filter(id => !visibleIds.includes(id));
+    const newOrder = [];
+    let visibleIdx = 0;
+    sectionOrder.forEach(id => {
+      if (hiddenIds.includes(id)) {
+        newOrder.push(id);
+      } else {
+        newOrder.push(visibleIds[visibleIdx]);
+        visibleIdx++;
+      }
+    });
+    persistSectionOrder(newOrder);
   };
 
   return (
@@ -84,7 +261,8 @@ export default function HomeScreen({
           ) : null}
         </View>
 
-        {/* Mission Control Grid */}
+        {/* Mission Control Grid — fixed stats, not reorderable (these are
+            a dashboard summary, not a list of swappable items) */}
         <Text style={styles.sectionTitle}>Mission Control</Text>
         <View style={styles.statsGrid}>
           <View style={styles.statGridItem}>
@@ -101,84 +279,17 @@ export default function HomeScreen({
           </View>
         </View>
 
-        {/* Upcoming Exam */}
-        {nextExam && (
-          <>
-            <SectionHeader title="Next Target" onPress={() => go('uni')} />
-            <TouchableOpacity onPress={() => go('uni')} activeOpacity={0.8}>
-              <Card style={styles.examCard}>
-                <View style={styles.examCardHeader}>
-                  <Text style={styles.examName}>{nextExam.name}</Text>
-                  <Pill color="accent">{diffDays(nextExam.date)} days left</Pill>
-                </View>
-                <Text style={styles.examDate}>📅 {nextExam.date}</Text>
-              </Card>
-            </TouchableOpacity>
-          </>
+        {/* Reorderable section blocks */}
+        {draggableSections.length > 1 && (
+          <Text style={styles.reorderHint}>Hold and drag a section to reorder</Text>
         )}
-
-        {/* Today's Study Tasks */}
-        <SectionHeader title="Today's Study Tasks" onPress={() => go('study')} />
-        {todaysTasks.length === 0 ? (
-          <Card style={styles.emptyCard}>
-            <Text style={styles.emptyText}>No study tasks scheduled for today.</Text>
-          </Card>
-        ) : (
-          <Card style={styles.tasksCard}>
-            {todaysTasks.map((t, idx) => (
-              <View
-                key={t.id}
-                style={[styles.taskRow, idx < todaysTasks.length - 1 && styles.taskRowDivider]}
-              >
-                <View style={[styles.taskCheck, t.done && styles.taskCheckDone]}>
-                  {t.done && <Text style={styles.taskCheckMark}>✓</Text>}
-                </View>
-                <View style={styles.taskTextWrap}>
-                  <Text style={[styles.taskText, t.done && styles.taskTextDone]} numberOfLines={1}>
-                    {t.text}
-                  </Text>
-                  {t.subject ? <Text style={styles.taskSubject}>📚 {t.subject}</Text> : null}
-                </View>
-                <Pill color={t.priority === 'high' ? 'red' : t.priority === 'medium' ? 'amber' : 'muted'}>
-                  {t.priority}
-                </Pill>
-              </View>
-            ))}
-          </Card>
-        )}
-
-        {/* Habits (Compact) */}
-        {habits.length > 0 && (
-          <>
-            <SectionHeader title="Daily Routine" onPress={() => go('habits')} />
-            <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.habitsScroll}>
-              {habits.map(h => {
-                const doneToday = !!(h.history && h.history[today]);
-                return (
-                  <View key={h.id} style={[styles.habitPill, doneToday && styles.habitPillDone]}>
-                    <Text style={styles.habitIcon}>{h.icon}</Text>
-                    <Text style={[styles.habitName, doneToday && styles.habitNameDone]}>{h.name}</Text>
-                  </View>
-                );
-              })}
-            </ScrollView>
-          </>
-        )}
-
-        {/* Starred Links */}
-        <SectionHeader title="Quick Links" onPress={() => go('links')} />
-        <View style={styles.linkGrid}>
-          {starredLinks.length === 0 ? (
-            <Text style={styles.emptyText}>No starred links yet.</Text>
-          ) : (
-            starredLinks.map(l => (
-              <TouchableOpacity key={l.id} onPress={() => Linking.openURL(l.url)} style={styles.linkChip}>
-                <Text style={styles.linkChipIcon}>{l.icon}</Text>
-                <Text style={styles.linkChipLabel} numberOfLines={1}>{l.name}</Text>
-              </TouchableOpacity>
-            ))
-          )}
-        </View>
+        <DraggableList
+          items={draggableSections}
+          keyExtractor={(s) => s.id}
+          onReorder={handleSectionReorder}
+          itemHeight={140}
+          renderItem={(s) => <View style={styles.sectionBlock}>{s.content}</View>}
+        />
 
       </ScrollView>
 
@@ -205,20 +316,12 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     flexWrap: 'wrap',
     justifyContent: 'space-between',
-    marginBottom: 4,
+    marginBottom: 16,
   },
   statGridItem: { width: '48%', marginBottom: 10 },
 
-  habitsScroll: { marginBottom: 16, overflow: 'visible' },
-  habitPill: {
-    flexDirection: 'row', alignItems: 'center',
-    backgroundColor: COLORS.bg2, borderWidth: 1, borderColor: COLORS.border,
-    borderRadius: 20, paddingHorizontal: 12, paddingVertical: 8, marginRight: 8,
-  },
-  habitPillDone: { backgroundColor: COLORS.accentGlow, borderColor: COLORS.accent },
-  habitIcon:     { fontSize: 16, marginRight: 6 },
-  habitName:     { fontSize: 13, color: COLORS.textMuted, fontWeight: '500' },
-  habitNameDone: { color: COLORS.accent, fontWeight: '700' },
+  reorderHint: { fontSize: 11, color: COLORS.textSub, marginBottom: 6, textAlign: 'center' },
+  sectionBlock: { marginBottom: 8 },
 
   linkGrid: {
     flexDirection: 'row',
@@ -256,7 +359,7 @@ const styles = StyleSheet.create({
   examName:       { fontSize: 16, fontWeight: '700', color: COLORS.text, flex: 1, marginRight: 10 },
   examDate:       { fontSize: 13, color: COLORS.textMuted },
 
-  // Today's study tasks list
+  // Tasks list
   tasksCard:    { marginBottom: 16, paddingVertical: 4 },
   taskRow:      { flexDirection: 'row', alignItems: 'center', paddingVertical: 12 },
   taskRowDivider: { borderBottomWidth: 1, borderBottomColor: COLORS.border },
@@ -266,5 +369,9 @@ const styles = StyleSheet.create({
   taskTextWrap: { flex: 1, marginRight: 8 },
   taskText:     { fontSize: 13, color: COLORS.text, fontWeight: '500' },
   taskTextDone: { textDecorationLine: 'line-through', color: COLORS.textMuted },
+  taskMetaRow:  { flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap' },
   taskSubject:  { fontSize: 11, color: COLORS.textMuted, marginTop: 2 },
+  taskOverdue:  { fontSize: 11, color: COLORS.red, fontWeight: '600', marginTop: 2, marginLeft: 6 },
+  moreTasksRow: { paddingVertical: 10, alignItems: 'center' },
+  moreTasksText:{ fontSize: 12, color: COLORS.accent, fontWeight: '600' },
 });

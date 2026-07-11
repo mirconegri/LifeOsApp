@@ -1,3 +1,4 @@
+
 import React, { useEffect, useRef } from 'react';
 import { Animated, Text, TouchableOpacity, StyleSheet, View } from 'react-native';
 import { COLORS } from '../config/colors';

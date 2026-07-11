@@ -1,3 +1,4 @@
+
 // src/screens/FinancesScreen.js
 import React, { useState } from 'react';
 import {
@@ -9,6 +10,9 @@ import { Card } from '../components/Card';
 import { StatCard } from '../components/StatCard';
 import { CustomAlert } from '../components/CustomAlert';
 import { DatePicker } from '../components/DatePicker';
+import { GlassSheet } from '../components/GlassSheet';
+
+import { localDateKey } from '../data/helpers';
 
 const CAT_COLORS = {
   work:       COLORS.green,
@@ -20,12 +24,17 @@ const CAT_COLORS = {
 
 const CATEGORIES = Object.keys(CAT_COLORS);
 
+// Fixed: this used to be `new Date().toISOString().slice(0,10)`, which
+// converts to UTC first. Between midnight and 1-2am local time in any
+// timezone ahead of UTC (Italy included), that returned YESTERDAY's date
+// as "today" for a brand new transaction.
 function todayStr() {
-  return new Date().toISOString().slice(0, 10);
+  return localDateKey(new Date());
 }
 
 export default function FinancesScreen({ finances, setFinances }) {
   const [modalVisible, setModalVisible] = useState(false);
+  const [editingId,    setEditingId]    = useState(null);
   const [formDesc,     setFormDesc]     = useState('');
   const [formAmount,   setFormAmount]   = useState('');
   const [formType,     setFormType]     = useState('expense');
@@ -34,6 +43,7 @@ export default function FinancesScreen({ finances, setFinances }) {
   const [alertConfig,  setAlertConfig]  = useState(null);
 
   const showAlert = (cfg) => setAlertConfig(cfg);
+  const closeModal = () => setModalVisible(false);
 
   // ── Computed ──────────────────────────────────────────────────────────────
   const balance  = finances.reduce((a, t) => a + t.amount, 0);
@@ -41,11 +51,22 @@ export default function FinancesScreen({ finances, setFinances }) {
   const expenses = Math.abs(finances.filter(t => t.type === 'expense').reduce((a, t) => a + t.amount, 0));
 
   const now    = new Date();
+  // Fixed: month keys used to come from `d.toISOString().slice(0,7)`.
+  // toISOString() always converts to UTC first — for any timezone ahead of
+  // UTC (like Italy, UTC+1/+2), local midnight on the 1st of the month
+  // becomes 22:00 or 23:00 on the LAST DAY of the PREVIOUS month in UTC.
+  // So the "June" bucket was actually keyed as "2026-05", and every
+  // transaction landed one month off from what the chart label showed.
+  // Building the key from the local year/month directly avoids the UTC
+  // round-trip entirely.
+  function monthKey(d) {
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+  }
   const months = Array.from({ length: 6 }, (_, i) => {
     const d = new Date(now.getFullYear(), now.getMonth() - 5 + i, 1);
     return {
       label: d.toLocaleDateString('en-US', { month: 'short' }),
-      key:   d.toISOString().slice(0, 7),
+      key:   monthKey(d),
     };
   });
   const monthBars = months.map(m => {
@@ -55,14 +76,29 @@ export default function FinancesScreen({ finances, setFinances }) {
   const maxAbs = Math.max(...monthBars.map(Math.abs), 1);
 
   // ── Actions ───────────────────────────────────────────────────────────────
-  const openModal = () => {
+  const openAddModal = () => {
+    setEditingId(null);
     setFormDesc(''); setFormAmount('');
     setFormType('expense'); setFormCat('other');
     setFormDate(todayStr());
     setModalVisible(true);
   };
 
-  const addTransaction = () => {
+  // New: opens the same modal pre-filled for an existing transaction,
+  // triggered by the pencil button next to each row — separate from the
+  // "✕" delete button so editing and deleting don't compete for the same
+  // tap target.
+  const openEditModal = (t) => {
+    setEditingId(t.id);
+    setFormDesc(t.desc);
+    setFormAmount(String(Math.abs(t.amount)));
+    setFormType(t.type);
+    setFormCat(t.category);
+    setFormDate(t.date);
+    setModalVisible(true);
+  };
+
+  const saveTransaction = () => {
     if (!formDesc.trim()) {
       showAlert({ title: 'Error', message: 'Enter a description.',
         buttons: [{ text: 'OK', style: 'cancel', onPress: () => setAlertConfig(null) }] }); return;
@@ -76,15 +112,23 @@ export default function FinancesScreen({ finances, setFinances }) {
       showAlert({ title: 'Error', message: 'Select a date.',
         buttons: [{ text: 'OK', style: 'cancel', onPress: () => setAlertConfig(null) }] }); return;
     }
-    const newId = Math.max(0, ...finances.map(f => f.id)) + 1;
-    setFinances(prev => [...prev, {
-      id:       newId,
-      date:     formDate,
-      desc:     formDesc.trim(),
-      amount:   formType === 'expense' ? -Math.abs(imp) : Math.abs(imp),
-      type:     formType,
-      category: formCat,
-    }]);
+    const amount = formType === 'expense' ? -Math.abs(imp) : Math.abs(imp);
+
+    if (editingId) {
+      setFinances(prev => prev.map(f => f.id === editingId
+        ? { ...f, date: formDate, desc: formDesc.trim(), amount, type: formType, category: formCat }
+        : f));
+    } else {
+      const newId = Math.max(0, ...finances.map(f => f.id)) + 1;
+      setFinances(prev => [...prev, {
+        id:       newId,
+        date:     formDate,
+        desc:     formDesc.trim(),
+        amount,
+        type:     formType,
+        category: formCat,
+      }]);
+    }
     setModalVisible(false);
   };
 
@@ -96,6 +140,21 @@ export default function FinancesScreen({ finances, setFinances }) {
         { text: 'Cancel', style: 'cancel', onPress: () => setAlertConfig(null) },
         { text: 'Delete', style: 'destructive', onPress: () => {
           setFinances(prev => prev.filter(f => f.id !== id));
+          setAlertConfig(null);
+          setModalVisible(false);
+        }},
+      ],
+    });
+  };
+
+  const confirmClearAll = () => {
+    showAlert({
+      title: 'Clear All Transactions',
+      message: `This will permanently delete all ${finances.length} transactions. This can't be undone.`,
+      buttons: [
+        { text: 'Cancel', style: 'cancel', onPress: () => setAlertConfig(null) },
+        { text: 'Clear All', style: 'destructive', onPress: () => {
+          setFinances([]);
           setAlertConfig(null);
         }},
       ],
@@ -145,9 +204,16 @@ export default function FinancesScreen({ finances, setFinances }) {
         {/* Transactions */}
         <View style={styles.listHeader}>
           <Text style={styles.sectionTitle}>📋 Transactions ({recentTransactions.length})</Text>
-          <TouchableOpacity onPress={openModal}>
-            <Text style={styles.addBtn}>+ Add</Text>
-          </TouchableOpacity>
+          <View style={styles.listHeaderActions}>
+            {finances.length > 0 && (
+              <TouchableOpacity onPress={confirmClearAll} style={{ marginRight: 14 }}>
+                <Text style={styles.clearAllText}>Clear All</Text>
+              </TouchableOpacity>
+            )}
+            <TouchableOpacity onPress={openAddModal}>
+              <Text style={styles.addBtn}>+ Add</Text>
+            </TouchableOpacity>
+          </View>
         </View>
 
         {recentTransactions.map(t => (
@@ -161,6 +227,9 @@ export default function FinancesScreen({ finances, setFinances }) {
               <Text style={[styles.txAmount, { color: t.amount >= 0 ? COLORS.green : COLORS.red }]}>
                 {t.amount >= 0 ? '+' : ''}{t.amount} €
               </Text>
+              <TouchableOpacity onPress={() => openEditModal(t)} style={styles.editBtn}>
+                <Text style={styles.editBtnText}>✎</Text>
+              </TouchableOpacity>
               <TouchableOpacity onPress={() => deleteTransaction(t.id, t.desc)} style={styles.deleteBtn}>
                 <Text style={styles.deleteBtnText}>✕</Text>
               </TouchableOpacity>
@@ -169,8 +238,8 @@ export default function FinancesScreen({ finances, setFinances }) {
         ))}
       </ScrollView>
 
-      {/* Add Modal */}
-      <Modal visible={modalVisible} transparent animationType="slide">
+      {/* Add / Edit Modal */}
+      <Modal visible={modalVisible} transparent animationType="slide" onRequestClose={closeModal}>
         <KeyboardAvoidingView
           style={styles.modalWrapper}
           behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
@@ -178,13 +247,12 @@ export default function FinancesScreen({ finances, setFinances }) {
           <TouchableOpacity
             style={styles.modalBackdrop}
             activeOpacity={1}
-            onPress={() => setModalVisible(false)}
+            onPress={closeModal}
           />
-          <View style={styles.modal}>
-            <View style={styles.modalHandle} />
-            <Text style={styles.modalTitle}>New Transaction</Text>
+          <GlassSheet>
+            <Text style={styles.modalTitle}>{editingId ? 'Edit Transaction' : 'New Transaction'}</Text>
 
-            <ScrollView showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
+            <ScrollView showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="always">
               <TextInput
                 style={styles.input}
                 placeholder="Description *"
@@ -239,12 +307,23 @@ export default function FinancesScreen({ finances, setFinances }) {
                 ))}
               </View>
 
-              <TouchableOpacity style={styles.submitBtn} onPress={addTransaction}>
-                <Text style={styles.submitBtnText}>Add Transaction</Text>
-              </TouchableOpacity>
+              <View style={styles.modalBtns}>
+                {editingId ? (
+                  <TouchableOpacity onPress={() => deleteTransaction(editingId, formDesc)} style={[styles.btn, styles.btnDelete]}>
+                    <Text style={styles.btnDeleteText}>Delete</Text>
+                  </TouchableOpacity>
+                ) : (
+                  <TouchableOpacity onPress={closeModal} style={[styles.btn, styles.btnCancel]}>
+                    <Text style={styles.btnCancelText}>Cancel</Text>
+                  </TouchableOpacity>
+                )}
+                <TouchableOpacity style={[styles.btn, styles.btnSave]} onPress={saveTransaction}>
+                  <Text style={styles.btnSaveText}>{editingId ? 'Save Changes' : 'Add Transaction'}</Text>
+                </TouchableOpacity>
+              </View>
               <View style={{ height: 20 }} />
             </ScrollView>
-          </View>
+          </GlassSheet>
         </KeyboardAvoidingView>
       </Modal>
 
@@ -269,7 +348,9 @@ const styles = StyleSheet.create({
   barLabel:   { fontSize: 9, color: COLORS.textMuted },
 
   listHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: 8, marginBottom: 4 },
+  listHeaderActions: { flexDirection: 'row', alignItems: 'center' },
   addBtn:     { fontSize: 13, color: COLORS.accent, fontWeight: '600' },
+  clearAllText: { fontSize: 12, color: COLORS.red, fontWeight: '600' },
 
   txCard:  { marginBottom: 8, padding: 12 },
   txRow:   { flexDirection: 'row', alignItems: 'center' },
@@ -278,20 +359,14 @@ const styles = StyleSheet.create({
   txDesc:  { fontSize: 13, color: COLORS.text, fontWeight: '500' },
   txMeta:  { fontSize: 11, color: COLORS.textMuted, marginTop: 2 },
   txAmount:   { fontSize: 13, fontWeight: '600', marginRight: 10 },
+  editBtn:    { padding: 4, marginRight: 4 },
+  editBtnText:{ fontSize: 13, color: COLORS.textMuted },
   deleteBtn:  { padding: 4 },
   deleteBtnText:{ fontSize: 14, color: COLORS.textSub },
 
   // Modal
   modalWrapper:  { flex: 1, justifyContent: 'flex-end' },
   modalBackdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.6)' },
-  modal: {
-    backgroundColor: COLORS.bg2,
-    borderTopLeftRadius: 24, borderTopRightRadius: 24,
-    padding: 24, paddingBottom: 40,
-    borderTopWidth: 1, borderColor: COLORS.border,
-    maxHeight: '88%',
-  },
-  modalHandle: { width: 40, height: 4, borderRadius: 2, backgroundColor: COLORS.bg4, alignSelf: 'center', marginBottom: 16 },
   modalTitle:  { fontSize: 18, fontWeight: '700', color: COLORS.text, marginBottom: 16, textAlign: 'center' },
   input:       { backgroundColor: COLORS.bg3, borderWidth: 1, borderColor: COLORS.border, borderRadius: 10, paddingHorizontal: 12, paddingVertical: 10, color: COLORS.text, fontSize: 14, marginBottom: 10 },
   fieldLabel:  { color: COLORS.textSub, fontSize: 13, marginBottom: 8, marginTop: 4 },
@@ -303,6 +378,12 @@ const styles = StyleSheet.create({
   catChip:     { paddingHorizontal: 12, paddingVertical: 5, borderRadius: 12, backgroundColor: COLORS.bg4 },
   catChipActive:{ backgroundColor: COLORS.accentGlow },
   catChipText: { fontSize: 12, color: COLORS.textMuted },
-  submitBtn:   { backgroundColor: COLORS.accent, borderRadius: 10, paddingVertical: 13, alignItems: 'center', marginTop: 4 },
-  submitBtnText:{ color: '#fff', fontSize: 14, fontWeight: '700' },
+  modalBtns:   { flexDirection: 'row', justifyContent: 'space-between', marginTop: 10 },
+  btn:         { flex: 1, paddingVertical: 14, borderRadius: 10, alignItems: 'center' },
+  btnCancel:   { backgroundColor: COLORS.bg4, marginRight: 10 },
+  btnCancelText:{ color: COLORS.textMuted, fontWeight: '600' },
+  btnDelete:   { backgroundColor: COLORS.redDim, borderWidth: 1, borderColor: COLORS.red, marginRight: 10 },
+  btnDeleteText:{ color: COLORS.red, fontWeight: '600' },
+  btnSave:     { backgroundColor: COLORS.accent },
+  btnSaveText: { color: '#fff', fontWeight: '700' },
 });
