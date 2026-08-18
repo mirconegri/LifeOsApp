@@ -7,7 +7,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 // Not read from that file at runtime: the JS SDK wants its own config
 // object, separate from what the native plugin uses at Android build time.
 const firebaseConfig = {
-  apiKey: 'AIzaSyDoCJqDqjpya39Fj8cnjXeAmzZu12GgluU',
+  apiKey: '',
   authDomain: 'lifeos-93904.firebaseapp.com',
   projectId: 'lifeos-93904',
   storageBucket: 'lifeos-93904.firebasestorage.app',
