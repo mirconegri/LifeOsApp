@@ -1,6 +1,7 @@
 node_modules/
 .expo/
 android/
+images/
 ios/
 npm-debug.*
 *.jks
@@ -9,3 +10,7 @@ npm-debug.*
 *.key
 *.mobileprovision
 *.orig.*
+
+google-services.json
+
+google-services.json
