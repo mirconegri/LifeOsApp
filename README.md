@@ -50,8 +50,6 @@ Built out of frustration with having a different app for every life domain — o
 |:--:|:--:|
 | **Statistics** | **All Screens** |
 
-> Screenshots predate the dark "pre-Liquid Glass" visual pass introduced in v1.4. Refresh before using them for store listing assets.
-
 ## Features
 
 ### Home Dashboard
@@ -158,7 +156,6 @@ The following bugs are open and unresolved as of the most recent update:
 | AsyncStorage | 2.2.0 | Sole persistence layer — SQLite migration is a tracked roadmap item |
 | New Architecture | — | Enabled via `newArchEnabled: true` in `app.json` |
 
-> `package.json` lists `@react-navigation/native` and `@react-navigation/bottom-tabs`. These are installed but unused — navigation is hand-rolled via a `useState` screen switcher and a custom `Modal`/`Animated` drawer. Adopting React Navigation is a tracked roadmap item and is the planned fix for the Android back-button issue above.
 
 ## Architecture
 
@@ -179,7 +176,6 @@ All data lives on-device via AsyncStorage under a `lifeos_` key prefix. No backe
 | `NotesScreen` | Notes with tags |
 | `LinksScreen` | Bookmarks with star and reorder |
 
-> `StudyScreen.js` and `HabitsScreen.js` exist in the codebase but are no longer reachable from navigation — the Study section and pomodoro timer were removed, and habits were merged into Tasks. Safe to delete once confirmed unused.
 
 ### Key Components
 
@@ -250,8 +246,6 @@ cd LifeOS
 npm install
 ```
 
-> The `assets/` directory is not committed. Place your icon, splash, and adaptive icon files there before running a production build.
-
 ## Usage
 
 ### Development
@@ -292,11 +286,7 @@ The following are explicitly planned and not yet implemented. Play Store publica
 5. **Home screen widgets** — quick-add expense, quick-add task, and university status at a glance without opening the app
 6. **Ad banners** — once the architecture items above are stable
 
-> The only hard cost on this list is the one-time $25 Google Play Developer registration fee. Every library and service under consideration is free at the required scale.
-
 ## Changelog
-
-> Dates below are approximate. For precise history, see the [commit log](https://github.com/mirconegri/LifeOS/commits/main).
 
 | Version | Date | Highlights |
 |---|---|---|
