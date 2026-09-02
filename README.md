@@ -6,7 +6,7 @@
 [![License](https://img.shields.io/badge/License-MIT-green?style=for-the-badge)](LICENSE)
 [![Orion Store](https://img.shields.io/badge/Get_it_on-Orion_Store-8A2BE2?style=for-the-badge)](https://rookieenough.github.io/Orion-Data/redirect.html?id=lifeos)
 
-> 🌐 **[Visit the project website](https://lifeosapp.mirconegri.com)**
+> 🌐 **<a href="https://lifeosapp.mirconegri.com" target="_blank">Visit the official project website</a>**
 
 A personal life management app for Android. One place for university exams, finances, tasks, groceries, goals, notes, and links — everything stored locally on-device, with no account, no backend, and no subscription required.
 
