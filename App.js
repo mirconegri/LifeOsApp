@@ -6,6 +6,7 @@ import {
   Animated, Easing, BackHandler,
 } from 'react-native';
 import { SafeAreaProvider, useSafeAreaInsets } from 'react-native-safe-area-context';
+import { GestureHandlerRootView } from 'react-native-gesture-handler';
 
 import { COLORS } from './src/config/colors';
 import { TYPE, SPACING } from './src/config/designSystem';
@@ -59,9 +60,11 @@ function usePersist(key, setter) {
 // was visually on top of the app's own bottom tab strip.
 export default function App() {
   return (
-    <SafeAreaProvider>
-      <AppContent />
-    </SafeAreaProvider>
+    <GestureHandlerRootView style={{ flex: 1 }}>
+      <SafeAreaProvider>
+        <AppContent />
+      </SafeAreaProvider>
+    </GestureHandlerRootView>
   );
 }
 
