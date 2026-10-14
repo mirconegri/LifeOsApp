@@ -2,6 +2,7 @@
 import React from 'react';
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import { COLORS } from '../config/colors';
+import { RADIUS } from '../config/designSystem';
 
 const PILL_COLORS = {
   green:  { bg: COLORS.greenDim,   fg: COLORS.green  },
@@ -54,8 +55,8 @@ export function Pill({ children, color = 'muted', label, selected, onPress, outl
 }
 
 const styles = StyleSheet.create({
-  pill:         { paddingHorizontal: 12, paddingVertical: 6, borderRadius: 14 },
+  pill:         { paddingHorizontal: 12, paddingVertical: 6, borderRadius: RADIUS.pill },
   pillSelected: { borderWidth: 1, borderColor: COLORS.accent },
-  pillOutline:  { paddingHorizontal: 12, paddingVertical: 6, borderRadius: 14, borderWidth: 1, backgroundColor: 'transparent' },
+  pillOutline:  { paddingHorizontal: 12, paddingVertical: 6, borderRadius: RADIUS.pill, borderWidth: 1, backgroundColor: 'transparent' },
   text:         { fontSize: 12, fontWeight: '600' },
 });

@@ -27,6 +27,12 @@ const styles = StyleSheet.create({
     borderColor: COLORS.hairline,
     borderRadius: RADIUS.card,
     padding: 16,
+    // Elevazione percettibile
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.15,
+    shadowRadius: 8,
+    elevation: 4,
   },
   cardFlat: {
     backgroundColor: COLORS.bg3,
@@ -40,5 +46,10 @@ const styles = StyleSheet.create({
     borderColor: COLORS.accent,
     borderRadius: RADIUS.card + 2,
     padding: 16,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.2,
+    shadowRadius: 10,
+    elevation: 6,
   },
 });
