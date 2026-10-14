@@ -8,6 +8,7 @@ import {
 import { SafeAreaProvider, useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { COLORS } from './src/config/colors';
+import { Icon } from './src/components/Icon';
 import { TYPE, SPACING } from './src/config/designSystem';
 import { NAV } from './src/config/nav';
 import { todayKey } from './src/data/helpers';
@@ -394,13 +395,13 @@ function AppContent() {
       {/* ── Top Bar ── */}
       <View style={styles.topBar}>
         <TouchableOpacity onPress={openDrawer} style={styles.menuBtn}>
-          <Text style={styles.menuIcon}>☰</Text>
+          <Icon name="menu" size={20} color={COLORS.textMuted} />
         </TouchableOpacity>
         <Text style={styles.logo}>
           <Text style={{ color: COLORS.accent }}>Life</Text>OS
         </Text>
         <Text style={styles.screenLabel}>
-          {currentNav?.icon} {currentNav?.label}
+          <Icon name={currentNav?.icon} size={16} color={COLORS.textMuted} /> {currentNav?.label}
         </Text>
       </View>
 
@@ -423,7 +424,7 @@ function AppContent() {
                   onPress={() => { goToScreen(n.id); closeDrawer(); }}
                   style={[styles.drawerItem, screen === n.id && styles.drawerItemActive]}
                 >
-                  <Text style={{ fontSize: 18 }}>{n.icon}</Text>
+                  <Icon name={n.icon} size={18} color={COLORS.text} />
                   <Text style={[styles.drawerLabel, screen === n.id && styles.drawerLabelActive]}>
                     {n.label}
                   </Text>
@@ -454,15 +455,15 @@ function AppContent() {
             style={styles.bottomNavItem}
           >
             <View style={[styles.bottomNavIconWrap, screen === n.id && styles.bottomNavIconWrapActive]}>
-              <Animated.Text
+              <Animated.View
                 style={[
                   styles.bottomNavIcon,
                   screen === n.id && styles.bottomNavIconActive,
                   { transform: [{ scale: getNavScale(n.id) }] },
                 ]}
               >
-                {n.icon}
-              </Animated.Text>
+                <Icon name={n.icon} size={20} color={COLORS.textMuted} />
+              </Animated.View>
             </View>
             <Text style={[styles.bottomNavLabel, screen === n.id && styles.bottomNavLabelActive]}>
               {n.label}
@@ -542,7 +543,7 @@ const styles = StyleSheet.create({
   bottomNavIconWrapActive: {
     backgroundColor: COLORS.accentGlow,
   },
-  bottomNavIcon: { fontSize: 20, opacity: 0.35 },
+  bottomNavIcon: { opacity: 0.35 },
   bottomNavIconActive: { opacity: 1 },
   bottomNavLabel: { fontSize: TYPE.meta, color: COLORS.textSub, marginTop: 4 },
   bottomNavLabelActive: { color: COLORS.accent, fontWeight: '700', borderBottomWidth: 2, borderBottomColor: COLORS.accent, paddingBottom: 2 },
