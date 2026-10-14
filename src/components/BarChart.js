@@ -6,6 +6,7 @@
 import React from 'react';
 import { View, Text, StyleSheet } from 'react-native';
 import { COLORS } from '../config/colors';
+import { TYPE } from '../config/designSystem';
 
 export function BarChart({ data, height = 120, color = COLORS.accent, showValues = true }) {
   const max = Math.max(...data.map(d => d.value), 1);
@@ -38,8 +39,8 @@ export function BarChart({ data, height = 120, color = COLORS.accent, showValues
 const styles = StyleSheet.create({
   row: { flexDirection: 'row', alignItems: 'flex-end', justifyContent: 'space-around' },
   col: { alignItems: 'center', flex: 1 },
-  value: { fontSize: 10, color: COLORS.textSub, marginBottom: 4, height: 14 },
+  value: { fontSize: TYPE.caption, color: COLORS.textSub, marginBottom: 4, height: 14 },
   track: { width: 18, justifyContent: 'flex-end' },
   bar: { width: '100%', borderRadius: 5 },
-  label: { fontSize: 10, color: COLORS.textMuted, marginTop: 6 },
+  label: { fontSize: TYPE.caption, color: COLORS.textMuted, marginTop: 6 },
 });

@@ -6,6 +6,7 @@ import {
   TouchableOpacity, Modal, KeyboardAvoidingView, Platform,
 } from 'react-native';
 import { COLORS } from '../config/colors';
+import { TYPE, SPACING } from '../config/designSystem';
 import { Card } from '../components/Card';
 import { StatCard } from '../components/StatCard';
 import { CustomAlert } from '../components/CustomAlert';
@@ -335,17 +336,17 @@ export default function FinancesScreen({ finances, setFinances }) {
 const styles = StyleSheet.create({
   root:    { flex: 1, backgroundColor: COLORS.bg },
   scroll:  { flex: 1 },
-  content: { padding: 16, paddingBottom: 32 },
+  content: { padding: SPACING.md, paddingBottom: 32 },
 
-  sectionTitle: { fontSize: 13, fontWeight: '600', color: COLORS.textMuted, textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 10, marginTop: 10 },
+  sectionTitle: { fontSize: TYPE.label, fontWeight: '600', color: COLORS.textMuted, textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 10, marginTop: 10 },
   statsRow:     { flexDirection: 'row', marginBottom: 4 },
 
   chartCard:  { marginBottom: 12 },
   chart:      { flexDirection: 'row', justifyContent: 'space-around', alignItems: 'flex-end', height: 120, paddingVertical: 8 },
   barCol:     { alignItems: 'center', flex: 1 },
   bar:        { width: 24, borderRadius: 3, marginBottom: 4 },
-  barVal:     { fontSize: 9, color: COLORS.textSub, marginBottom: 2 },
-  barLabel:   { fontSize: 9, color: COLORS.textMuted },
+  barVal:     { fontSize: TYPE.micro, color: COLORS.textSub, marginBottom: 2 },
+  barLabel:   { fontSize: TYPE.micro, color: COLORS.textMuted },
 
   listHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: 8, marginBottom: 4 },
   listHeaderActions: { flexDirection: 'row', alignItems: 'center' },
@@ -356,9 +357,9 @@ const styles = StyleSheet.create({
   txRow:   { flexDirection: 'row', alignItems: 'center' },
   txDot:   { width: 8, height: 8, borderRadius: 4, marginRight: 10 },
   txInfo:  { flex: 1, marginRight: 10 },
-  txDesc:  { fontSize: 13, color: COLORS.text, fontWeight: '500' },
+  txDesc:  { fontSize: TYPE.body, color: COLORS.text, fontWeight: '500' },
   txMeta:  { fontSize: 11, color: COLORS.textMuted, marginTop: 2 },
-  txAmount:   { fontSize: 13, fontWeight: '600', marginRight: 10 },
+  txAmount:   { fontSize: TYPE.label, fontWeight: '600', marginRight: 10 },
   editBtn:    { padding: 4, marginRight: 4 },
   editBtnText:{ fontSize: 13, color: COLORS.textMuted },
   deleteBtn:  { padding: 4 },

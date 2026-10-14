@@ -34,6 +34,10 @@ export const COLORS = {
   redDim:    '#ef444422',
   blue:      '#3b82f6',
 
+  // Surface — subtle white overlay for raised-surface top edge,
+  // gives the glass/OS look a directional light source.
+  surface:   '#ffffff08',
+
   // Borders — kept subtle and low-opacity on purpose: the pre-liquid-glass
   // Apple look relies on a faint hairline rather than a visibly "drawn"
   // border to separate flat surfaces.

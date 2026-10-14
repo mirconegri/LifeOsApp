@@ -13,11 +13,12 @@
 // re-triggering mid-animation.
 import React, { useEffect, useRef } from 'react';
 import { Animated, Easing } from 'react-native';
+import { MOTION } from '../config/designSystem';
 
 export function FadeSlideIn({
   children,
   style,
-  duration = 260,
+  duration = MOTION.normal,
   distance = 14,
   delay = 0,
 }) {

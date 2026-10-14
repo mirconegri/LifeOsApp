@@ -2,6 +2,7 @@
 import React from 'react';
 import { View, StyleSheet } from 'react-native';
 import { COLORS } from '../config/colors';
+import { RADIUS } from '../config/designSystem';
 
 export function ProgressBar({ pct = 0, color = COLORS.accent }) {
   return (

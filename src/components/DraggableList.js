@@ -58,6 +58,7 @@
 import React, { useRef, useState, useEffect } from 'react';
 import { View, PanResponder, Animated, StyleSheet, Vibration } from 'react-native';
 import { COLORS } from '../config/colors';
+import { MOTION } from '../config/designSystem';
 
 const LONG_PRESS_MS = 280;
 const MOVE_CANCEL_THRESHOLD = 6; // px of movement allowed before long-press fires, beyond which we assume the user is scrolling, not picking the row up
@@ -97,7 +98,7 @@ export function DraggableList({ items, keyExtractor, renderItem, onReorder, item
     isDraggingRef.current = false;
     draggedKeyRef.current = null;
     setActiveKey(null);
-    Animated.spring(dragY, { toValue: 0, useNativeDriver: false, speed: 20, bounciness: 4 }).start();
+    Animated.spring(dragY, { toValue: 0, ...MOTION.spring }).start();
     const { onReorder: latestOnReorder, itemsByKey: latestItemsByKey } = latestRef.current;
     latestOnReorder(liveOrderRef.current.map(k => latestItemsByKey[k]));
   }

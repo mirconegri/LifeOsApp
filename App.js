@@ -8,6 +8,7 @@ import {
 import { SafeAreaProvider, useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { COLORS } from './src/config/colors';
+import { TYPE, SPACING } from './src/config/designSystem';
 import { NAV } from './src/config/nav';
 import { todayKey } from './src/data/helpers';
 import { loadJSON, saveJSON } from './src/data/storage';
@@ -485,7 +486,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
     paddingHorizontal: 16, height: 52,
     borderBottomWidth: 1, borderBottomColor: COLORS.border,
-    backgroundColor: COLORS.bg,
+    backgroundColor: COLORS.bg2, // slight depth separation from content
   },
   menuBtn: { padding: 8 },
   menuIcon: { fontSize: 20, color: COLORS.textMuted },
@@ -543,6 +544,6 @@ const styles = StyleSheet.create({
   },
   bottomNavIcon: { fontSize: 20, opacity: 0.35 },
   bottomNavIconActive: { opacity: 1 },
-  bottomNavLabel: { fontSize: 10, color: COLORS.textSub, marginTop: 4 },
-  bottomNavLabelActive: { color: COLORS.accent, fontWeight: '600' },
+  bottomNavLabel: { fontSize: TYPE.meta, color: COLORS.textSub, marginTop: 4 },
+  bottomNavLabelActive: { color: COLORS.accent, fontWeight: '700', borderBottomWidth: 2, borderBottomColor: COLORS.accent, paddingBottom: 2 },
 });

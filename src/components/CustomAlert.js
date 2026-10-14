@@ -3,6 +3,7 @@ import React from 'react';
 import { Modal, View, Text, TouchableOpacity, StyleSheet, Platform } from 'react-native';
 import { BlurView } from 'expo-blur';
 import { COLORS } from '../config/colors';
+import { TYPE, RADIUS, SPACING } from '../config/designSystem';
 
 /**
  * CustomAlert – replaces the stock Android alert dialog.
@@ -79,15 +80,15 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(0,0,0,0.75)',
     alignItems: 'center',
     justifyContent: 'center',
-    padding: 32,
+    padding: SPACING.xl,
   },
   box: {
-    borderRadius: 20,
-    padding: 24,
+    borderRadius: RADIUS.card,
+    padding: SPACING.lg,
     width: '100%',
     borderWidth: 1,
     borderColor: COLORS.border,
-    overflow: 'hidden', // clips the BlurView/panel to the rounded corners
+    overflow: 'hidden',
   },
   // Android substitute for the non-functional blur — see file header.
   androidPanelFill: {
@@ -95,17 +96,17 @@ const styles = StyleSheet.create({
     backgroundColor: COLORS.bg2,
   },
   title: {
-    fontSize: 17,
+    fontSize: TYPE.title,
     fontWeight: '700',
     color: COLORS.text,
-    marginBottom: 8,
+    marginBottom: SPACING.sm,
     textAlign: 'center',
   },
   message: {
-    fontSize: 14,
+    fontSize: TYPE.body,
     color: COLORS.textMuted,
     textAlign: 'center',
-    marginBottom: 20,
+    marginBottom: SPACING.lg,
     lineHeight: 20,
   },
   btnRow: {
@@ -114,8 +115,8 @@ const styles = StyleSheet.create({
   },
   btn: {
     flex: 1,
-    paddingVertical: 12,
-    borderRadius: 12,
+    paddingVertical: SPACING.sm,
+    borderRadius: RADIUS.button,
     backgroundColor: COLORS.accent,
     alignItems: 'center',
   },
@@ -131,7 +132,7 @@ const styles = StyleSheet.create({
   },
   btnText: {
     color: '#fff',
-    fontSize: 14,
+    fontSize: TYPE.body,
     fontWeight: '700',
   },
   btnTextDestructive: {

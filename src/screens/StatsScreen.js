@@ -2,6 +2,7 @@
 import React, { useMemo } from 'react';
 import { View, Text, ScrollView, StyleSheet } from 'react-native';
 import { COLORS } from '../config/colors';
+import { TYPE, SPACING } from '../config/designSystem';
 import { Card } from '../components/Card';
 import { ProgressBar } from '../components/ProgressBar';
 import { StatCard } from '../components/StatCard';
@@ -193,21 +194,21 @@ export default function StatsScreen({ exams, journal, heatmap, finances = [] }) 
 
 const styles = StyleSheet.create({
   scroll: { flex: 1, backgroundColor: COLORS.bg },
-  content: { padding: 16, paddingBottom: 40 },
-  sectionTitle: { fontSize: 13, fontWeight: '600', color: COLORS.textMuted, textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 12, marginTop: 14 },
+  content: { padding: SPACING.md, paddingBottom: 40 },
+  sectionTitle: { fontSize: TYPE.label, fontWeight: '600', color: COLORS.textMuted, textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 12, marginTop: 14 },
 
   gridRow: { flexDirection: 'row', marginBottom: 10 },
   gridCol: { flex: 1, marginHorizontal: 5 },
 
   chartCard: { paddingVertical: 16, paddingHorizontal: 14, marginBottom: 4 },
-  emptyChartText: { color: COLORS.textSub, fontSize: 13, textAlign: 'center', paddingVertical: 20 },
-  chartFootnote: { color: COLORS.textSub, fontSize: 11, textAlign: 'center', marginTop: 8 },
+  emptyChartText: { color: COLORS.textSub, fontSize: TYPE.label, textAlign: 'center', paddingVertical: 20 },
+  chartFootnote: { color: COLORS.textSub, fontSize: TYPE.meta, textAlign: 'center', marginTop: 8 },
 
   missionCard: { paddingVertical: 20, paddingHorizontal: 16, marginBottom: 4 },
   missionItem: { marginBottom: 16 },
   missionLabelRow: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 8 },
-  missionLabel: { fontSize: 13, fontWeight: '600', color: COLORS.text },
-  missionVal: { fontSize: 13, fontWeight: 'bold', color: COLORS.textMuted },
+  missionLabel: { fontSize: TYPE.body, fontWeight: '600', color: COLORS.text },
+  missionVal: { fontSize: TYPE.label, fontWeight: 'bold', color: COLORS.textMuted },
 
   spendTotalRow: { flexDirection: 'row', justifyContent: 'space-between', marginTop: 12, paddingTop: 12, borderTopWidth: 1, borderTopColor: COLORS.hairline },
   spendTotalLabel: { fontSize: 12, color: COLORS.textMuted, fontWeight: '600' },
@@ -217,6 +218,6 @@ const styles = StyleSheet.create({
   leaderRow: { flexDirection: 'row', alignItems: 'center', paddingVertical: 12 },
   leaderRowDivider: { borderBottomWidth: 1, borderBottomColor: COLORS.hairline },
   leaderIcon: { fontSize: 18, marginRight: 12 },
-  leaderName: { flex: 1, fontSize: 14, color: COLORS.text, fontWeight: '500' },
-  leaderStreak: { fontSize: 13, color: COLORS.amber, fontWeight: '700' },
+  leaderName: { flex: 1, fontSize: TYPE.body, color: COLORS.text, fontWeight: '500' },
+  leaderStreak: { fontSize: TYPE.label, color: COLORS.amber, fontWeight: '700' },
 });

@@ -1,7 +1,6 @@
 node_modules/
 .expo/
 android/
-images/
 ios/
 npm-debug.*
 *.jks
@@ -11,6 +10,5 @@ npm-debug.*
 *.mobileprovision
 *.orig.*
 
-google-services.json
-
+# Firebase credenziali — mai committare, passate via EAS env (GOOGLE_SERVICES_JSON)
 google-services.json

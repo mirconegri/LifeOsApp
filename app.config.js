@@ -2,7 +2,7 @@ module.exports = {
   expo: {
     name: "LifeOS",
     slug: "lifeos",
-    version: "1.0.0",
+    version: "1.8.0",
     orientation: "portrait",
     icon: "./assets/icon.png",
     splash: {

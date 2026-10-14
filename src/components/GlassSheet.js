@@ -19,6 +19,7 @@ import { View, StyleSheet } from 'react-native';
 import { BlurView } from 'expo-blur';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { COLORS } from '../config/colors';
+import { RADIUS } from '../config/designSystem';
 
 export function GlassSheet({ children, style, maxHeight = '88%' }) {
   const insets = useSafeAreaInsets();
@@ -40,8 +41,8 @@ export function GlassSheet({ children, style, maxHeight = '88%' }) {
 
 const styles = StyleSheet.create({
   wrapper: {
-    borderTopLeftRadius: 24,
-    borderTopRightRadius: 24,
+    borderTopLeftRadius: RADIUS.sheet,
+    borderTopRightRadius: RADIUS.sheet,
     borderTopWidth: 1,
     borderColor: COLORS.border,
     overflow: 'hidden',
@@ -50,7 +51,7 @@ const styles = StyleSheet.create({
     // insets.bottom so it adapts to every device's navigation bar height.
   },
   handle: {
-    width: 40, height: 4, borderRadius: 2,
+    width: 40, height: 4, borderRadius: RADIUS.check,
     backgroundColor: COLORS.bg4,
     alignSelf: 'center', marginBottom: 16,
   },

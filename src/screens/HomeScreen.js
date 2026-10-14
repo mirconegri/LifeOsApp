@@ -5,6 +5,7 @@ import {
 } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { COLORS } from '../config/colors';
+import { TYPE, SPACING } from '../config/designSystem';
 import { Card } from '../components/Card';
 import { Pill } from '../components/Pill';
 import { StatCard } from '../components/StatCard';
@@ -261,21 +262,20 @@ export default function HomeScreen({
           ) : null}
         </View>
 
-        {/* Mission Control Grid — fixed stats, not reorderable (these are
-            a dashboard summary, not a list of swappable items) */}
-        <Text style={styles.sectionTitle}>Mission Control</Text>
+        {/* Dashboard Grid — fixed stats, not reorderable */}
+        <Text style={styles.sectionTitle}>Dashboard</Text>
         <View style={styles.statsGrid}>
           <View style={styles.statGridItem}>
-            <StatCard label="Tasks Done" value={`${completedTasks}/${totalTasks}`} color={COLORS.green} />
+            <StatCard label="Tasks Done" value={`${completedTasks}/${totalTasks}`} color={COLORS.green} trend="up" />
           </View>
           <View style={styles.statGridItem}>
-            <StatCard label="Balance" value={`€${fmt(currentBalance)}`} color={currentBalance >= 0 ? COLORS.accent : COLORS.red} />
+            <StatCard label="Balance" value={`€${fmt(currentBalance)}`} color={currentBalance >= 0 ? COLORS.accent : COLORS.red} trend={currentBalance > 0 ? 'up' : currentBalance < 0 ? 'down' : 'flat'} />
           </View>
           <View style={styles.statGridItem}>
-            <StatCard label="Avg Grade" value={average ? average.toFixed(1) : '-'} color={COLORS.amber} />
+            <StatCard label="Avg Grade" value={average ? average.toFixed(1) : '-'} color={COLORS.amber} trend={average ? (average > 27 ? 'up' : average > 24 ? 'flat' : 'down') : 'flat'} />
           </View>
           <View style={styles.statGridItem}>
-            <StatCard label="Study Days" value={Object.keys(heatmap).length} color={COLORS.text} />
+            <StatCard label="Study Days" value={Object.keys(heatmap).length} color={COLORS.text} trend="up" />
           </View>
         </View>
 
@@ -306,28 +306,28 @@ export default function HomeScreen({
 
 const styles = StyleSheet.create({
   root:   { flex: 1, backgroundColor: COLORS.bg },
-  scroll: { padding: 16, paddingBottom: 100 },
+  scroll: { padding: SPACING.md, paddingBottom: 100 },
 
-  header:    { marginBottom: 24, marginTop: 10 },
-  greeting:  { fontSize: 28, fontWeight: '800', color: COLORS.text, letterSpacing: -0.5 },
-  dateLabel: { fontSize: 14, color: COLORS.textMuted, marginTop: 4 },
+  header:    { marginBottom: SPACING.lg, marginTop: 10 },
+  greeting:  { fontSize: TYPE.display, fontWeight: '800', color: COLORS.text, letterSpacing: -0.5 },
+  dateLabel: { fontSize: TYPE.body, color: COLORS.textMuted, marginTop: SPACING.xs },
 
   statsGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
     justifyContent: 'space-between',
-    marginBottom: 16,
+    marginBottom: SPACING.md,
   },
   statGridItem: { width: '48%', marginBottom: 10 },
 
-  reorderHint: { fontSize: 11, color: COLORS.textSub, marginBottom: 6, textAlign: 'center' },
-  sectionBlock: { marginBottom: 8 },
+  reorderHint: { fontSize: TYPE.meta, color: COLORS.textSub, marginBottom: 6, textAlign: 'center' },
+  sectionBlock: { marginBottom: SPACING.sm },
 
   linkGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
     justifyContent: 'space-between',
-    marginBottom: 4,
+    marginBottom: SPACING.xs,
   },
   linkChip: {
     flexDirection: 'row', alignItems: 'center',
@@ -336,42 +336,42 @@ const styles = StyleSheet.create({
     borderRadius: 12, paddingHorizontal: 14, paddingVertical: 10,
     width: '48%', marginBottom: 10,
   },
-  linkChipIcon:  { fontSize: 18, marginRight: 8 },
-  linkChipLabel: { fontSize: 14, color: COLORS.text, fontWeight: '600', flex: 1 },
+  linkChipIcon:  { fontSize: 18, marginRight: SPACING.sm },
+  linkChipLabel: { fontSize: TYPE.body, color: COLORS.text, fontWeight: '600', flex: 1 },
 
   // Section header with the clickable arrow link next to the title
   sectionHeaderRow: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
-    marginTop: 8, marginBottom: 10,
+    marginTop: SPACING.sm, marginBottom: 10,
   },
-  sectionTitle: { fontSize: 13, fontWeight: '600', color: COLORS.textMuted, textTransform: 'uppercase', letterSpacing: 0.5 },
+  sectionTitle: { fontSize: TYPE.label, fontWeight: '600', color: COLORS.textMuted, textTransform: 'uppercase', letterSpacing: 0.5 },
   sectionLinkBtn: {
     width: 22, height: 22, borderRadius: 11,
     backgroundColor: COLORS.bg3, alignItems: 'center', justifyContent: 'center',
   },
-  sectionLinkIcon: { fontSize: 15, color: COLORS.accent, fontWeight: '700', marginTop: -1 },
+  sectionLinkIcon: { fontSize: TYPE.title, color: COLORS.accent, fontWeight: '700', marginTop: -1 },
 
-  emptyText:    { fontSize: 13, color: COLORS.textSub, marginBottom: 12 },
-  emptyCard:    { marginBottom: 16, paddingVertical: 18, alignItems: 'center' },
+  emptyText:    { fontSize: TYPE.meta, color: COLORS.textSub, marginBottom: SPACING.sm },
+  emptyCard:    { marginBottom: SPACING.md, paddingVertical: 18, alignItems: 'center' },
 
-  examCard:       { marginBottom: 16, paddingVertical: 16 },
-  examCardHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 },
-  examName:       { fontSize: 16, fontWeight: '700', color: COLORS.text, flex: 1, marginRight: 10 },
-  examDate:       { fontSize: 13, color: COLORS.textMuted },
+  examCard:       { marginBottom: SPACING.md, paddingVertical: SPACING.md },
+  examCardHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: SPACING.sm },
+  examName:       { fontSize: TYPE.title, fontWeight: '700', color: COLORS.text, flex: 1, marginRight: 10 },
+  examDate:       { fontSize: TYPE.meta, color: COLORS.textMuted },
 
   // Tasks list
-  tasksCard:    { marginBottom: 16, paddingVertical: 4 },
-  taskRow:      { flexDirection: 'row', alignItems: 'center', paddingVertical: 12 },
+  tasksCard:    { marginBottom: SPACING.md, paddingVertical: SPACING.xs },
+  taskRow:      { flexDirection: 'row', alignItems: 'center', paddingVertical: SPACING.sm },
   taskRowDivider: { borderBottomWidth: 1, borderBottomColor: COLORS.border },
   taskCheck:    { width: 18, height: 18, borderRadius: 5, borderWidth: 1.5, borderColor: COLORS.border, alignItems: 'center', justifyContent: 'center', marginRight: 10 },
   taskCheckDone:{ backgroundColor: COLORS.green, borderColor: COLORS.green },
-  taskCheckMark:{ color: '#fff', fontSize: 10, fontWeight: 'bold' },
-  taskTextWrap: { flex: 1, marginRight: 8 },
-  taskText:     { fontSize: 13, color: COLORS.text, fontWeight: '500' },
+  taskCheckMark:{ color: '#fff', fontSize: TYPE.caption, fontWeight: 'bold' },
+  taskTextWrap: { flex: 1, marginRight: SPACING.sm },
+  taskText:     { fontSize: TYPE.label, color: COLORS.text, fontWeight: '500' },
   taskTextDone: { textDecorationLine: 'line-through', color: COLORS.textMuted },
   taskMetaRow:  { flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap' },
-  taskSubject:  { fontSize: 11, color: COLORS.textMuted, marginTop: 2 },
-  taskOverdue:  { fontSize: 11, color: COLORS.red, fontWeight: '600', marginTop: 2, marginLeft: 6 },
+  taskSubject:  { fontSize: TYPE.meta, color: COLORS.textMuted, marginTop: SPACING.xxs },
+  taskOverdue:  { fontSize: TYPE.meta, color: COLORS.red, fontWeight: '600', marginTop: SPACING.xxs, marginLeft: 6 },
   moreTasksRow: { paddingVertical: 10, alignItems: 'center' },
-  moreTasksText:{ fontSize: 12, color: COLORS.accent, fontWeight: '600' },
+  moreTasksText:{ fontSize: TYPE.label, color: COLORS.accent, fontWeight: '600' },
 });

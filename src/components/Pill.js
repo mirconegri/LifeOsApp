@@ -11,43 +11,51 @@ const PILL_COLORS = {
   muted:  { bg: COLORS.bg4,        fg: COLORS.textMuted },
 };
 
-// Pill supports two modes:
-// 1. Static display: <Pill color="green">Done</Pill> — used everywhere a
-//    tag/status badge is just shown, not tapped.
-// 2. Interactive filter chip: <Pill label="Active" selected={..}
-//    onPress={..} /> — used for filter rows like the one in GoalsScreen.
-//    This mode was being called already but Pill silently ignored all
-//    three of those props, so the filter chips rendered but never
-//    responded to taps at all.
-export function Pill({ children, color = 'muted', label, selected, onPress }) {
-  const { bg, fg } = PILL_COLORS[color] || PILL_COLORS.muted;
+// Pill supports three modes:
+// 1. Static display: <Pill color="green">Done</Pill>
+// 2. Interactive filter chip: <Pill label="Active" selected={..} onPress={..} />
+// 3. Outline: <Pill outline color="accent">Label</Pill> — transparent bg,
+//    colored border + text. Good for secondary filter rows.
+export function Pill({ children, color = 'muted', label, selected, onPress, outline }) {
+  const { fg } = PILL_COLORS[color] || PILL_COLORS.muted;
+
+  if (outline) {
+    return (
+      <View style={[styles.pillOutline, { borderColor: fg }]}>
+        <Text style={[styles.text, { color: fg }]}>{label ?? children}</Text>
+      </View>
+    );
+  }
 
   if (onPress) {
+    const { bg } = PILL_COLORS[color] || PILL_COLORS.muted;
     return (
       <TouchableOpacity
         onPress={onPress}
         style={[
           styles.pill,
-          { backgroundColor: selected ? COLORS.accentGlow : COLORS.bg4 },
+          { backgroundColor: selected ? bg : COLORS.bg4 },
           selected && styles.pillSelected,
         ]}
       >
-        <Text style={[styles.text, { color: selected ? COLORS.accent : COLORS.textMuted }]}>
+        <Text style={[styles.text, { color: selected ? fg : COLORS.textMuted }]}>
           {label ?? children}
         </Text>
       </TouchableOpacity>
     );
   }
 
+  const { bg, fg: fgColor } = PILL_COLORS[color] || PILL_COLORS.muted;
   return (
     <View style={[styles.pill, { backgroundColor: bg }]}>
-      <Text style={[styles.text, { color: fg }]}>{children}</Text>
+      <Text style={[styles.text, { color: fgColor }]}>{children}</Text>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  pill: { paddingHorizontal: 12, paddingVertical: 6, borderRadius: 14 },
+  pill:         { paddingHorizontal: 12, paddingVertical: 6, borderRadius: 14 },
   pillSelected: { borderWidth: 1, borderColor: COLORS.accent },
-  text: { fontSize: 12, fontWeight: '600' },
+  pillOutline:  { paddingHorizontal: 12, paddingVertical: 6, borderRadius: 14, borderWidth: 1, backgroundColor: 'transparent' },
+  text:         { fontSize: 12, fontWeight: '600' },
 });
