@@ -7,7 +7,8 @@ import { COLORS } from '../config/colors';
 import { Card } from '../components/Card';
 import { CustomAlert } from '../components/CustomAlert';
 import { DraggableList } from '../components/DraggableList';
-import { GlassSheet } from '../components/GlassSheet';
+import { Icon } from '../components/Icon';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 const MAX_STARRED = 6;
 
@@ -18,6 +19,7 @@ export default function LinksScreen({ links, setLinks }) {
   const [formUrl,  setFormUrl]          = useState('');
   const [formIcon, setFormIcon]         = useState('🔗');
   const [alertConfig, setAlertConfig]   = useState(null);
+  const insets = useSafeAreaInsets();
 
   const showAlert = (cfg) => setAlertConfig(cfg);
   const closeModal = () => setModalVisible(false);
@@ -112,7 +114,10 @@ export default function LinksScreen({ links, setLinks }) {
     <View style={styles.root}>
       <ScrollView contentContainerStyle={styles.content}>
         <View style={styles.header}>
-          <Text style={styles.title}>🌐 Useful Links</Text>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+            <Icon name="globe" size={24} color={COLORS.text} />
+            <Text style={styles.title}>Useful Links</Text>
+          </View>
           <TouchableOpacity onPress={openAddModal} style={styles.addBtn}>
             <Text style={styles.addBtnText}>+ Add</Text>
           </TouchableOpacity>
@@ -169,60 +174,58 @@ export default function LinksScreen({ links, setLinks }) {
       </ScrollView>
 
       {/* Add / Edit Modal */}
-      <Modal visible={modalVisible} transparent animationType="slide" onRequestClose={closeModal}>
-        <KeyboardAvoidingView
-          style={styles.modalWrapper}
-          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-        >
-          <TouchableOpacity style={styles.modalBackdrop} activeOpacity={1} onPress={closeModal} />
-          <GlassSheet>
+      <Modal visible={modalVisible} animationType="slide" transparent={false} onRequestClose={closeModal}>
+        <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={styles.modalRoot} keyboardVerticalOffset={0} enabled={true}>
+          <View style={[styles.modalHeader, { paddingTop: insets.top + 16 }]}>
+            <TouchableOpacity onPress={closeModal}><Text style={styles.modalCancelText}>Cancel</Text></TouchableOpacity>
             <Text style={styles.modalTitle}>{editingId ? 'Edit Link' : 'New Link'}</Text>
+            <View style={styles.modalHeaderRight} />
+          </View>
 
-            <ScrollView keyboardShouldPersistTaps="always" showsVerticalScrollIndicator={false}>
-              <View style={styles.formRow}>
-                <TextInput
-                  style={[styles.input, styles.iconInput]}
-                  placeholder="Icon"
-                  placeholderTextColor={COLORS.textSub}
-                  value={formIcon}
-                  onChangeText={setFormIcon}
-                  maxLength={2}
-                />
-                <TextInput
-                  style={[styles.input, { flex: 1 }]}
-                  placeholder="Site name..."
-                  placeholderTextColor={COLORS.textSub}
-                  value={formName}
-                  onChangeText={setFormName}
-                />
-              </View>
-
+          <ScrollView contentContainerStyle={styles.modalScrollContent} keyboardShouldPersistTaps="handled">
+            <View style={styles.formRow}>
               <TextInput
-                style={styles.input}
-                placeholder="URL (e.g. google.com)..."
+                style={[styles.input, styles.iconInput]}
+                placeholder="Icon"
                 placeholderTextColor={COLORS.textSub}
-                value={formUrl}
-                onChangeText={setFormUrl}
-                keyboardType="url"
-                autoCapitalize="none"
+                value={formIcon}
+                onChangeText={setFormIcon}
+                maxLength={2}
               />
+              <TextInput
+                style={[styles.input, { flex: 1 }]}
+                placeholder="Site name..."
+                placeholderTextColor={COLORS.textSub}
+                value={formName}
+                onChangeText={setFormName}
+              />
+            </View>
 
-              <View style={styles.modalBtns}>
-                {editingId ? (
-                  <TouchableOpacity onPress={() => deleteLink(editingId, formName)} style={[styles.btn, styles.btnDelete]}>
-                    <Text style={styles.btnDeleteText}>Delete</Text>
-                  </TouchableOpacity>
-                ) : (
-                  <TouchableOpacity onPress={closeModal} style={[styles.btn, styles.btnCancel]}>
-                    <Text style={styles.btnCancelText}>Cancel</Text>
-                  </TouchableOpacity>
-                )}
-                <TouchableOpacity onPress={handleSave} style={[styles.btn, styles.btnSave]}>
-                  <Text style={styles.btnSaveText}>{editingId ? 'Save Changes' : 'Save'}</Text>
-                </TouchableOpacity>
-              </View>
-            </ScrollView>
-          </GlassSheet>
+            <TextInput
+              style={styles.input}
+              placeholder="URL (e.g. google.com)..."
+              placeholderTextColor={COLORS.textSub}
+              value={formUrl}
+              onChangeText={setFormUrl}
+              keyboardType="url"
+              autoCapitalize="none"
+            />
+          </ScrollView>
+
+          <View style={styles.modalFooter}>
+            {editingId ? (
+              <TouchableOpacity onPress={() => deleteLink(editingId, formName)} style={[styles.modalFooterBtn, styles.modalFooterBtnDelete]}>
+                <Text style={styles.modalFooterBtnDeleteText}>Delete</Text>
+              </TouchableOpacity>
+            ) : (
+              <TouchableOpacity onPress={closeModal} style={[styles.modalFooterBtn, styles.modalFooterBtnCancel]}>
+                <Text style={styles.modalFooterBtnCancelText}>Cancel</Text>
+              </TouchableOpacity>
+            )}
+            <TouchableOpacity onPress={handleSave} style={[styles.modalFooterBtn, styles.modalFooterBtnSave]}>
+              <Text style={styles.modalFooterBtnSaveText}>{editingId ? 'Save Changes' : 'Save'}</Text>
+            </TouchableOpacity>
+          </View>
         </KeyboardAvoidingView>
       </Modal>
 
@@ -263,19 +266,21 @@ const styles = StyleSheet.create({
   trashIcon:{ color: COLORS.textSub, fontSize: 14 },
 
   // Modal
-  modalWrapper:  { flex: 1, justifyContent: 'flex-end' },
-  modalBackdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.6)' },
-  modalTitle:  { fontSize: 18, fontWeight: '700', color: COLORS.text, marginBottom: 16, textAlign: 'center' },
+  modalRoot: { flex: 1, backgroundColor: COLORS.bg },
+  modalHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 16, borderBottomWidth: 1, borderBottomColor: COLORS.border },
+  modalCancelText: { color: COLORS.accent, fontSize: 16 },
+  modalHeaderRight: { width: 50 },
+  modalTitle: { fontSize: 18, fontWeight: '700', color: COLORS.text, textAlign: 'center' },
+  modalScrollContent: { padding: 16, paddingBottom: 32 },
+  modalFooter: { flexDirection: 'row', alignItems: 'center', justifyContent: 'flex-end', padding: 16, gap: 12, borderTopWidth: 1, borderTopColor: COLORS.border },
+  modalFooterBtn: { paddingVertical: 14, paddingHorizontal: 20, borderRadius: 10, alignItems: 'center' },
+  modalFooterBtnSave: { backgroundColor: COLORS.accent, flex: 1 },
+  modalFooterBtnSaveText: { color: '#fff', fontWeight: '700', fontSize: 15 },
+  modalFooterBtnCancel: { backgroundColor: COLORS.bg4, marginRight: 10 },
+  modalFooterBtnCancelText: { color: COLORS.textMuted, fontWeight: '600' },
+  modalFooterBtnDelete: { backgroundColor: COLORS.redDim, borderWidth: 1, borderColor: COLORS.red, marginRight: 10 },
+  modalFooterBtnDeleteText: { color: COLORS.red, fontWeight: '600' },
   formRow:     { flexDirection: 'row', marginBottom: 12 },
   input:       { backgroundColor: COLORS.bg3, borderWidth: 1, borderColor: COLORS.border, borderRadius: 10, padding: 12, color: COLORS.text, fontSize: 15, marginBottom: 12 },
   iconInput:   { width: 60, marginRight: 10, textAlign: 'center' },
-
-  modalBtns:   { flexDirection: 'row', justifyContent: 'space-between', marginTop: 10 },
-  btn:         { flex: 1, paddingVertical: 14, borderRadius: 10, alignItems: 'center' },
-  btnCancel:   { backgroundColor: COLORS.bg4, marginRight: 10 },
-  btnCancelText:{ color: COLORS.textMuted, fontWeight: '600' },
-  btnDelete:   { backgroundColor: COLORS.redDim, borderWidth: 1, borderColor: COLORS.red, marginRight: 10 },
-  btnDeleteText:{ color: COLORS.red, fontWeight: '600' },
-  btnSave:     { backgroundColor: COLORS.accent },
-  btnSaveText: { color: '#fff', fontWeight: '700' },
 });

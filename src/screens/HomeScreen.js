@@ -11,6 +11,7 @@ import { Pill } from '../components/Pill';
 import { StatCard } from '../components/StatCard';
 import { TipBubble } from '../components/TipBubble';
 import { DraggableList } from '../components/DraggableList';
+import { Icon } from '../components/Icon';
 import { greet, todayKey, fmt, diffDays, calculateAverages } from '../data/helpers';
 
 const MAX_STARRED = 6;
@@ -145,7 +146,7 @@ export default function HomeScreen({
               <Text style={styles.examName}>{nextExam.name}</Text>
               <Pill color="accent">{diffDays(nextExam.date)} days left</Pill>
             </View>
-            <Text style={styles.examDate}>📅 {nextExam.date}</Text>
+            <Text style={styles.examDate}><Icon name="calendar" size={12} color={COLORS.textMuted} /> {nextExam.date}</Text>
           </Card>
         </TouchableOpacity>
       </View>
@@ -175,11 +176,11 @@ export default function HomeScreen({
                       {t.text}
                     </Text>
                     <View style={styles.taskMetaRow}>
-                      {t.subject ? <Text style={styles.taskSubject}>📚 {t.subject}</Text> : null}
+                      {t.subject ? <Text style={styles.taskSubject}><Icon name="book" size={12} color={COLORS.textMuted} /> {t.subject}</Text> : null}
                       {isOverdue ? (
                         <Text style={styles.taskOverdue}>⚠ overdue · {t.date}</Text>
                       ) : (t.date && t.date !== today ? (
-                        <Text style={styles.taskSubject}>📅 {t.date}</Text>
+                        <Text style={styles.taskSubject}><Icon name="calendar" size={12} color={COLORS.textMuted} /> {t.date}</Text>
                       ) : null)}
                     </View>
                   </View>
@@ -257,7 +258,7 @@ export default function HomeScreen({
           <Text style={styles.dateLabel}>Today is {dateLabel}</Text>
           {course ? (
             <Text style={[styles.dateLabel, {color: COLORS.accent, marginTop: 2, fontWeight: '600'}]}>
-              🎓 {course}
+              <Icon name="graduation-cap" size={14} color={COLORS.accent} /> {course}
             </Text>
           ) : null}
         </View>

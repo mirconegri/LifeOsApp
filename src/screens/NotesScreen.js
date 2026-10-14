@@ -9,7 +9,8 @@ import { Pill } from '../components/Pill';
 import { CustomAlert } from '../components/CustomAlert';
 import { TagInput } from '../components/TagInput';
 import { DraggableList } from '../components/DraggableList';
-import { GlassSheet } from '../components/GlassSheet';
+import { Icon } from '../components/Icon';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { todayKey } from '../data/helpers';
 
 export default function NotesScreen({ notes, setNotes }) {
@@ -19,6 +20,7 @@ export default function NotesScreen({ notes, setNotes }) {
   const [formContent,   setFormContent]   = useState('');
   const [formTags,      setFormTags]      = useState([]);
   const [alertConfig,   setAlertConfig]   = useState(null);
+  const insets = useSafeAreaInsets();
 
   const showAlert = (cfg) => setAlertConfig(cfg);
   const closeModal = () => setModalVisible(false);
@@ -103,7 +105,7 @@ export default function NotesScreen({ notes, setNotes }) {
     <View style={styles.root}>
       <ScrollView contentContainerStyle={styles.content}>
         <View style={styles.header}>
-          <Text style={styles.title}>📝 Notes</Text>
+          <View style={{ flexDirection: 'row', alignItems: 'center' }}><Icon name="file-text" size={24} color={COLORS.text} /><Text style={styles.title}> Notes</Text></View>
           <TouchableOpacity onPress={openAddModal} style={styles.addBtn}>
             <Text style={styles.addBtnText}>+ New</Text>
           </TouchableOpacity>
@@ -156,66 +158,62 @@ export default function NotesScreen({ notes, setNotes }) {
       </ScrollView>
 
       {/* Add / Edit Modal */}
-      <Modal visible={modalVisible} transparent animationType="slide" onRequestClose={closeModal}>
-        <KeyboardAvoidingView
-          style={styles.modalWrapper}
-          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-        >
-          <TouchableOpacity style={styles.modalBackdrop} activeOpacity={1} onPress={closeModal} />
-          <GlassSheet maxHeight="85%">
+      <Modal visible={modalVisible} animationType="slide" transparent={false} onRequestClose={closeModal}>
+        <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={styles.modalRoot} keyboardVerticalOffset={0} enabled={true}>
+          <View style={[styles.modalHeader, { paddingTop: insets.top + 16 }]}>
+            <TouchableOpacity onPress={closeModal}><Text style={styles.modalCancelText}>Cancel</Text></TouchableOpacity>
             <Text style={styles.modalTitle}>{editingId ? 'Edit Note' : 'New Note'}</Text>
+            <View style={styles.modalHeaderRight} />
+          </View>
 
-            <ScrollView keyboardShouldPersistTaps="always" showsVerticalScrollIndicator={false}>
-              <TextInput
-                style={[styles.input, styles.titleInput]}
-                placeholder="Title..."
-                placeholderTextColor={COLORS.textSub}
-                value={formTitle}
-                onChangeText={setFormTitle}
-              />
+          <ScrollView contentContainerStyle={styles.modalScrollContent} keyboardShouldPersistTaps="handled">
+            <TextInput
+              style={[styles.input, styles.titleInput]}
+              placeholder="Title..."
+              placeholderTextColor={COLORS.textSub}
+              value={formTitle}
+              onChangeText={setFormTitle}
+            />
 
-              <TextInput
-                style={[styles.input, styles.contentInput]}
-                placeholder="Write something brilliant..."
-                placeholderTextColor={COLORS.textSub}
-                value={formContent}
-                onChangeText={setFormContent}
-                multiline
-                textAlignVertical="top"
-              />
+            <TextInput
+              style={[styles.input, styles.contentInput]}
+              placeholder="Write something brilliant..."
+              placeholderTextColor={COLORS.textSub}
+              value={formContent}
+              onChangeText={setFormContent}
+              multiline
+              textAlignVertical="top"
+            />
 
-              {/* Replaces the old single comma-separated text field. As you
-                  type, a dropdown shows tags you've used on other notes
-                  plus the option to create whatever you just typed; tapping
-                  one commits it as a purple chip and keeps the keyboard up
-                  so you can type the next tag right away. Tags are forced
-                  lowercase, single-word. */}
-              <Text style={styles.fieldLabel}>Tags</Text>
-              <TagInput
-                tags={formTags}
-                onChangeTags={setFormTags}
-                allKnownTags={allKnownTags}
-                placeholder="Type a tag and pick from the list..."
-              />
+            {/* Replaces the old single comma-separated text field. As you
+                type, a dropdown shows tags you've used on other notes
+                plus the option to create whatever you just typed; tapping
+                one commits it as a purple chip and keeps the keyboard up
+                so you can type the next tag right away. Tags are forced
+                lowercase, single-word. */}
+            <Text style={styles.fieldLabel}>Tags</Text>
+            <TagInput
+              tags={formTags}
+              onChangeTags={setFormTags}
+              allKnownTags={allKnownTags}
+              placeholder="Type a tag and pick from the list..."
+            />
+          </ScrollView>
 
-              <View style={styles.modalBtns}>
-                {editingId ? (
-                  <TouchableOpacity onPress={() => deleteNote(editingId)} style={[styles.btn, styles.btnDelete]}>
-                    <Text style={styles.btnDeleteText}>Delete</Text>
-                  </TouchableOpacity>
-                ) : (
-                  <TouchableOpacity onPress={closeModal} style={[styles.btn, styles.btnCancel]}>
-                    <Text style={styles.btnCancelText}>Cancel</Text>
-                  </TouchableOpacity>
-                )}
-                <TouchableOpacity onPress={saveNote} style={[styles.btn, styles.btnSave]}>
-                  <Text style={styles.btnSaveText}>{editingId ? 'Save Changes' : 'Save'}</Text>
-                </TouchableOpacity>
-              </View>
-
-              <View style={{ height: 20 }} />
-            </ScrollView>
-          </GlassSheet>
+          <View style={styles.modalFooter}>
+            {editingId ? (
+              <TouchableOpacity onPress={() => deleteNote(editingId)} style={[styles.modalFooterBtn, styles.modalFooterBtnDelete]}>
+                <Text style={styles.modalFooterBtnDeleteText}>Delete</Text>
+              </TouchableOpacity>
+            ) : (
+              <TouchableOpacity onPress={closeModal} style={[styles.modalFooterBtn, styles.modalFooterBtnCancel]}>
+                <Text style={styles.modalFooterBtnCancelText}>Cancel</Text>
+              </TouchableOpacity>
+            )}
+            <TouchableOpacity onPress={saveNote} style={[styles.modalFooterBtn, styles.modalFooterBtnSave]}>
+              <Text style={styles.modalFooterBtnSaveText}>{editingId ? 'Save Changes' : 'Create'}</Text>
+            </TouchableOpacity>
+          </View>
         </KeyboardAvoidingView>
       </Modal>
 
@@ -247,20 +245,22 @@ const styles = StyleSheet.create({
   tagRow:      { flexDirection: 'row', flexWrap: 'wrap' },
 
   // Modal
-  modalWrapper:  { flex: 1, justifyContent: 'flex-end' },
-  modalBackdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.6)' },
-  modalTitle:  { fontSize: 18, fontWeight: '700', color: COLORS.text, marginBottom: 16, textAlign: 'center' },
+  modalRoot: { flex: 1, backgroundColor: COLORS.bg },
+  modalHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 16, borderBottomWidth: 1, borderBottomColor: COLORS.border },
+  modalCancelText: { color: COLORS.accent, fontSize: 16 },
+  modalHeaderRight: { width: 50 },
+  modalTitle: { fontSize: 18, fontWeight: '700', color: COLORS.text, textAlign: 'center' },
+  modalScrollContent: { padding: 16, paddingBottom: 32 },
+  modalFooter: { flexDirection: 'row', alignItems: 'center', justifyContent: 'flex-end', padding: 16, gap: 12, borderTopWidth: 1, borderTopColor: COLORS.border },
+  modalFooterBtn: { paddingVertical: 14, paddingHorizontal: 20, borderRadius: 10, alignItems: 'center' },
+  modalFooterBtnSave: { backgroundColor: COLORS.accent, flex: 1 },
+  modalFooterBtnSaveText: { color: '#fff', fontWeight: '700', fontSize: 15 },
+  modalFooterBtnCancel: { backgroundColor: COLORS.bg4, marginRight: 10 },
+  modalFooterBtnCancelText: { color: COLORS.textMuted, fontWeight: '600' },
+  modalFooterBtnDelete: { backgroundColor: COLORS.redDim, borderWidth: 1, borderColor: COLORS.red, marginRight: 10 },
+  modalFooterBtnDeleteText: { color: COLORS.red, fontWeight: '600' },
   input:       { backgroundColor: COLORS.bg3, borderWidth: 1, borderColor: COLORS.border, borderRadius: 10, padding: 12, color: COLORS.text, fontSize: 14, marginBottom: 10 },
   titleInput:  { fontWeight: '600', fontSize: 16 },
   contentInput:{ height: 120, paddingTop: 12 },
   fieldLabel:  { color: COLORS.textSub, fontSize: 13, marginBottom: 8 },
-
-  modalBtns:   { flexDirection: 'row', justifyContent: 'space-between', marginTop: 10 },
-  btn:         { flex: 1, paddingVertical: 14, borderRadius: 10, alignItems: 'center' },
-  btnCancel:   { backgroundColor: COLORS.bg4, marginRight: 10 },
-  btnCancelText:{ color: COLORS.textMuted, fontWeight: '600' },
-  btnDelete:   { backgroundColor: COLORS.redDim, borderWidth: 1, borderColor: COLORS.red, marginRight: 10 },
-  btnDeleteText:{ color: COLORS.red, fontWeight: '600' },
-  btnSave:     { backgroundColor: COLORS.accent },
-  btnSaveText: { color: '#fff', fontWeight: '700' },
 });

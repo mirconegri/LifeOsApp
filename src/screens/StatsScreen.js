@@ -4,6 +4,7 @@ import { View, Text, ScrollView, StyleSheet } from 'react-native';
 import { COLORS } from '../config/colors';
 import { TYPE, SPACING } from '../config/designSystem';
 import { Card } from '../components/Card';
+import { Icon } from '../components/Icon';
 import { ProgressBar } from '../components/ProgressBar';
 import { StatCard } from '../components/StatCard';
 import { BarChart } from '../components/BarChart';
@@ -181,7 +182,7 @@ export default function StatsScreen({ exams, journal, heatmap, finances = [] }) 
               <View key={h.id} style={[styles.leaderRow, i < habitLeaderboard.length - 1 && styles.leaderRowDivider]}>
                 <Text style={styles.leaderIcon}>{h.icon || '🌟'}</Text>
                 <Text style={styles.leaderName}>{h.text}</Text>
-                <Text style={styles.leaderStreak}>🔥 {h.streak || 0}d</Text>
+                <Text style={styles.leaderStreak}><Icon name="flame" size={12} color={COLORS.amber} /> {h.streak || 0}d</Text>
               </View>
             ))}
           </Card>

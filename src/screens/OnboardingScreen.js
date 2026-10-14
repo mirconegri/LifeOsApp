@@ -4,8 +4,8 @@ import {
   StyleSheet, KeyboardAvoidingView, Platform, StatusBar,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { Icon } from '../components/Icon';
 import { COLORS } from '../config/colors';
-import { CustomAlert } from '../components/CustomAlert';
 
 export default function OnboardingScreen({
   onComplete, 
@@ -193,7 +193,7 @@ export default function OnboardingScreen({
         {/* ── University ── */}
         {step === 2 && (
           <View style={styles.stepBlock}>
-            <Text style={styles.stepEmoji}>🎓</Text>
+            <View style={styles.stepEmoji}><Icon name="graduation-cap" size={32} color={COLORS.accent} /></View>
             <Text style={styles.stepTitle}>Your university</Text>
             <Text style={styles.stepSub}>This data powers the exam tracker.</Text>
 
@@ -240,7 +240,7 @@ export default function OnboardingScreen({
         {/* ── Goals ── */}
         {step === 3 && (
           <View style={styles.stepBlock}>
-            <Text style={styles.stepEmoji}>🎯</Text>
+            <View style={styles.stepEmoji}><Icon name="target" size={32} color={COLORS.accent} /></View>
             <Text style={styles.stepTitle}>What matters most to you?</Text>
             <Text style={styles.stepSub}>
               Select at least one. This will personalize initial suggestions.
@@ -264,7 +264,7 @@ export default function OnboardingScreen({
         {/* ── Done ── */}
         {step === 4 && (
           <View style={styles.centerBlock}>
-            <Text style={styles.doneEmoji}>🚀</Text>
+            <View style={styles.doneEmoji}><Icon name="rocket" size={40} color={COLORS.accent} /></View>
             <Text style={styles.doneTitle}>All set, {name || 'welcome'}!</Text>
             <Text style={styles.heroSub}>
               LifeOS is configured. You can add your exams, habits, and transactions

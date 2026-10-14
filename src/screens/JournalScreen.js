@@ -44,7 +44,8 @@ import { COLORS } from '../config/colors';
 import { CustomAlert } from '../components/CustomAlert';
 import { DatePicker } from '../components/DatePicker';
 import { DraggableList } from '../components/DraggableList';
-import { GlassSheet } from '../components/GlassSheet';
+import { Icon } from '../components/Icon';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { todayKey, localDateKey, diffDays, last7Days } from '../data/helpers';
 
 const SECTIONS = ['Today', 'Upcoming', 'Habits', 'No Date'];
@@ -67,6 +68,7 @@ export default function JournalScreen({ journal, setJournal }) {
   const [formRecurring, setFormRecurring] = useState(false);
   const [formIcon, setFormIcon]         = useState('🌟');
   const [alertConfig, setAlertConfig]   = useState(null);
+  const insets = useSafeAreaInsets();
 
   const composerInputRef = useRef(null);
   const today = todayKey();
@@ -243,7 +245,10 @@ export default function JournalScreen({ journal, setJournal }) {
     >
       <ScrollView style={styles.scroll} contentContainerStyle={styles.content} keyboardShouldPersistTaps="always">
         <View style={styles.header}>
-          <Text style={styles.title}>✅ Tasks</Text>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+            <Icon name="check-square" size={24} color={COLORS.text} />
+            <Text style={styles.title}>Tasks</Text>
+          </View>
           <View style={styles.headerRight}>
             {totalToday > 0 && (
               <Text style={styles.progressText}>{doneToday}/{totalToday} today</Text>
@@ -289,7 +294,8 @@ export default function JournalScreen({ journal, setJournal }) {
                           <Text style={styles.habitIcon}>{t.icon || '🌟'}</Text>
                           <Text style={styles.habitName}>{t.text}</Text>
                           <View style={styles.streakBadge}>
-                            <Text style={styles.streakText}>🔥 {t.streak || 0}</Text>
+                            <Icon name="flame" size={12} color={COLORS.amber} />
+                            <Text style={styles.streakText}> {t.streak || 0}</Text>
                           </View>
                         </TouchableOpacity>
                         <View style={styles.daysRow}>
@@ -346,8 +352,7 @@ export default function JournalScreen({ journal, setJournal }) {
           <Card><Text style={styles.emptyText}>No tasks yet. Add one below.</Text></Card>
         )}
 
-        <View style={{ height: 20 }} />
-      </ScrollView>
+        </ScrollView>
 
       {/* ── Fixed bottom composer — Microsoft To Do / Google Tasks style.
           Always visible, not a modal you open: type and hit the arrow (or
@@ -375,9 +380,10 @@ export default function JournalScreen({ journal, setJournal }) {
         </View>
         <View style={styles.composerQuickRow}>
           <TouchableOpacity onPress={() => setShowDatePicker(true)} style={styles.composerChip}>
-            <Text style={styles.composerChipText}>
-              📅 {composerDate === today ? 'Today' : composerDate}
-            </Text>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+              <Icon name="calendar" size={12} color={COLORS.textMuted} />
+              <Text style={styles.composerChipText}>{composerDate === today ? 'Today' : composerDate}</Text>
+            </View>
           </TouchableOpacity>
           <TouchableOpacity onPress={() => setShowPriorityPicker(v => !v)} style={styles.composerChip}>
             <Text style={styles.composerChipText}>
@@ -409,87 +415,81 @@ export default function JournalScreen({ journal, setJournal }) {
       {/* ── Full edit modal — used for habits (icon, recurring) and for
           editing details of an existing task that the composer doesn't
           cover. ── */}
-      <Modal visible={editModalVisible} animationType="slide" transparent onRequestClose={closeEditModal}>
-        <KeyboardAvoidingView
-          style={styles.modalWrapper}
-          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-        >
-          <TouchableOpacity style={styles.modalBackdrop} activeOpacity={1} onPress={closeEditModal} />
-          <GlassSheet>
-            <Text style={styles.modalTitle}>
-              {editingId ? (formRecurring ? 'Edit Habit' : 'Edit Task') : 'New Habit'}
-            </Text>
+      <Modal visible={editModalVisible} animationType="slide" transparent={false} onRequestClose={closeEditModal}>
+        <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={styles.modalRoot} keyboardVerticalOffset={0} enabled={true}>
+          <View style={[styles.modalHeader, { paddingTop: insets.top + 16 }]}>
+            <TouchableOpacity onPress={closeEditModal}><Text style={styles.modalCancelText}>Cancel</Text></TouchableOpacity>
+            <Text style={styles.modalTitle}>{editingId ? (formRecurring ? 'Edit Habit' : 'Edit Task') : 'New Habit'}</Text>
+            <View style={styles.modalHeaderRight} />
+          </View>
 
-            <ScrollView keyboardShouldPersistTaps="always" showsVerticalScrollIndicator={false}>
-              {formRecurring && (
-                <View style={styles.formRow}>
-                  <TextInput
-                    style={[styles.input, styles.iconInput]}
-                    value={formIcon}
-                    onChangeText={setFormIcon}
-                    maxLength={2}
-                    placeholder="Icon"
-                  />
-                  <TextInput
-                    style={[styles.input, { flex: 1 }]}
-                    placeholder="Habit name..."
-                    placeholderTextColor={COLORS.textSub}
-                    value={formText}
-                    onChangeText={setFormText}
-                    autoFocus
-                  />
-                </View>
-              )}
-              {!formRecurring && (
-                <>
-                  <TextInput
-                    style={styles.input}
-                    placeholder="What do you need to do?"
-                    placeholderTextColor={COLORS.textSub}
-                    value={formText}
-                    onChangeText={setFormText}
-                    autoFocus
-                  />
-                  <TextInput
-                    style={styles.input}
-                    placeholder="Subject or Category (optional)"
-                    placeholderTextColor={COLORS.textSub}
-                    value={formSubject}
-                    onChangeText={setFormSubject}
-                  />
-
-                  <Text style={styles.fieldLabel}>Date:</Text>
-                  <DatePicker value={formDate} onChange={setFormDate} mode="any" label="Select date" />
-
-                  <Text style={styles.fieldLabel}>Priority:</Text>
-                  <View style={styles.pillRow}>
-                    {['low', 'medium', 'high'].map((p, idx) => (
-                      <TouchableOpacity key={p} onPress={() => setFormPriority(p)} style={[styles.priorityBtn, formPriority === p && styles.priorityBtnActive, idx < 2 && { marginRight: 10 }]}>
-                        <Text style={[styles.priorityText, formPriority === p && {color: COLORS.accent}]}>{p.toUpperCase()}</Text>
-                      </TouchableOpacity>
-                    ))}
-                  </View>
-                </>
-              )}
-
-              <View style={styles.modalBtns}>
-                {editingId ? (
-                  <TouchableOpacity onPress={() => deleteEntry(editingId)}>
-                    <Text style={styles.deleteTextBtn}>Delete</Text>
-                  </TouchableOpacity>
-                ) : (
-                  <TouchableOpacity onPress={closeEditModal}>
-                    <Text style={styles.cancelBtn}>Cancel</Text>
-                  </TouchableOpacity>
-                )}
-                <TouchableOpacity style={styles.confirmBtn} onPress={saveEdit}>
-                  <Text style={styles.confirmBtnText}>{editingId ? 'Save Changes' : 'Create'}</Text>
-                </TouchableOpacity>
+          <ScrollView contentContainerStyle={styles.modalScrollContent} keyboardShouldPersistTaps="handled">
+            {formRecurring && (
+              <View style={styles.formRow}>
+                <TextInput
+                  style={[styles.input, styles.iconInput]}
+                  value={formIcon}
+                  onChangeText={setFormIcon}
+                  maxLength={2}
+                  placeholder="Icon"
+                />
+                <TextInput
+                  style={[styles.input, { flex: 1 }]}
+                  placeholder="Habit name..."
+                  placeholderTextColor={COLORS.textSub}
+                  value={formText}
+                  onChangeText={setFormText}
+                  autoFocus
+                />
               </View>
+            )}
+            {!formRecurring && (
+              <>
+                <TextInput
+                  style={styles.input}
+                  placeholder="What do you need to do?"
+                  placeholderTextColor={COLORS.textSub}
+                  value={formText}
+                  onChangeText={setFormText}
+                  autoFocus
+                />
+                <TextInput
+                  style={styles.input}
+                  placeholder="Subject or Category (optional)"
+                  placeholderTextColor={COLORS.textSub}
+                  value={formSubject}
+                  onChangeText={setFormSubject}
+                />
 
-              <View style={{ height: 20 }} />
-            </ScrollView>
-          </GlassSheet>
+                <Text style={styles.fieldLabel}>Date:</Text>
+                <DatePicker value={formDate} onChange={setFormDate} mode="any" label="Select date" />
+
+                <Text style={styles.fieldLabel}>Priority:</Text>
+                <View style={styles.pillRow}>
+                  {['low', 'medium', 'high'].map((p, idx) => (
+                    <TouchableOpacity key={p} onPress={() => setFormPriority(p)} style={[styles.priorityBtn, formPriority === p && styles.priorityBtnActive, idx < 2 && { marginRight: 10 }]}>
+                      <Text style={[styles.priorityText, formPriority === p && {color: COLORS.accent}]}>{p.toUpperCase()}</Text>
+                    </TouchableOpacity>
+                  ))}
+                </View>
+              </>
+            )}
+          </ScrollView>
+
+          <View style={styles.modalFooter}>
+            {editingId ? (
+              <TouchableOpacity onPress={() => deleteEntry(editingId)} style={[styles.modalFooterBtn, styles.modalFooterBtnDelete]}>
+                <Text style={styles.modalFooterBtnDeleteText}>Delete</Text>
+              </TouchableOpacity>
+            ) : (
+              <TouchableOpacity onPress={closeEditModal} style={[styles.modalFooterBtn, styles.modalFooterBtnCancel]}>
+                <Text style={styles.modalFooterBtnCancelText}>Cancel</Text>
+              </TouchableOpacity>
+            )}
+            <TouchableOpacity onPress={saveEdit} style={[styles.modalFooterBtn, styles.modalFooterBtnSave]}>
+              <Text style={styles.modalFooterBtnSaveText}>{editingId ? 'Save Changes' : 'Create'}</Text>
+            </TouchableOpacity>
+          </View>
         </KeyboardAvoidingView>
       </Modal>
 
@@ -559,10 +559,21 @@ const styles = StyleSheet.create({
   priorityPopChip: { backgroundColor: COLORS.bg3, borderRadius: 12, paddingHorizontal: 12, paddingVertical: 6, marginRight: 8 },
   priorityPopText: { color: COLORS.text, fontSize: 12, fontWeight: '600' },
 
-  // Edit modal
-  modalWrapper: { flex: 1, justifyContent: 'flex-end' },
-  modalBackdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.7)' },
-  modalTitle: { fontSize: 20, fontWeight: '700', color: COLORS.text, marginBottom: 20, textAlign: 'center' },
+  // Modal
+  modalRoot: { flex: 1, backgroundColor: COLORS.bg },
+  modalHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 16, borderBottomWidth: 1, borderBottomColor: COLORS.border },
+  modalCancelText: { color: COLORS.accent, fontSize: 16 },
+  modalHeaderRight: { width: 50 },
+  modalTitle: { fontSize: 18, fontWeight: '700', color: COLORS.text, textAlign: 'center' },
+  modalScrollContent: { padding: 16, paddingBottom: 32 },
+  modalFooter: { flexDirection: 'row', alignItems: 'center', justifyContent: 'flex-end', padding: 16, gap: 12, borderTopWidth: 1, borderTopColor: COLORS.border },
+  modalFooterBtn: { paddingVertical: 14, paddingHorizontal: 20, borderRadius: 10, alignItems: 'center' },
+  modalFooterBtnSave: { backgroundColor: COLORS.accent, flex: 1 },
+  modalFooterBtnSaveText: { color: '#fff', fontWeight: '700', fontSize: 15 },
+  modalFooterBtnCancel: { backgroundColor: COLORS.bg4, marginRight: 10 },
+  modalFooterBtnCancelText: { color: COLORS.textMuted, fontWeight: '600' },
+  modalFooterBtnDelete: { backgroundColor: COLORS.redDim, borderWidth: 1, borderColor: COLORS.red, marginRight: 10 },
+  modalFooterBtnDeleteText: { color: COLORS.red, fontWeight: '600' },
   input: { backgroundColor: COLORS.bg3, borderWidth: 1, borderColor: COLORS.border, borderRadius: 10, padding: 12, color: COLORS.text, fontSize: 15, marginBottom: 12 },
   formRow: { flexDirection: 'row', marginBottom: 4 },
   iconInput: { width: 60, marginRight: 10, textAlign: 'center' },
@@ -571,9 +582,4 @@ const styles = StyleSheet.create({
   priorityBtn: { flex: 1, paddingVertical: 10, borderRadius: 10, backgroundColor: COLORS.bg3, alignItems: 'center', borderWidth: 1, borderColor: COLORS.border },
   priorityBtnActive: { backgroundColor: COLORS.accentGlow, borderColor: COLORS.accent },
   priorityText: { fontSize: 12, color: COLORS.textSub, fontWeight: '600' },
-  modalBtns: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: 8 },
-  cancelBtn: { color: COLORS.textSub, fontSize: 16, padding: 10 },
-  deleteTextBtn: { color: COLORS.red, fontSize: 16, padding: 10, fontWeight: '600' },
-  confirmBtn: { backgroundColor: COLORS.accent, paddingVertical: 12, paddingHorizontal: 24, borderRadius: 10 },
-  confirmBtnText: { color: '#fff', fontSize: 15, fontWeight: '700' },
 });

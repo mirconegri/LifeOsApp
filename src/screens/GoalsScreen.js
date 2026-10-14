@@ -9,7 +9,8 @@ import { Pill } from '../components/Pill';
 import { COLORS } from '../config/colors';
 import { CustomAlert } from '../components/CustomAlert';
 import { DatePicker } from '../components/DatePicker';
-import { GlassSheet } from '../components/GlassSheet';
+import { Icon } from '../components/Icon';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 const GOAL_CATEGORIES = ['Study', 'Sport', 'Finance', 'Health', 'Personal', 'Work'];
 const PRIORITY_OPTS   = ['low', 'medium', 'high'];
@@ -27,6 +28,8 @@ export default function GoalsScreen({ goals, setGoals }) {
   const [deadline, setDeadline]         = useState('');
   const [filter, setFilter]             = useState('All');
   const [alertConfig, setAlertConfig]   = useState(null);
+
+  const insets = useSafeAreaInsets();
 
   const closeModal = () => setModalVisible(false);
 
@@ -154,7 +157,7 @@ export default function GoalsScreen({ goals, setGoals }) {
   return (
     <ScrollView style={styles.container} contentContainerStyle={styles.content}>
       <View style={styles.header}>
-        <Text style={styles.title}>🎯 Goals</Text>
+        <View style={styles.titleRow}><Icon name="target" size={24} color={COLORS.text} /><Text style={styles.title}> Goals</Text></View>
         <TouchableOpacity onPress={openAddModal} style={styles.addFab}>
           <Text style={styles.addFabText}>+ New</Text>
         </TouchableOpacity>
@@ -201,8 +204,8 @@ export default function GoalsScreen({ goals, setGoals }) {
             <TouchableOpacity onPress={() => openEditModal(ob)} style={styles.obHeader}>
               <View style={styles.obTitleRow}>
                 <Text style={[styles.obTitle, ob.completed && styles.obDone]}>{ob.title}</Text>
-                {ob.completed && <Text style={styles.checkEmoji}>✅</Text>}
-                {isExpired && <Text style={styles.checkEmoji}>⚠️</Text>}
+                {ob.completed && <Icon name="check-circle" size={14} color={COLORS.green} />}
+                {isExpired && <Icon name="alert-triangle" size={14} color={COLORS.amber} />}
                 <Text style={styles.editHint}>✎</Text>
               </View>
               <TouchableOpacity onPress={() => deleteGoal(ob.id)} hitSlop={{top:8,bottom:8,left:8,right:8}}>
@@ -220,9 +223,10 @@ export default function GoalsScreen({ goals, setGoals }) {
                 {priorityLabel(ob.priority)}
               </Text>
               {ob.deadline ? (
-                <Text style={[styles.deadline, isExpired && styles.deadlineExpired]}>
-                  📅 {ob.deadline}
-                </Text>
+                <View style={styles.deadlineRow}>
+                  <Icon name="calendar" size={12} color={COLORS.textMuted} />
+                  <Text style={[styles.deadline, isExpired && styles.deadlineExpired]}> {ob.deadline}</Text>
+                </View>
               ) : null}
             </View>
 
@@ -264,94 +268,88 @@ export default function GoalsScreen({ goals, setGoals }) {
       })}
 
       {/* Create / Edit Modal */}
-      <Modal visible={modalVisible} transparent animationType="slide" onRequestClose={closeModal}>
-        <KeyboardAvoidingView
-          style={styles.modalWrapper}
-          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-        >
-          <TouchableOpacity
-            style={styles.modalBackdrop}
-            activeOpacity={1}
-            onPress={closeModal}
-          />
-          <GlassSheet>
-            <Text style={styles.modalTitle}>{editingId ? '🎯 Edit Goal' : '🎯 New Goal'}</Text>
+      <Modal visible={modalVisible} animationType="slide" transparent={false} onRequestClose={closeModal}>
+        <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={styles.modalRoot} keyboardVerticalOffset={0} enabled={true}>
+          <View style={[styles.modalHeader, { paddingTop: insets.top + 16 }]}>
+            <TouchableOpacity onPress={closeModal}>
+              <Text style={styles.modalCancelText}>Cancel</Text>
+            </TouchableOpacity>
+            <Text style={styles.modalTitle}>{editingId ? 'Edit Goal' : 'New Goal'}</Text>
+            <View style={styles.modalHeaderRight} />
+          </View>
 
-            <ScrollView showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="always">
-              <Text style={styles.fieldLabel}>Title</Text>
-              <TextInput style={styles.input} placeholder="e.g. Run a half marathon"
-                placeholderTextColor={COLORS.textSub} value={title} onChangeText={setTitle} />
+          <ScrollView contentContainerStyle={styles.modalScrollContent} keyboardShouldPersistTaps="handled">
+            <Text style={styles.fieldLabel}>Title</Text>
+            <TextInput style={styles.input} placeholder="e.g. Run a half marathon"
+              placeholderTextColor={COLORS.textSub} value={title} onChangeText={setTitle} />
 
-              <Text style={styles.fieldLabel}>Description (optional)</Text>
-              <TextInput style={[styles.input, styles.noteInput]} placeholder="More details about this goal..."
-                placeholderTextColor={COLORS.textSub} value={description}
-                onChangeText={setDescription} multiline />
+            <Text style={styles.fieldLabel}>Description (optional)</Text>
+            <TextInput style={[styles.input, styles.noteInput]} placeholder="More details about this goal..."
+              placeholderTextColor={COLORS.textSub} value={description}
+              onChangeText={setDescription} multiline />
 
-              {/* These two fields used to be two unlabeled boxes side by
-                  side with only placeholder text ("Numeric target" /
-                  "Start (e.g. 0)") — nothing told you what they meant
-                  until you tried typing in them. Each now has its own
-                  full-width row with an explicit label above it, plus a
-                  one-line explanation of what the number represents. */}
-              <Text style={styles.fieldLabel}>Goal target — the finish line</Text>
-              <Text style={styles.fieldHint}>The number that means "done". E.g. 21 for a 21km run, or 1000 for €1000 saved.</Text>
-              <TextInput style={styles.input} placeholder="e.g. 21"
-                placeholderTextColor={COLORS.textSub} value={targetInput}
-                onChangeText={setTargetInput} keyboardType="decimal-pad" />
+            {/* These two fields used to be two unlabeled boxes side by
+                side with only placeholder text ("Numeric target" /
+                "Start (e.g. 0)") — nothing told you what they meant
+                until you tried typing in them. Each now has its own
+                full-width row with an explicit label above it, plus a
+                one-line explanation of what the number represents. */}
+            <Text style={styles.fieldLabel}>Goal target — the finish line</Text>
+            <Text style={styles.fieldHint}>The number that means "done". E.g. 21 for a 21km run, or 1000 for €1000 saved.</Text>
+            <TextInput style={styles.input} placeholder="e.g. 21"
+              placeholderTextColor={COLORS.textSub} value={targetInput}
+              onChangeText={setTargetInput} keyboardType="decimal-pad" />
 
-              <Text style={styles.fieldLabel}>Current progress — where you are now</Text>
-              <Text style={styles.fieldHint}>How far along you already are, in the same unit as the target above.</Text>
-              <TextInput style={styles.input} placeholder="e.g. 0"
-                placeholderTextColor={COLORS.textSub} value={currentProgress}
-                onChangeText={setCurrentProgress} keyboardType="decimal-pad" />
+            <Text style={styles.fieldLabel}>Current progress — where you are now</Text>
+            <Text style={styles.fieldHint}>How far along you already are, in the same unit as the target above.</Text>
+            <TextInput style={styles.input} placeholder="e.g. 0"
+              placeholderTextColor={COLORS.textSub} value={currentProgress}
+              onChangeText={setCurrentProgress} keyboardType="decimal-pad" />
 
-              <Text style={styles.fieldLabel}>Category</Text>
-              <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{marginBottom: 10}}>
-                {GOAL_CATEGORIES.map(c => (
-                  <TouchableOpacity key={c} onPress={() => setCategory(c)} style={[styles.catPill, category === c && styles.catPillActive]}>
-                    <Text style={[styles.catPillText, category === c && {color: COLORS.accent}]}>{c}</Text>
-                  </TouchableOpacity>
-                ))}
-              </ScrollView>
-
-              <Text style={styles.fieldLabel}>Priority</Text>
-              <View style={styles.priorityRow}>
-                {PRIORITY_OPTS.map((p, idx) => (
-                  <TouchableOpacity key={p} onPress={() => setPriority(p)}
-                    style={[styles.priorityBtn, priority === p && { borderColor: priorityColor(p), backgroundColor: priorityColor(p) + '22' }, idx < 2 && { marginRight: 10 }]}>
-                    <Text style={[styles.priorityText, priority === p && { color: priorityColor(p) }]}>
-                      {priorityLabel(p)}
-                    </Text>
-                  </TouchableOpacity>
-                ))}
-              </View>
-
-              <Text style={styles.fieldLabel}>Deadline (optional)</Text>
-              <DatePicker
-                value={deadline}
-                onChange={setDeadline}
-                mode="any"
-                label="Select deadline"
-              />
-
-              <View style={styles.modalBtns}>
-                {editingId ? (
-                  <TouchableOpacity onPress={() => deleteGoal(editingId)}>
-                    <Text style={styles.deleteTextBtn}>Delete</Text>
-                  </TouchableOpacity>
-                ) : (
-                  <TouchableOpacity onPress={closeModal}>
-                    <Text style={styles.cancelBtn}>Cancel</Text>
-                  </TouchableOpacity>
-                )}
-                <TouchableOpacity style={styles.confirmBtn} onPress={saveGoal}>
-                  <Text style={styles.confirmBtnText}>{editingId ? 'Save Changes' : 'Create Goal'}</Text>
+            <Text style={styles.fieldLabel}>Category</Text>
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{marginBottom: 10}}>
+              {GOAL_CATEGORIES.map(c => (
+                <TouchableOpacity key={c} onPress={() => setCategory(c)} style={[styles.catPill, category === c && styles.catPillActive]}>
+                  <Text style={[styles.catPillText, category === c && {color: COLORS.accent}]}>{c}</Text>
                 </TouchableOpacity>
-              </View>
-
-              <View style={{ height: 20 }} />
+              ))}
             </ScrollView>
-          </GlassSheet>
+
+            <Text style={styles.fieldLabel}>Priority</Text>
+            <View style={styles.priorityRow}>
+              {PRIORITY_OPTS.map((p, idx) => (
+                <TouchableOpacity key={p} onPress={() => setPriority(p)}
+                  style={[styles.priorityBtn, priority === p && { borderColor: priorityColor(p), backgroundColor: priorityColor(p) + '22' }, idx < 2 && { marginRight: 10 }]}>
+                  <Text style={[styles.priorityText, priority === p && { color: priorityColor(p) }]}>
+                    {priorityLabel(p)}
+                  </Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+
+            <Text style={styles.fieldLabel}>Deadline (optional)</Text>
+            <DatePicker
+              value={deadline}
+              onChange={setDeadline}
+              mode="any"
+              label="Select deadline"
+            />
+          </ScrollView>
+
+          <View style={styles.modalFooter}>
+            {editingId ? (
+              <TouchableOpacity onPress={() => deleteGoal(editingId)} style={[styles.modalFooterBtn, styles.modalFooterBtnDelete]}>
+                <Text style={styles.modalFooterBtnDeleteText}>Delete</Text>
+              </TouchableOpacity>
+            ) : (
+              <TouchableOpacity onPress={closeModal} style={[styles.modalFooterBtn, styles.modalFooterBtnCancel]}>
+                <Text style={styles.modalFooterBtnCancelText}>Cancel</Text>
+              </TouchableOpacity>
+            )}
+            <TouchableOpacity onPress={saveGoal} style={[styles.modalFooterBtn, styles.modalFooterBtnSave]}>
+              <Text style={styles.modalFooterBtnSaveText}>{editingId ? 'Save Changes' : 'Create Goal'}</Text>
+            </TouchableOpacity>
+          </View>
         </KeyboardAvoidingView>
       </Modal>
 
@@ -381,13 +379,14 @@ const styles = StyleSheet.create({
   obTitleRow: { flexDirection: 'row', alignItems: 'center', flex: 1, marginRight: 8 },
   obTitle: { fontSize: 16, fontWeight: '700', color: COLORS.text, flex: 1 },
   obDone: { textDecorationLine: 'line-through', color: COLORS.textMuted },
-  checkEmoji: { fontSize: 14, marginLeft: 6 },
+  titleRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
   editHint: { fontSize: 12, color: COLORS.textSub, marginLeft: 8 },
   trashBtn: { color: COLORS.textSub, fontSize: 14, padding: 4 },
   obDesc: { fontSize: 13, color: COLORS.textMuted, marginBottom: 8 },
   obMeta: { flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', marginBottom: 12 },
   deadline: { fontSize: 12, color: COLORS.textMuted },
   deadlineExpired: { color: COLORS.red, fontWeight: '600' },
+  deadlineRow: { flexDirection: 'row', alignItems: 'center' },
   progressSection: { flexDirection: 'row', alignItems: 'center', marginBottom: 6 },
   progressBar: { flex: 1, height: 8, backgroundColor: COLORS.bg4, borderRadius: 4, marginRight: 10, overflow: 'hidden' },
   progressFill: { height: '100%', borderRadius: 4 },
@@ -404,9 +403,20 @@ const styles = StyleSheet.create({
   completeBtnText: { fontSize: 12, color: COLORS.text, fontWeight: '700' },
 
   // Modal
-  modalWrapper:  { flex: 1, justifyContent: 'flex-end' },
-  modalBackdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.6)' },
-  modalTitle: { fontSize: 18, fontWeight: '700', color: COLORS.text, marginBottom: 16, textAlign: 'center' },
+  modalRoot: { flex: 1, backgroundColor: COLORS.bg },
+  modalHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 16, borderBottomWidth: 1, borderBottomColor: COLORS.border },
+  modalCancelText: { color: COLORS.accent, fontSize: 16 },
+  modalHeaderRight: { width: 50 },
+  modalTitle: { fontSize: 18, fontWeight: '700', color: COLORS.text, textAlign: 'center' },
+  modalScrollContent: { padding: 16, paddingBottom: 32 },
+  modalFooter: { flexDirection: 'row', alignItems: 'center', justifyContent: 'flex-end', padding: 16, gap: 12, borderTopWidth: 1, borderTopColor: COLORS.border },
+  modalFooterBtn: { paddingVertical: 14, paddingHorizontal: 20, borderRadius: 10, alignItems: 'center' },
+  modalFooterBtnSave: { backgroundColor: COLORS.accent, flex: 1 },
+  modalFooterBtnSaveText: { color: '#fff', fontWeight: '700', fontSize: 15 },
+  modalFooterBtnCancel: { backgroundColor: COLORS.bg4, marginRight: 10 },
+  modalFooterBtnCancelText: { color: COLORS.textMuted, fontWeight: '600' },
+  modalFooterBtnDelete: { backgroundColor: COLORS.redDim, borderWidth: 1, borderColor: COLORS.red, marginRight: 10 },
+  modalFooterBtnDeleteText: { color: COLORS.red, fontWeight: '600' },
   input: { backgroundColor: COLORS.bg3, borderWidth: 1, borderColor: COLORS.border, borderRadius: 10, padding: 12, color: COLORS.text, fontSize: 14, marginBottom: 12 },
   noteInput: { height: 70, textAlignVertical: 'top' },
   fieldLabel: { color: COLORS.text, fontSize: 14, fontWeight: '600', marginBottom: 4, marginTop: 4 },
@@ -417,9 +427,4 @@ const styles = StyleSheet.create({
   priorityRow: { flexDirection: 'row', marginBottom: 14 },
   priorityBtn: { flex: 1, paddingVertical: 10, borderRadius: 10, backgroundColor: COLORS.bg4, alignItems: 'center', borderWidth: 1, borderColor: 'transparent' },
   priorityText: { fontSize: 12, color: COLORS.textMuted, fontWeight: '600' },
-  modalBtns: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: 16 },
-  cancelBtn: { color: COLORS.textMuted, fontSize: 14, fontWeight: '600', paddingHorizontal: 16, paddingVertical: 12 },
-  deleteTextBtn: { color: COLORS.red, fontSize: 14, fontWeight: '600', paddingHorizontal: 16, paddingVertical: 12 },
-  confirmBtn: { backgroundColor: COLORS.accent, paddingHorizontal: 20, paddingVertical: 12, borderRadius: 10 },
-  confirmBtnText: { color: '#fff', fontWeight: '700', fontSize: 14 },
 });

@@ -33,6 +33,7 @@ import {
   View, Text, TouchableOpacity, StyleSheet, ScrollView, Modal, Platform,
 } from 'react-native';
 import { BlurView } from 'expo-blur';
+import { Icon } from '../components/Icon';
 import { COLORS } from '../config/colors';
 
 const WEEKDAYS = ['Su', 'Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa'];
@@ -143,7 +144,7 @@ export function DatePicker({ value, onChange, mode = 'any', maxYearsBack = 5, la
   return (
     <>
       <TouchableOpacity style={styles.trigger} onPress={() => setOpen(true)}>
-        <Text style={styles.calIcon}>📅</Text>
+        <Icon name="calendar" size={16} color={COLORS.textSub} />
         <Text style={[styles.triggerText, !value && styles.placeholder]}>
           {displayValue || (label || 'Select date')}
         </Text>

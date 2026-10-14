@@ -8,7 +8,8 @@ import { COLORS } from '../config/colors';
 import { Card } from '../components/Card';
 import { Pill } from '../components/Pill';
 import { CustomAlert } from '../components/CustomAlert';
-import { GlassSheet } from '../components/GlassSheet';
+import { Icon } from '../components/Icon';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 const CATEGORIES = ['supermarket', 'pharmacy', 'home', 'other'];
 
@@ -18,6 +19,7 @@ export default function GroceriesScreen({ groceries, setGroceries }) {
   const [formCat,  setFormCat]          = useState('supermarket');
   const [filter,   setFilter]           = useState('all');
   const [alertConfig, setAlertConfig]   = useState(null);
+  const insets = useSafeAreaInsets();
 
   const showAlert = (cfg) => setAlertConfig(cfg);
   const closeModal = () => setModalVisible(false);
@@ -79,7 +81,7 @@ export default function GroceriesScreen({ groceries, setGroceries }) {
     <View style={styles.root}>
       <ScrollView style={styles.scroll} contentContainerStyle={styles.content}>
         <View style={styles.header}>
-          <Text style={styles.title}>🛒 Groceries</Text>
+          <View style={{ flexDirection: 'row', alignItems: 'center' }}><Icon name="shopping-cart" size={24} color={COLORS.text} /><Text style={styles.title}> Groceries</Text></View>
           <TouchableOpacity onPress={() => setModalVisible(true)} style={styles.addFab}>
             <Text style={styles.addFabText}>+ Product</Text>
           </TouchableOpacity>
@@ -115,7 +117,7 @@ export default function GroceriesScreen({ groceries, setGroceries }) {
         </View>
 
         {filteredGroceries.length === 0 ? (
-          <Text style={styles.emptyText}>Empty list 🎉</Text>
+          <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center' }}><Text style={styles.emptyText}>Empty list</Text><Icon name="sparkles" size={14} color={COLORS.textSub} /></View>
         ) : (
           filteredGroceries.map(item => (
             <Card key={item.id} style={styles.itemCard}>
@@ -138,50 +140,45 @@ export default function GroceriesScreen({ groceries, setGroceries }) {
       </ScrollView>
 
       {/* ── Modal ── */}
-      <Modal visible={modalVisible} transparent animationType="slide" onRequestClose={closeModal}>
-        <KeyboardAvoidingView
-          style={styles.modalWrapper}
-          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-        >
-          <TouchableOpacity style={styles.modalBackdrop} activeOpacity={1} onPress={closeModal} />
-          <GlassSheet>
+      <Modal visible={modalVisible} animationType="slide" transparent={false} onRequestClose={closeModal}>
+        <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={styles.modalRoot} keyboardVerticalOffset={0} enabled={true}>
+          <View style={[styles.modalHeader, { paddingTop: insets.top + 16 }]}>
+            <TouchableOpacity onPress={closeModal}><Text style={styles.modalCancelText}>Cancel</Text></TouchableOpacity>
             <Text style={styles.modalTitle}>Add Product</Text>
+            <View style={styles.modalHeaderRight} />
+          </View>
 
-            {/* keyboardShouldPersistTaps="always" fixes the bug where the
-                first tap on Add just dismisses the keyboard instead of
-                firing onPress, forcing the user to tap twice. */}
-            <ScrollView keyboardShouldPersistTaps="always" showsVerticalScrollIndicator={false}>
-              <TextInput
-                style={styles.input}
-                placeholder="What do you need to buy?"
-                placeholderTextColor={COLORS.textSub}
-                value={formText}
-                onChangeText={setFormText}
-                autoFocus
-                returnKeyType="done"
-                onSubmitEditing={addItem}
-              />
+          <ScrollView contentContainerStyle={styles.modalScrollContent} keyboardShouldPersistTaps="handled">
+            <TextInput
+              style={styles.input}
+              placeholder="What do you need to buy?"
+              placeholderTextColor={COLORS.textSub}
+              value={formText}
+              onChangeText={setFormText}
+              autoFocus
+              returnKeyType="done"
+              onSubmitEditing={addItem}
+            />
 
-              <Text style={styles.fieldLabel}>Category:</Text>
-              <View style={styles.catRow}>
-                {CATEGORIES.map(c => (
-                  <TouchableOpacity key={c} onPress={() => setFormCat(c)}
-                    style={[styles.catChip, formCat === c && styles.catChipActive, { marginRight: 8, marginBottom: 8 }]}>
-                    <Text style={[styles.catChipText, formCat === c && { color: COLORS.accent }]}>{c}</Text>
-                  </TouchableOpacity>
-                ))}
-              </View>
-
-              <View style={styles.modalBtns}>
-                <TouchableOpacity onPress={closeModal}>
-                  <Text style={styles.cancelBtn}>Cancel</Text>
+            <Text style={styles.fieldLabel}>Category:</Text>
+            <View style={styles.catRow}>
+              {CATEGORIES.map(c => (
+                <TouchableOpacity key={c} onPress={() => setFormCat(c)}
+                  style={[styles.catChip, formCat === c && styles.catChipActive, { marginRight: 8, marginBottom: 8 }]}>
+                  <Text style={[styles.catChipText, formCat === c && { color: COLORS.accent }]}>{c}</Text>
                 </TouchableOpacity>
-                <TouchableOpacity style={styles.confirmBtn} onPress={addItem}>
-                  <Text style={styles.confirmBtnText}>Add</Text>
-                </TouchableOpacity>
-              </View>
-            </ScrollView>
-          </GlassSheet>
+              ))}
+            </View>
+          </ScrollView>
+
+          <View style={styles.modalFooter}>
+            <TouchableOpacity onPress={closeModal} style={[styles.modalFooterBtn, styles.modalFooterBtnCancel]}>
+              <Text style={styles.modalFooterBtnCancelText}>Cancel</Text>
+            </TouchableOpacity>
+            <TouchableOpacity onPress={addItem} style={[styles.modalFooterBtn, styles.modalFooterBtnSave]}>
+              <Text style={styles.modalFooterBtnSaveText}>Create</Text>
+            </TouchableOpacity>
+          </View>
         </KeyboardAvoidingView>
       </Modal>
 
@@ -223,17 +220,24 @@ const styles = StyleSheet.create({
   deleteBtnText: { fontSize: 14, color: COLORS.textSub },
 
   // Modal
-  modalWrapper:  { flex: 1, justifyContent: 'flex-end' },
-  modalBackdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.6)' },
-  modalTitle:  { fontSize: 18, fontWeight: '700', color: COLORS.text, marginBottom: 16, textAlign: 'center' },
+  modalRoot: { flex: 1, backgroundColor: COLORS.bg },
+  modalHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 16, borderBottomWidth: 1, borderBottomColor: COLORS.border },
+  modalCancelText: { color: COLORS.accent, fontSize: 16 },
+  modalHeaderRight: { width: 50 },
+  modalTitle: { fontSize: 18, fontWeight: '700', color: COLORS.text, textAlign: 'center' },
+  modalScrollContent: { padding: 16, paddingBottom: 32 },
+  modalFooter: { flexDirection: 'row', alignItems: 'center', justifyContent: 'flex-end', padding: 16, gap: 12, borderTopWidth: 1, borderTopColor: COLORS.border },
+  modalFooterBtn: { paddingVertical: 14, paddingHorizontal: 20, borderRadius: 10, alignItems: 'center' },
+  modalFooterBtnSave: { backgroundColor: COLORS.accent, flex: 1 },
+  modalFooterBtnSaveText: { color: '#fff', fontWeight: '700', fontSize: 15 },
+  modalFooterBtnCancel: { backgroundColor: COLORS.bg4, marginRight: 10 },
+  modalFooterBtnCancelText: { color: COLORS.textMuted, fontWeight: '600' },
+  modalFooterBtnDelete: { backgroundColor: COLORS.redDim, borderWidth: 1, borderColor: COLORS.red, marginRight: 10 },
+  modalFooterBtnDeleteText: { color: COLORS.red, fontWeight: '600' },
   input:       { backgroundColor: COLORS.bg3, borderWidth: 1, borderColor: COLORS.border, borderRadius: 10, padding: 12, color: COLORS.text, fontSize: 14, marginBottom: 12 },
   fieldLabel:  { color: COLORS.textSub, fontSize: 13, marginBottom: 8 },
   catRow:      { flexDirection: 'row', flexWrap: 'wrap', marginBottom: 12 },
   catChip:     { paddingHorizontal: 14, paddingVertical: 7, borderRadius: 12, backgroundColor: COLORS.bg4 },
   catChipActive:{ backgroundColor: COLORS.accentGlow },
   catChipText: { fontSize: 13, color: COLORS.textMuted },
-  modalBtns:   { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: 4 },
-  cancelBtn:   { color: COLORS.textSub, fontSize: 15, padding: 10 },
-  confirmBtn:  { backgroundColor: COLORS.accent, paddingVertical: 12, paddingHorizontal: 22, borderRadius: 10 },
-  confirmBtnText: { color: '#fff', fontSize: 14, fontWeight: '700' },
 });

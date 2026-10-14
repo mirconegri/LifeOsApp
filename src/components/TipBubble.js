@@ -1,6 +1,7 @@
 
 import React, { useEffect, useRef } from 'react';
 import { Animated, Text, TouchableOpacity, StyleSheet, View } from 'react-native';
+import { Icon } from '../components/Icon';
 import { COLORS } from '../config/colors';
 
 /**
@@ -40,7 +41,7 @@ export function TipBubble({ visible, text, onDismiss, position = 'bottom' }) {
     ]}>
       {position === 'bottom' && <View style={styles.arrowUp} />}
       <View style={styles.inner}>
-        <Text style={styles.text}>💡 {text}</Text>
+        <Icon name="lightbulb" size={14} color="#fff" /><Text style={styles.text}> {text}</Text>
         <TouchableOpacity onPress={onDismiss} style={styles.dismissBtn}>
           <Text style={styles.dismissText}>Got it</Text>
         </TouchableOpacity>

@@ -260,7 +260,7 @@ export default function UniScreen({ exams, setExams, totalCredits }) {
       <ScrollView contentContainerStyle={styles.scrollContent} keyboardShouldPersistTaps="always">
 
         {/* ─── Stat Grid ─── */}
-        <Text style={styles.sectionTitle}>📊 Overview</Text>
+        <View style={{flexDirection:'row', alignItems:'center', gap:6, marginTop:10, marginBottom:10}}><Icon name="bar-chart-3" size={14} color={COLORS.textMuted} /><Text style={styles.sectionTitle}> Overview</Text></View>
         <View style={styles.statsGrid}>
           <View style={styles.gridItem}>
             <StatCard label="Credits Earned" value={`${cfuAcquired}/${totalCredits}`} color={COLORS.accent} />

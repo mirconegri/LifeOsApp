@@ -12,3 +12,5 @@ npm-debug.*
 
 # Firebase credenziali — mai committare, passate via EAS env (GOOGLE_SERVICES_JSON)
 google-services.json
+.claude/
+dist/

@@ -11,7 +11,8 @@ import { Card } from '../components/Card';
 import { StatCard } from '../components/StatCard';
 import { CustomAlert } from '../components/CustomAlert';
 import { DatePicker } from '../components/DatePicker';
-import { GlassSheet } from '../components/GlassSheet';
+import { Icon } from '../components/Icon';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { localDateKey } from '../data/helpers';
 
@@ -44,6 +45,7 @@ export default function FinancesScreen({ finances, setFinances }) {
   const [alertConfig,  setAlertConfig]  = useState(null);
 
   const showAlert = (cfg) => setAlertConfig(cfg);
+  const insets = useSafeAreaInsets();
   const closeModal = () => setModalVisible(false);
 
   // ── Computed ──────────────────────────────────────────────────────────────
@@ -171,7 +173,7 @@ export default function FinancesScreen({ finances, setFinances }) {
       <ScrollView style={styles.scroll} contentContainerStyle={styles.content}>
 
         {/* Stats */}
-        <Text style={styles.sectionTitle}>💶 Overview</Text>
+        <View style={styles.sectionTitleRow}><Icon name="wallet" size={14} color={COLORS.textMuted} /><Text style={styles.sectionTitle}> Overview</Text></View>
         <View style={styles.statsRow}>
           <View style={{ flex: 1, marginRight: 8 }}>
             <StatCard label="Balance"  value={balance >= 0 ? `+${balance}` : `${balance}`} sub="€" color={balance >= 0 ? COLORS.green : COLORS.red} />
@@ -185,7 +187,7 @@ export default function FinancesScreen({ finances, setFinances }) {
         </View>
 
         {/* Chart */}
-        <Text style={styles.sectionTitle}>📈 Last 6 months</Text>
+        <View style={styles.sectionTitleRow}><Icon name="trending-up" size={14} color={COLORS.textMuted} /><Text style={styles.sectionTitle}> Last 6 months</Text></View>
         <Card style={styles.chartCard}>
           <View style={styles.chart}>
             {monthBars.map((val, i) => {
@@ -204,7 +206,7 @@ export default function FinancesScreen({ finances, setFinances }) {
 
         {/* Transactions */}
         <View style={styles.listHeader}>
-          <Text style={styles.sectionTitle}>📋 Transactions ({recentTransactions.length})</Text>
+          <View style={styles.sectionTitleRow}><Icon name="list" size={14} color={COLORS.textMuted} /><Text style={styles.sectionTitle}> Transactions ({recentTransactions.length})</Text></View>
           <View style={styles.listHeaderActions}>
             {finances.length > 0 && (
               <TouchableOpacity onPress={confirmClearAll} style={{ marginRight: 14 }}>
@@ -240,91 +242,86 @@ export default function FinancesScreen({ finances, setFinances }) {
       </ScrollView>
 
       {/* Add / Edit Modal */}
-      <Modal visible={modalVisible} transparent animationType="slide" onRequestClose={closeModal}>
-        <KeyboardAvoidingView
-          style={styles.modalWrapper}
-          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-        >
-          <TouchableOpacity
-            style={styles.modalBackdrop}
-            activeOpacity={1}
-            onPress={closeModal}
-          />
-          <GlassSheet>
+      <Modal visible={modalVisible} animationType="slide" transparent={false} onRequestClose={closeModal}>
+        <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={styles.modalRoot} keyboardVerticalOffset={0} enabled={true}>
+          <View style={[styles.modalHeader, { paddingTop: insets.top + 16 }]}>
+            <TouchableOpacity onPress={closeModal}>
+              <Text style={styles.modalCancelText}>Cancel</Text>
+            </TouchableOpacity>
             <Text style={styles.modalTitle}>{editingId ? 'Edit Transaction' : 'New Transaction'}</Text>
+            <View style={styles.modalHeaderRight} />
+          </View>
 
-            <ScrollView showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="always">
-              <TextInput
-                style={styles.input}
-                placeholder="Description *"
-                placeholderTextColor={COLORS.textSub}
-                value={formDesc}
-                onChangeText={setFormDesc}
-                autoFocus
-              />
-              <TextInput
-                style={styles.input}
-                placeholder="Amount (€) *"
-                placeholderTextColor={COLORS.textSub}
-                keyboardType="numeric"
-                value={formAmount}
-                onChangeText={setFormAmount}
-              />
+          <ScrollView contentContainerStyle={styles.modalScrollContent} keyboardShouldPersistTaps="handled">
+            <TextInput
+              style={styles.input}
+              placeholder="Description *"
+              placeholderTextColor={COLORS.textSub}
+              value={formDesc}
+              onChangeText={setFormDesc}
+              autoFocus
+            />
+            <TextInput
+              style={styles.input}
+              placeholder="Amount (€) *"
+              placeholderTextColor={COLORS.textSub}
+              keyboardType="numeric"
+              value={formAmount}
+              onChangeText={setFormAmount}
+            />
 
-              {/* Date with Today shortcut */}
-              <Text style={styles.fieldLabel}>Date</Text>
-              <DatePicker
-                value={formDate}
-                onChange={setFormDate}
-                mode="any"
-                label="Select date"
-              />
+            {/* Date with Today shortcut */}
+            <Text style={styles.fieldLabel}>Date</Text>
+            <DatePicker
+              value={formDate}
+              onChange={setFormDate}
+              mode="any"
+              label="Select date"
+            />
 
-              <Text style={styles.fieldLabel}>Type:</Text>
-              <View style={styles.typeRow}>
-                {[['income', '↑ Income'], ['expense', '↓ Expense']].map(([v, l]) => (
-                  <TouchableOpacity
-                    key={v}
-                    onPress={() => setFormType(v)}
-                    style={[styles.typeChip, formType === v && styles.typeChipActive, { marginRight: v === 'income' ? 8 : 0 }]}
-                  >
-                    <Text style={[styles.typeChipText, formType === v && { color: v === 'income' ? COLORS.green : COLORS.red }]}>
-                      {l}
-                    </Text>
-                  </TouchableOpacity>
-                ))}
-              </View>
-
-              <Text style={styles.fieldLabel}>Category:</Text>
-              <View style={styles.catRow}>
-                {CATEGORIES.map(c => (
-                  <TouchableOpacity
-                    key={c}
-                    onPress={() => setFormCat(c)}
-                    style={[styles.catChip, formCat === c && styles.catChipActive, { marginRight: 6, marginBottom: 6 }]}
-                  >
-                    <Text style={[styles.catChipText, formCat === c && { color: CAT_COLORS[c] }]}>{c}</Text>
-                  </TouchableOpacity>
-                ))}
-              </View>
-
-              <View style={styles.modalBtns}>
-                {editingId ? (
-                  <TouchableOpacity onPress={() => deleteTransaction(editingId, formDesc)} style={[styles.btn, styles.btnDelete]}>
-                    <Text style={styles.btnDeleteText}>Delete</Text>
-                  </TouchableOpacity>
-                ) : (
-                  <TouchableOpacity onPress={closeModal} style={[styles.btn, styles.btnCancel]}>
-                    <Text style={styles.btnCancelText}>Cancel</Text>
-                  </TouchableOpacity>
-                )}
-                <TouchableOpacity style={[styles.btn, styles.btnSave]} onPress={saveTransaction}>
-                  <Text style={styles.btnSaveText}>{editingId ? 'Save Changes' : 'Add Transaction'}</Text>
+            <Text style={styles.fieldLabel}>Type:</Text>
+            <View style={styles.typeRow}>
+              {[['income', '↑ Income'], ['expense', '↓ Expense']].map(([v, l]) => (
+                <TouchableOpacity
+                  key={v}
+                  onPress={() => setFormType(v)}
+                  style={[styles.typeChip, formType === v && styles.typeChipActive, { marginRight: v === 'income' ? 8 : 0 }]}
+                >
+                  <Text style={[styles.typeChipText, formType === v && { color: v === 'income' ? COLORS.green : COLORS.red }]}>
+                    {l}
+                  </Text>
                 </TouchableOpacity>
-              </View>
-              <View style={{ height: 20 }} />
-            </ScrollView>
-          </GlassSheet>
+              ))}
+            </View>
+
+            <Text style={styles.fieldLabel}>Category:</Text>
+            <View style={styles.catRow}>
+              {CATEGORIES.map(c => (
+                <TouchableOpacity
+                  key={c}
+                  onPress={() => setFormCat(c)}
+                  style={[styles.catChip, formCat === c && styles.catChipActive, { marginRight: 6, marginBottom: 6 }]}
+                >
+                  <Text style={[styles.catChipText, formCat === c && { color: CAT_COLORS[c] }]}>{c}</Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+          </ScrollView>
+
+          <View style={styles.modalFooter}>
+            {editingId ? (
+              <TouchableOpacity onPress={() => deleteTransaction(editingId, formDesc)} style={[styles.modalFooterBtn, styles.modalFooterBtnDelete]}>
+                <Text style={styles.modalFooterBtnDeleteText}>Delete</Text>
+              </TouchableOpacity>
+            ) : (
+              <TouchableOpacity onPress={closeModal} style={[styles.modalFooterBtn, styles.modalFooterBtnCancel]}>
+                <Text style={styles.modalFooterBtnCancelText}>Cancel</Text>
+              </TouchableOpacity>
+            )}
+            <TouchableOpacity onPress={saveTransaction} style={[styles.modalFooterBtn, styles.modalFooterBtnSave]}>
+              <Text style={styles.modalFooterBtnSaveText}>{editingId ? 'Save Changes' : 'Add Transaction'}</Text>
+            </TouchableOpacity>
+          </View>
         </KeyboardAvoidingView>
       </Modal>
 
@@ -365,26 +362,21 @@ const styles = StyleSheet.create({
   deleteBtn:  { padding: 4 },
   deleteBtnText:{ fontSize: 14, color: COLORS.textSub },
 
+  sectionTitleRow: { flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 10, marginBottom: 10 },
+
   // Modal
-  modalWrapper:  { flex: 1, justifyContent: 'flex-end' },
-  modalBackdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.6)' },
-  modalTitle:  { fontSize: 18, fontWeight: '700', color: COLORS.text, marginBottom: 16, textAlign: 'center' },
-  input:       { backgroundColor: COLORS.bg3, borderWidth: 1, borderColor: COLORS.border, borderRadius: 10, paddingHorizontal: 12, paddingVertical: 10, color: COLORS.text, fontSize: 14, marginBottom: 10 },
-  fieldLabel:  { color: COLORS.textSub, fontSize: 13, marginBottom: 8, marginTop: 4 },
-  typeRow:     { flexDirection: 'row', marginBottom: 12 },
-  typeChip:    { flex: 1, paddingVertical: 10, borderRadius: 10, backgroundColor: COLORS.bg4, alignItems: 'center' },
-  typeChipActive: { backgroundColor: COLORS.accentGlow },
-  typeChipText:   { fontSize: 13, color: COLORS.textMuted, fontWeight: '600' },
-  catRow:      { flexDirection: 'row', flexWrap: 'wrap', marginBottom: 14 },
-  catChip:     { paddingHorizontal: 12, paddingVertical: 5, borderRadius: 12, backgroundColor: COLORS.bg4 },
-  catChipActive:{ backgroundColor: COLORS.accentGlow },
-  catChipText: { fontSize: 12, color: COLORS.textMuted },
-  modalBtns:   { flexDirection: 'row', justifyContent: 'space-between', marginTop: 10 },
-  btn:         { flex: 1, paddingVertical: 14, borderRadius: 10, alignItems: 'center' },
-  btnCancel:   { backgroundColor: COLORS.bg4, marginRight: 10 },
-  btnCancelText:{ color: COLORS.textMuted, fontWeight: '600' },
-  btnDelete:   { backgroundColor: COLORS.redDim, borderWidth: 1, borderColor: COLORS.red, marginRight: 10 },
-  btnDeleteText:{ color: COLORS.red, fontWeight: '600' },
-  btnSave:     { backgroundColor: COLORS.accent },
-  btnSaveText: { color: '#fff', fontWeight: '700' },
+  modalRoot: { flex: 1, backgroundColor: COLORS.bg },
+  modalHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 16, borderBottomWidth: 1, borderBottomColor: COLORS.border },
+  modalCancelText: { color: COLORS.accent, fontSize: 16 },
+  modalHeaderRight: { width: 50 },
+  modalTitle: { fontSize: 18, fontWeight: '700', color: COLORS.text, textAlign: 'center' },
+  modalScrollContent: { padding: 16, paddingBottom: 32 },
+  modalFooter: { flexDirection: 'row', alignItems: 'center', justifyContent: 'flex-end', padding: 16, gap: 12, borderTopWidth: 1, borderTopColor: COLORS.border },
+  modalFooterBtn: { paddingVertical: 14, paddingHorizontal: 20, borderRadius: 10, alignItems: 'center' },
+  modalFooterBtnSave: { backgroundColor: COLORS.accent, flex: 1 },
+  modalFooterBtnSaveText: { color: '#fff', fontWeight: '700', fontSize: 15 },
+  modalFooterBtnCancel: { backgroundColor: COLORS.bg4, marginRight: 10 },
+  modalFooterBtnCancelText: { color: COLORS.textMuted, fontWeight: '600' },
+  modalFooterBtnDelete: { backgroundColor: COLORS.redDim, borderWidth: 1, borderColor: COLORS.red, marginRight: 10 },
+  modalFooterBtnDeleteText: { color: COLORS.red, fontWeight: '600' },
 });
