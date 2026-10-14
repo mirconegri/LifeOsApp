@@ -12,7 +12,7 @@ import { StatCard } from '../components/StatCard';
 import { CustomAlert } from '../components/CustomAlert';
 import { DatePicker } from '../components/DatePicker';
 import { GradeSelector } from '../components/GradeSelector';
-import { GlassSheet } from '../components/GlassSheet';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import {
   calculateAverages, predictedDegreeGrade as calcPredictedGrade, diffDays,
   gradeWeight, gradeLabel,
@@ -97,6 +97,7 @@ export default function UniScreen({ exams, setExams, totalCredits }) {
   const [simCredits,setSimCredits] = useState('6');
 
   const closeModal = () => setModalVisible(false);
+  const insets = useSafeAreaInsets();
 
   // ─── Computed ─────────────────────────────────────────────────────────────
   const {
@@ -428,116 +429,125 @@ export default function UniScreen({ exams, setExams, totalCredits }) {
         )}
       </ScrollView>
 
-      {/* ─── Add / Edit Modal ─── */}
-      <Modal visible={modalVisible} animationType="slide" transparent onRequestClose={closeModal}>
+      {/* ─── Add / Edit Modal — full screen, opaque ─── */}
+      <Modal
+        visible={modalVisible}
+        animationType="slide"
+        transparent={false}
+        onRequestClose={closeModal}
+      >
         <KeyboardAvoidingView
           behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-          style={styles.modalWrapper}
+          style={styles.modalRoot}
+          keyboardVerticalOffset={0}
+          enabled={true}
         >
-          <TouchableOpacity style={styles.modalBackdrop} onPress={closeModal} />
-          <GlassSheet maxHeight="92%">
-            <Text style={styles.modalTitle}>{editingId ? 'Edit Exam' : 'Add Exam'}</Text>
+          {/* Header */}
+          <View style={[styles.modalHeader, { paddingTop: insets.top + 16 }]}>
+            <TouchableOpacity onPress={closeModal} style={styles.modalHeaderBtn}>
+              <Text style={styles.modalCancelText}>Cancel</Text>
+            </TouchableOpacity>
+            <Text style={styles.modalTitle}>
+              {editingId ? 'Edit Exam' : 'Add Exam'}
+            </Text>
+            <View style={styles.modalHeaderRight} />
+          </View>
 
-            <ScrollView
-              showsVerticalScrollIndicator={false}
-              keyboardShouldPersistTaps="always"
-            >
-              {/* Name */}
-              <TextInput
-                placeholder="Exam name *"
-                placeholderTextColor={COLORS.textSub}
-                value={formName}
-                onChangeText={setFormName}
-                style={styles.input}
-              />
+          {/* Form */}
+          <ScrollView
+            contentContainerStyle={styles.modalScrollContent}
+            keyboardShouldPersistTaps="handled"
+            showsVerticalScrollIndicator={false}
+          >
+            {/* Name */}
+            <TextInput
+              placeholder="Exam name *"
+              placeholderTextColor={COLORS.textSub}
+              value={formName}
+              onChangeText={setFormName}
+              style={styles.input}
+            />
 
-              {/* Credits */}
-              <TextInput
-                placeholder="Credits (3–15) *"
-                placeholderTextColor={COLORS.textSub}
-                value={formCredits}
-                onChangeText={v => setFormCredits(v.replace(/[^0-9]/g, ''))}
-                keyboardType="numeric"
-                style={styles.input}
-              />
+            {/* Credits */}
+            <TextInput
+              placeholder="Credits (3–15) *"
+              placeholderTextColor={COLORS.textSub}
+              value={formCredits}
+              onChangeText={v => setFormCredits(v.replace(/[^0-9]/g, ''))}
+              keyboardType="numeric"
+              style={styles.input}
+            />
 
-              {/* Status selector */}
-              <Text style={styles.fieldLabel}>Status *</Text>
-              <View style={styles.statusRow}>
-                {STATUSES.map(s => (
-                  <TouchableOpacity
-                    key={s}
-                    onPress={() => handleStatusChange(s)}
-                    style={[
-                      styles.statusChip,
-                      formStatus === s && styles.statusChipActive,
-                      { marginRight: 8, marginBottom: 8 },
-                    ]}
-                  >
-                    <Text style={[styles.statusChipText, formStatus === s && styles.statusChipTextActive]}>
-                      {s.toUpperCase()}
-                    </Text>
-                  </TouchableOpacity>
-                ))}
-              </View>
-
-              {/* Date — future for upcoming, past for passed */}
-              <Text style={styles.fieldLabel}>
-                {formStatus === 'passed' ? 'Date passed *' : 'Exam date *'}
-              </Text>
-              <DatePicker
-                value={formDate}
-                onChange={setFormDate}
-                mode={dateMode}
-                maxYearsBack={5}
-                label={formStatus === 'passed' ? 'Select date passed' : 'Select exam date'}
-              />
-
-              {/* Achieved grade — only for 'passed' */}
-              {formStatus === 'passed' && (
-                <GradeSelector
-                  value={formAchievedGrade}
-                  onChange={setFormAchievedGrade}
-                  placeholder="Achieved grade (required) *"
-                  label="Achieved Grade *"
-                />
-              )}
-
-              {/* Expected grade — only for non-passed (optional) */}
-              {formStatus !== 'passed' && (
-                <GradeSelector
-                  value={formExpectedGrade}
-                  onChange={setFormExpectedGrade}
-                  placeholder="Expected grade (optional)"
-                  label="Expected Grade"
-                />
-              )}
-
-              {/* Action buttons */}
-              <View style={styles.modalButtons}>
-                {editingId ? (
-                  <TouchableOpacity onPress={() => confirmDelete(editingId)} style={[styles.formBtn, styles.btnDelete]}>
-                    <Text style={styles.btnDeleteText}>Delete</Text>
-                  </TouchableOpacity>
-                ) : (
-                  <TouchableOpacity onPress={closeModal} style={[styles.formBtn, styles.btnCancel]}>
-                    <Text style={styles.btnCancelText}>Cancel</Text>
-                  </TouchableOpacity>
-                )}
+            {/* Status selector */}
+            <Text style={styles.fieldLabel}>Status *</Text>
+            <View style={styles.statusRow}>
+              {STATUSES.map(s => (
                 <TouchableOpacity
-                  onPress={handleSave}
-                  style={[styles.formBtn, styles.btnSave]}
+                  key={s}
+                  onPress={() => handleStatusChange(s)}
+                  style={[
+                    styles.statusChip,
+                    formStatus === s && styles.statusChipActive,
+                    { marginRight: 8, marginBottom: 8 },
+                  ]}
                 >
-                  <Text style={styles.btnSaveText}>
-                    {editingId ? 'Update Exam' : 'Add Exam'}
+                  <Text style={[styles.statusChipText, formStatus === s && styles.statusChipTextActive]}>
+                    {s.toUpperCase()}
                   </Text>
                 </TouchableOpacity>
-              </View>
+              ))}
+            </View>
 
-              {/* Extra padding for keyboard */}
-              <View style={{ height: 40 }} />
-            </ScrollView>
-          </GlassSheet>
+            {/* Date */}
+            <Text style={styles.fieldLabel}>
+              {formStatus === 'passed' ? 'Date passed *' : 'Exam date *'}
+            </Text>
+            <DatePicker
+              value={formDate}
+              onChange={setFormDate}
+              mode={dateMode}
+              maxYearsBack={5}
+              label={formStatus === 'passed' ? 'Select date passed' : 'Select exam date'}
+            />
+
+            {/* Achieved grade — only for 'passed' */}
+            {formStatus === 'passed' && (
+              <GradeSelector
+                value={formAchievedGrade}
+                onChange={setFormAchievedGrade}
+                placeholder="Achieved grade (required) *"
+                label="Achieved Grade *"
+              />
+            )}
+
+            {/* Expected grade — only for non-passed */}
+            {formStatus !== 'passed' && (
+              <GradeSelector
+                value={formExpectedGrade}
+                onChange={setFormExpectedGrade}
+                placeholder="Expected grade (optional)"
+                label="Expected Grade"
+              />
+            )}
+          </ScrollView>
+
+          {/* Footer — fixed action buttons */}
+          <View style={styles.modalFooter}>
+            {editingId ? (
+              <TouchableOpacity onPress={() => confirmDelete(editingId)} style={[styles.footerBtn, styles.btnDelete]}>
+                <Text style={styles.btnDeleteText}>Delete</Text>
+              </TouchableOpacity>
+            ) : (
+              <TouchableOpacity onPress={closeModal} style={[styles.footerBtn, styles.btnCancel]}>
+                <Text style={styles.btnCancelText}>Cancel</Text>
+              </TouchableOpacity>
+            )}
+            <TouchableOpacity onPress={handleSave} style={[styles.footerBtn, styles.btnSave]}>
+              <Text style={styles.btnSaveText}>
+                {editingId ? 'Update Exam' : 'Add Exam'}
+              </Text>
+            </TouchableOpacity>
+          </View>
         </KeyboardAvoidingView>
       </Modal>
     </View>
@@ -589,10 +599,16 @@ const styles = StyleSheet.create({
   prepLabel:   { fontSize: 11, color: COLORS.textSub, fontWeight: '500' },
   prepDays:    { fontSize: 11, color: COLORS.green, fontWeight: '600' },
 
-  // Modal
-  modalWrapper:  { flex: 1, justifyContent: 'flex-end' },
-  modalBackdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.6)' },
-  modalTitle:  { fontSize: 18, fontWeight: '700', color: COLORS.text, marginBottom: 20, textAlign: 'center' },
+  // Modal — full screen opaque
+  modalRoot:        { flex: 1, backgroundColor: COLORS.bg },
+  modalHeader:      { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 20, paddingTop: 16, paddingBottom: 12, borderBottomWidth: 1, borderBottomColor: COLORS.border },
+  modalHeaderBtn:   { minWidth: 60 },
+  modalHeaderRight: { width: 60 },
+  modalCancelText:  { fontSize: 16, color: COLORS.accent },
+  modalTitle:       { fontSize: 17, fontWeight: '700', color: COLORS.text, textAlign: 'center' },
+  modalScrollContent:{ padding: 20, paddingBottom: 40 },
+  modalFooter:      { paddingHorizontal: 20, paddingVertical: 12, borderTopWidth: 1, borderTopColor: COLORS.border, flexDirection: 'row', gap: 12 },
+  footerBtn:        { flex: 1, paddingVertical: 14, borderRadius: 10, alignItems: 'center' },
   input:       { backgroundColor: COLORS.bg3, borderWidth: 1, borderColor: COLORS.border, borderRadius: 10, padding: 12, color: COLORS.text, fontSize: 14, marginBottom: 12 },
   fieldLabel:  { color: COLORS.textSub, fontSize: 13, marginBottom: 8, marginTop: 4 },
   statusRow:   { flexDirection: 'row', flexWrap: 'wrap', marginBottom: 14 },
@@ -600,8 +616,6 @@ const styles = StyleSheet.create({
   statusChipActive:    { backgroundColor: COLORS.accentGlow },
   statusChipText:      { fontSize: 11, color: COLORS.textMuted, fontWeight: '600' },
   statusChipTextActive:{ color: COLORS.accent },
-  modalButtons:{ flexDirection: 'row', justifyContent: 'space-between', marginTop: 16 },
-  formBtn:     { flex: 1, paddingVertical: 14, borderRadius: 10, alignItems: 'center' },
   btnCancel:   { backgroundColor: COLORS.bg4, marginRight: 10 },
   btnCancelText:{ color: COLORS.textMuted, fontWeight: '600' },
   btnDelete:   { backgroundColor: COLORS.redDim, borderWidth: 1, borderColor: COLORS.red, marginRight: 10 },

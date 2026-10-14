@@ -65,29 +65,18 @@ export function GradeSelector({ value, onChange, placeholder = 'Grade (18–30L)
   );
 
   function tryAutoCommit() {
-    // If what's currently typed is an exact, valid grade, commit it even
-    // though the user never explicitly tapped a dropdown row. Without
-    // this, typing "30" and pressing Done (or tapping elsewhere) on the
-    // keyboard just let the typed text vanish on blur — nothing had ever
-    // called onChange, because that only happened inside handleSelect,
-    // which only fired from tapping a dropdown option directly.
     const exactMatch = ALL_GRADES.find(g => g.label === query);
     if (exactMatch) {
       onChange(exactMatch.value);
-      setQuery('');
     }
   }
 
   function handleSelect(grade) {
-    // Cancel the pending blur-triggered close from the tap that just took
-    // focus off the TextInput — without this, that timeout would still
-    // fire afterwards and is harmless here (focused is already going to
-    // false below) but cancelling keeps the intent explicit and matches
-    // the commitTag pattern in TagInput.js this is mirroring.
     clearTimeout(blurTimer.current);
     onChange(grade.value);
-    setQuery('');
-    setFocused(false);
+    setQuery(grade.label);
+    // 200ms delay: mostra opzione evidenziata, poi chiude dropdown
+    blurTimer.current = setTimeout(() => setFocused(false), 200);
   }
 
   function handleClear() {
@@ -96,11 +85,20 @@ export function GradeSelector({ value, onChange, placeholder = 'Grade (18–30L)
   }
 
   function handleChangeText(text) {
-    // Only allow digits and L
     const clean = text.replace(/[^0-9Ll]/g, '').toUpperCase();
     setQuery(clean);
-    // If user clears the field, clear value too
-    if (clean === '') onChange(null);
+    if (clean === '') {
+      onChange(null);
+    } else {
+      // Live match: digitando "25" committa subito, senza aspettare blur
+      const match = ALL_GRADES.find(g => g.label === clean);
+      if (match) {
+        onChange(match.value);
+      } else if (value != null && value !== '' && gradeToDisplay(value) !== clean) {
+        // Utente modifica da valore committato → lo rimuove
+        onChange(null);
+      }
+    }
   }
 
   const showDropdown = focused && filtered.length > 0;
@@ -118,7 +116,8 @@ export function GradeSelector({ value, onChange, placeholder = 'Grade (18–30L)
           onFocus={() => {
             clearTimeout(blurTimer.current);
             setFocused(true);
-            setQuery('');
+            // Se c'è già un voto selezionato, mostralo nell'input
+            setQuery(value != null && value !== '' ? gradeToDisplay(value) : '');
           }}
           onBlur={() => {
             tryAutoCommit();
