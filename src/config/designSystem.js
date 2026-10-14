@@ -5,26 +5,26 @@
 
 export const SPACING = {
   xxs: 2,
-  xs:  4,
-  sm:  8,
+  xs:  6,
+  sm:  10,
   md:  16,
   lg:  24,
   xl:  32,
-  xxl: 40,
+  xxl: 48,
 };
 
 // Typographic scale — applied via fontSize across the app.
 // The scale steps from caption to display so every text role
 // maps to one slot rather than ad-hoc sizes.
 export const TYPE = {
-  micro:   9,   // chart labels, tiny stats
-  caption: 10,  // StatCard label, chart values
+  micro:   10,  // chart labels, tiny stats
+  caption: 12,  // StatCard label, chart values
   meta:    11,  // subtitles, secondary info
   label:   12,  // section titles (uppercase), button labels
-  body:    14,  // main content, descriptions
-  title:   17,  // screen titles, modal titles
-  heading: 22,  // StatCard values, large numbers
-  display: 28,  // greeting, page header
+  body:    15,  // main content, descriptions
+  title:   18,  // screen titles, modal titles
+  heading: 24,  // StatCard values, large numbers
+  display: 32,  // greeting, page header
 };
 
 // Elevation system — surface depth is communicated through
@@ -69,10 +69,10 @@ export const MOTION = {
 
 // Border radii — consistent corner radii across the app
 export const RADIUS = {
-  pill:   14,
-  card:   18,
-  sheet:  24,
-  button: 10,
+  pill:   999,
+  card:   20,
+  sheet:  28,
+  button: 14,
   chip:   12,
   check:  11,
 };

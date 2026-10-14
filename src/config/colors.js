@@ -2,21 +2,21 @@
 // src/config/colors.js
 export const COLORS = {
   // Backgrounds
-  bg:        '#0a0a0f',
+  bg:        '#0b0b12',
   bg2:       '#111118',
   bg3:       '#16161f',
   bg4:       '#1e1e2a',
   bgElevated:'#1a1a24', // slightly lifted surface, used for cards that sit "above" the base layer
 
   // Text
-  text:      '#f0f0f5',
-  textMuted: '#9090a8',
-  textSub:   '#5a5a72',
+  text:      '#ffffff',
+  textMuted: '#b4b4c0',
+  textSub:   '#6e6e7a',
 
   // Accent — violet (primary)
-  accent:    '#7c5cfc',
+  accent:    '#7c5cff',
   accentDim: '#5a3fd6',
-  accentGlow:'#7c5cfc22',
+  accentGlow:'#7c5cff33',
 
   // Secondary accent — used to differentiate a second data series in
   // charts (e.g. arithmetic vs weighted average) without resorting to a
