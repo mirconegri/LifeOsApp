@@ -11,6 +11,7 @@ import { ProgressBar } from '../components/ProgressBar';
 import { StatCard } from '../components/StatCard';
 import { CustomAlert } from '../components/CustomAlert';
 import { DatePicker } from '../components/DatePicker';
+import { Icon } from '../components/Icon';
 import { GradeSelector } from '../components/GradeSelector';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import {

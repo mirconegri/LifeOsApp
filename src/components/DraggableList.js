@@ -8,7 +8,7 @@
 import React, { useRef, useState, useEffect } from 'react';
 import { StyleSheet, Vibration } from 'react-native';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
-import Animated, { useSharedValue, useAnimatedStyle, withSpring } from 'react-native-reanimated';
+import Animated, { useSharedValue, useAnimatedStyle, withSpring, runOnJS } from 'react-native-reanimated';
 import { COLORS } from '../config/colors';
 import { MOTION } from '../config/designSystem';
 
@@ -17,7 +17,7 @@ const LONG_PRESS_MS = 280;
 function DraggableItem({ item, index, isActive, renderItem, itemKey, itemHeight, onDragStart, onDragMove, onDragEnd }) {
   const translateY = useSharedValue(0);
   const itemScale = useSharedValue(1);
-  const armedRef = useRef(false);
+  const armed = useSharedValue(false);
 
   const animatedStyle = useAnimatedStyle(() => ({
     transform: [
@@ -37,21 +37,21 @@ function DraggableItem({ item, index, isActive, renderItem, itemKey, itemHeight,
   const panGesture = Gesture.Pan()
     .activateAfterLongPress(LONG_PRESS_MS)
     .onStart(() => {
-      armedRef.current = true;
+      armed.value = true;
       translateY.value = 0;
       itemScale.value = 1.04;
-      onDragStart(itemKey);
-      Vibration.vibrate(10);
+      runOnJS(onDragStart)(itemKey);
+      runOnJS(Vibration.vibrate)(10);
     })
     .onUpdate((event) => {
-      if (!armedRef.current) return;
-      onDragMove(itemKey, event.translationY, translateY);
+      if (!armed.value) return;
+      runOnJS(onDragMove)(itemKey, event.translationY, translateY);
     })
     .onEnd(() => {
-      if (!armedRef.current) return;
-      armedRef.current = false;
+      if (!armed.value) return;
+      armed.value = false;
       itemScale.value = withSpring(1, { ...MOTION.spring, useNativeDriver: true });
-      onDragEnd(itemKey, translateY);
+      runOnJS(onDragEnd)(itemKey, translateY);
     });
 
   return (

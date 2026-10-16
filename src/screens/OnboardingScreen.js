@@ -6,6 +6,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Icon } from '../components/Icon';
 import { COLORS } from '../config/colors';
+import { CustomAlert } from '../components/CustomAlert';
 
 export default function OnboardingScreen({
   onComplete, 
