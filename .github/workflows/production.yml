@@ -5,9 +5,6 @@ on:
     tags:
       - 'v*'
 
-permissions:
-  contents: write
-
 jobs:
   build:
     runs-on: ubuntu-latest
@@ -45,16 +42,9 @@ jobs:
           ls -lh "lifeos-${{ github.ref_name }}.apk"
           sha256sum "lifeos-${{ github.ref_name }}.apk"
 
-      - name: Create / update GitHub Release
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
-          TAG="${{ github.ref_name }}"
-          FILE="lifeos-${TAG}.apk"
-          if gh release view "$TAG" >/dev/null 2>&1; then
-            gh release upload "$TAG" "$FILE" --clobber
-          else
-            gh release create "$TAG" "$FILE" \
-              --title "LifeOS $TAG" \
-              --generate-notes
-          fi
+      - name: Upload APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: lifeos-apk-${{ github.ref_name }}
+          path: lifeos-${{ github.ref_name }}.apk
+          retention-days: 90
