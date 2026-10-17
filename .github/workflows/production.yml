@@ -19,42 +19,29 @@ jobs:
           node-version: 24
           cache: npm
 
-      - name: Verify EXPO_TOKEN
-        run: |
-          if [ -z "${{ secrets.EXPO_TOKEN }}" ]; then
-            echo "::error::EXPO_TOKEN secret is not set. Add it in Settings → Secrets → Actions."
-            exit 1
-          fi
-
-      - name: Setup EAS
-        uses: expo/expo-github-action@v8
+      - uses: expo/expo-github-action@v8
         with:
           eas-version: latest
           token: ${{ secrets.EXPO_TOKEN }}
 
-      - name: Install dependencies
-        run: npm ci
+      - run: npm ci
 
-      - name: Build Android (production)
+      - name: Build APK on EAS
+        id: eas
         run: |
-          eas build --platform android --profile production --non-interactive --json > build.json
-          cat build.json
-
-      - name: Extract artifact URL
-        id: artifact
-        run: |
-          URL=$(jq -r '.[0].artifacts.buildUrl // empty' build.json)
-          if [ -z "$URL" ]; then
-            echo "::error::Could not extract artifact URL from build.json"
+          BUILD_JSON=$(eas build --platform android --profile production --non-interactive --wait --json)
+          echo "$BUILD_JSON" > build.json
+          BUILD_URL=$(echo "$BUILD_JSON" | jq -r '.[0].artifacts.buildUrl')
+          if [ -z "$BUILD_URL" ] || [ "$BUILD_URL" = "null" ]; then
+            echo "::error::Nessun buildUrl nel JSON"
             cat build.json
             exit 1
           fi
-          echo "url=$URL" >> "$GITHUB_OUTPUT"
-          echo "Artifact: $URL"
+          echo "url=$BUILD_URL" >> "$GITHUB_OUTPUT"
 
       - name: Download APK
         run: |
-          curl -L --fail "${{ steps.artifact.outputs.url }}" -o "lifeos-${{ github.ref_name }}.apk"
+          curl -L --fail "${{ steps.eas.outputs.url }}" -o "lifeos-${{ github.ref_name }}.apk"
           ls -lh "lifeos-${{ github.ref_name }}.apk"
           sha256sum "lifeos-${{ github.ref_name }}.apk"
 
