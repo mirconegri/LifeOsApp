@@ -23,6 +23,24 @@ const ALLOWED_KEYS = [
 ];
 const ALLOWED = new Set(ALLOWED_KEYS);
 
+// Screens call array methods straight on these, so a wrong type would crash
+// the whole app on the next render — and keep crashing on every launch.
+const SHAPE = {
+  isFirstUse: 'boolean', universityEnabled: 'boolean', habitsMigrated: 'boolean',
+  userName: 'string', course: 'string',
+  totalCredits: 'number', loggedSeconds: 'number',
+  tipsShown: 'array', exams: 'array', finances: 'array', groceries: 'array',
+  goals: 'array', notes: 'array', links: 'array', journal: 'array',
+  home_section_order: 'array',
+  heatmap: 'object', modules: 'object',
+};
+
+function hasShape(value, expected) {
+  if (expected === 'array') return Array.isArray(value);
+  if (expected === 'object') return isPlainObject(value);
+  return typeof value === expected;
+}
+
 function isPlainObject(v) {
   return !!v && typeof v === 'object' && !Array.isArray(v);
 }
@@ -91,9 +109,12 @@ export function validateBackup(text) {
 
   const data = {};
   ALLOWED_KEYS.forEach((key) => {
-    if (Object.prototype.hasOwnProperty.call(parsed.data, key)) {
-      data[key] = parsed.data[key];
+    if (!Object.prototype.hasOwnProperty.call(parsed.data, key)) return;
+    const value = parsed.data[key];
+    if (SHAPE[key] && !hasShape(value, SHAPE[key])) {
+      throw new Error(`That backup has an unexpected value for "${key}".`);
     }
+    data[key] = value;
   });
   if (Object.keys(data).length === 0) {
     throw new Error('That backup has no data this version can import.');

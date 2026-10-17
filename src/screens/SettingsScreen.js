@@ -131,7 +131,7 @@ export default function SettingsScreen({
   const handleDeleteAll = () => {
     setAlert({
       title: 'Delete everything?',
-      message: 'Every task, exam, note and transaction on this device will be erased. This cannot be undone.',
+      message: 'Every task, exam, note and transaction on this device will be erased and the app goes back to its first-launch state. This cannot be undone.',
       buttons: [
         { text: 'Cancel', style: 'cancel', onPress: () => setAlert(null) },
         {
@@ -150,8 +150,9 @@ export default function SettingsScreen({
                   setBusy(true);
                   try {
                     await clearAllData();
+                    // The reload sends the app back to onboarding, so this
+                    // screen is gone before any confirmation could be read.
                     if (onDataChanged) await onDataChanged();
-                    notify('Deleted', 'Everything has been removed from this device.');
                   } catch (e) {
                     notify('Delete failed', e.message);
                   } finally {
