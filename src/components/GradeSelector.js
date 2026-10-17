@@ -129,7 +129,7 @@ export function GradeSelector({ value, onChange, placeholder = 'Grade (18–30L)
           onFocus={() => {
             clearTimeout(blurTimer.current);
             setFocused(true);
-            // Se c'è già un voto selezionato, mostralo nell'input
+            // Re-show the committed value when the field is focused again.
             setText(value != null && value !== '' ? gradeToDisplay(value) : '');
           }}
           onBlur={() => {
