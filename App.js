@@ -39,6 +39,7 @@ import GoalsScreen      from './src/screens/GoalsScreen';
 import NotesScreen      from './src/screens/NotesScreen';
 import LinksScreen      from './src/screens/LinksScreen';
 import JournalScreen    from './src/screens/JournalScreen';
+import SettingsScreen   from './src/screens/SettingsScreen';
 
 const DRAWER_WIDTH = 240;
 
@@ -124,6 +125,12 @@ function AppContent() {
   const [drawerMounted, setDrawerMounted] = useState(false);
   const drawerX = useRef(new Animated.Value(-DRAWER_WIDTH)).current;
 
+  // Settings is a modal, not a route: it is a leaf reachable from the
+  // drawer and is never a navigation destination of its own.
+  const [settingsVisible, setSettingsVisible] = useState(false);
+  // Defaults to true so an existing install keeps its University tab.
+  const [universityEnabled, setUniversityEnabled] = useState(true);
+
   const openDrawer = () => {
     setDrawerMounted(true);
     drawerX.setValue(-DRAWER_WIDTH);
@@ -181,6 +188,7 @@ function AppContent() {
       setLinks(        await loadJSON('links',         INIT_LINKS));
       setHeatmap(      await loadJSON('heatmap',       {}));
       setLogged(       await loadJSON('loggedSeconds', 0));
+      setUniversityEnabled(await loadJSON('universityEnabled', true));
 
       let loadedJournal = await loadJSON('journal', INIT_JOURNAL);
 
@@ -307,6 +315,19 @@ function AppContent() {
     saveJSON('tipsShown', updated);
   };
 
+  // Only the flag is persisted. Exams and grades stay untouched on disk, so
+  // switching the module back on restores everything as it was.
+  const toggleUniversity = (enabled) => {
+    setUniversityEnabled(enabled);
+    saveJSON('universityEnabled', enabled);
+  };
+
+  // Switching the module off while the University screen is open would
+  // leave the app rendering a tab that no longer exists — fall back to Home.
+  useEffect(() => {
+    if (!universityEnabled && screen === 'uni') setScreen('home');
+  }, [universityEnabled, screen]);
+
   const pExams      = usePersist('exams',      setExams);
   const pFinances   = usePersist('finances',   setFinances);
   const pGroceries  = usePersist('groceries',  setGroceries);
@@ -385,7 +406,10 @@ function AppContent() {
                />,
   };
 
-  const bottomNavItems = NAV.filter((n) => n.bottomNav);
+  // One place decides whether the university section is reachable; the
+  // drawer and the bottom tab strip both read from it.
+  const visibleNav     = universityEnabled ? NAV : NAV.filter((n) => n.id !== 'uni');
+  const bottomNavItems = visibleNav.filter((n) => n.bottomNav);
   const currentNav     = NAV.find((n) => n.id === screen);
 
   return (
@@ -421,7 +445,7 @@ function AppContent() {
               <Text style={styles.drawerSubtitle}>Personal Life OS</Text>
             </View>
             <ScrollView>
-              {NAV.map((n) => (
+              {visibleNav.map((n) => (
                 <TouchableOpacity
                   key={n.id}
                   onPress={() => { goToScreen(n.id); closeDrawer(); }}
@@ -433,6 +457,16 @@ function AppContent() {
                   </Text>
                 </TouchableOpacity>
               ))}
+
+              <View style={styles.drawerSeparator} />
+
+              <TouchableOpacity
+                onPress={() => { setSettingsVisible(true); closeDrawer(); }}
+                style={styles.drawerItem}
+              >
+                <Icon name="settings" size={18} color={COLORS.text} />
+                <Text style={styles.drawerLabel}>Settings</Text>
+              </TouchableOpacity>
             </ScrollView>
           </Animated.View>
           <TouchableOpacity style={{ flex: 1 }} onPress={closeDrawer} />
@@ -474,6 +508,13 @@ function AppContent() {
           </TouchableOpacity>
         ))}
       </View>
+
+      <SettingsScreen
+        visible={settingsVisible}
+        onClose={() => setSettingsVisible(false)}
+        universityEnabled={universityEnabled}
+        onToggleUniversity={toggleUniversity}
+      />
     </View>
   );
 }
@@ -527,6 +568,7 @@ const styles = StyleSheet.create({
   drawerItemActive: { backgroundColor: COLORS.accentGlow, borderLeftColor: COLORS.accent },
   drawerLabel:      { fontSize: 14, color: COLORS.textMuted, marginLeft: 14 },
   drawerLabelActive:{ color: COLORS.accent, fontWeight: '600' },
+  drawerSeparator:  { height: 1, backgroundColor: COLORS.border, marginVertical: 8 },
 
   content: { flex: 1 },
 
