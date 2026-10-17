@@ -5,6 +5,7 @@
 // animated style, so scroll, tap, and drag never conflict.
 //
 // API: items, keyExtractor, renderItem, onReorder, itemHeight
+//      + optional scrollRef / scrollYRef to enable edge auto-scroll
 //
 // ── Every drag frame used to round-trip through the JS thread ──────────
 // onUpdate called runOnJS(onDragMove) on EVERY pointer move, and that JS
@@ -27,13 +28,23 @@
 // keeps applying translateY while the value is non-zero, so the spring is
 // visible until it settles.
 //
+// ── Edge auto-scroll ───────────────────────────────────────────────────
+// The list cannot scroll itself: the ScrollView belongs to the screen. So
+// the screens hand over their ScrollView ref plus a ref holding the last
+// reported scroll offset. While a drag runs, a 16ms JS tick scrolls the
+// parent by an amount proportional to how deep into the edge band the
+// finger sits. The distance actually scrolled is then read back from
+// `scrollYRef` — not from what we asked for — which is what keeps a
+// clamped scroll from accumulating drift and desynchronising the row from
+// the finger. Without those refs the feature is simply off.
+//
 // ── Haptics ────────────────────────────────────────────────────────────
 // expo-haptics is a NATIVE module: on a dev client built before it was
 // added, requiring it throws. It is therefore resolved lazily inside
 // try/catch, falling back to React Native's Vibration. Dragging works
 // either way; the finer feedback appears after the next native rebuild.
 import React, { useRef, useState, useEffect } from 'react';
-import { StyleSheet, Vibration } from 'react-native';
+import { StyleSheet, Vibration, Dimensions } from 'react-native';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import Animated, {
   useSharedValue, useAnimatedStyle, withSpring, withTiming, Easing, runOnJS,
@@ -50,6 +61,14 @@ const IDLE_SCALE   = 0.98;  // rows that are NOT being dragged, while a drag run
 const IDLE_MS      = 120;   // how quickly idle rows shrink/restore
 const SHIFT_MS     = 150;   // reorder slide
 const SPRING       = { damping: 20, stiffness: 300, mass: 0.8 };
+
+// Auto-scroll bands. The top band starts below the app's 52px top bar so a
+// row is never dragged under the header; the bottom band clears the tab
+// strip plus the gesture bar.
+const EDGE_TOP    = 110;
+const EDGE_BOTTOM = 160;
+const SCROLL_TICK = 16;     // ms — one scroll step per frame
+const MAX_STEP    = 12;     // px per tick at the very edge, scaled by depth
 
 let _haptics;
 let _hapticsTried = false;
@@ -80,6 +99,7 @@ function DraggableItem({
   item, index, isActive, renderItem, itemKey,
   itemHeight, count, dragActive,
   onDragStart, onMoveToIndex, onDragEnd,
+  scrollRef, scrollYRef,
 }) {
   const translateY  = useSharedValue(0); // drag offset, owned by the UI thread
   const shiftY      = useSharedValue(0); // slide-in offset after a reorder
@@ -87,6 +107,14 @@ function DraggableItem({
   const armed       = useSharedValue(false);
   const startIndex  = useSharedValue(0); // index the row was picked up from
   const targetIndex = useSharedValue(0); // slot the row is currently over
+  // Screen-space finger travel, kept where the JS auto-scroll tick can read
+  // it; scrollDelta is how far the parent has scrolled since the pickup.
+  const fingerOffset = useSharedValue(0);
+  const scrollDelta  = useSharedValue(0);
+  const edgeVelocity = useSharedValue(0); // px per tick, sign = direction
+
+  const autoScrollTimer = useRef(null);
+  const lastScrollY     = useRef(0);
 
   // Animate the row from where it was to where it now is. The layout has
   // already moved it by (index - prev) * itemHeight, so feeding it the
@@ -102,6 +130,8 @@ function DraggableItem({
     shiftY.value = withTiming(0, { duration: SHIFT_MS, easing: Easing.out(Easing.cubic) });
   }, [index, isActive, itemHeight, shiftY]);
 
+  useEffect(() => () => clearInterval(autoScrollTimer.current), []);
+
   const animatedStyle = useAnimatedStyle(() => {
     // Also true while the drop spring is still running, so the row keeps
     // rendering its motion instead of snapping to the final slot.
@@ -116,6 +146,57 @@ function DraggableItem({
     };
   });
 
+  // Runs on the JS thread while the finger holds in an edge band. Both the
+  // scroll step and the slot recomputation happen here, because a finger
+  // held still at the edge produces no gesture updates at all.
+  function autoScrollTick() {
+    const canScroll = !!(scrollRef && scrollRef.current);
+    if (!canScroll) return;
+
+    const h = itemHeight > 0 ? itemHeight : 1;
+
+    // 1. Ask the parent to move.
+    const v = edgeVelocity.value;
+    if (v !== 0) {
+      const from = scrollYRef.current;
+      const to = Math.max(0, from + v);
+      if (to !== from) scrollRef.current.scrollTo({ y: to, animated: false });
+    }
+
+    // 2. Read back what actually happened. onScroll reports the clamped
+    //    offset, so the accumulated delta can never run away.
+    const now = scrollYRef.current;
+    if (now === lastScrollY.current) return;
+    scrollDelta.value += now - lastScrollY.current;
+    lastScrollY.current = now;
+
+    // 3. The content moved but the finger did not, so the row has to be
+    //    re-seated and the slot under it may have changed.
+    const effective = fingerOffset.value + scrollDelta.value;
+    const last = count - 1;
+    let slot = startIndex.value + Math.round(effective / h);
+    if (slot < 0) slot = 0;
+    else if (slot > last) slot = last;
+
+    if (slot !== targetIndex.value) {
+      targetIndex.value = slot;
+      onMoveToIndex(itemKey, slot);
+    }
+    translateY.value = effective - (targetIndex.value - startIndex.value) * h;
+  }
+
+  function startAutoScroll() {
+    clearInterval(autoScrollTimer.current);
+    lastScrollY.current = scrollYRef ? scrollYRef.current : 0;
+    autoScrollTimer.current = setInterval(autoScrollTick, SCROLL_TICK);
+  }
+
+  function stopAutoScroll() {
+    clearInterval(autoScrollTimer.current);
+    autoScrollTimer.current = null;
+    edgeVelocity.value = 0;
+  }
+
   const panGesture = Gesture.Pan()
     // The gesture only arms if the press survives LONG_PRESS_MS without the
     // finger travelling past the pan's own activation distance — so a
@@ -127,16 +208,38 @@ function DraggableItem({
       targetIndex.value = index;
       translateY.value = 0;
       shiftY.value = 0;
+      fingerOffset.value = 0;
+      scrollDelta.value = 0;
+      edgeVelocity.value = 0;
       itemScale.value = DRAG_SCALE;
       dragActive.value = withTiming(1, { duration: IDLE_MS });
       runOnJS(onDragStart)(itemKey);
       runOnJS(hapticPickup)();
+      if (scrollRef) runOnJS(startAutoScroll)();
     })
     .onUpdate((event) => {
       if (!armed.value) return;
+      fingerOffset.value = event.translationY;
+
+      // Edge proximity → scroll speed. Proportional, so the row creeps near
+      // the band edge and runs at the very edge, like the native lists.
+      const windowH = Dimensions.get('window').height;
+      let velocity = 0;
+      if (event.absoluteY < EDGE_TOP) {
+        const depth = (EDGE_TOP - event.absoluteY) / EDGE_TOP;
+        velocity = -Math.round(MAX_STEP * Math.min(1, depth));
+      } else if (event.absoluteY > windowH - EDGE_BOTTOM) {
+        const depth = (event.absoluteY - (windowH - EDGE_BOTTOM)) / EDGE_BOTTOM;
+        velocity = Math.round(MAX_STEP * Math.min(1, depth));
+      }
+      edgeVelocity.value = velocity;
+
       const h = itemHeight > 0 ? itemHeight : 1;
       const last = count - 1;
-      let slot = startIndex.value + Math.round(event.translationY / h);
+      // Scroll movement shifts the row's slot just as finger travel does,
+      // so the same effective offset drives both the slot and the visual.
+      const effective = fingerOffset.value + scrollDelta.value;
+      let slot = startIndex.value + Math.round(effective / h);
       if (slot < 0) slot = 0;
       else if (slot > last) slot = last;
 
@@ -148,16 +251,23 @@ function DraggableItem({
       }
       // Slide compensation: as the list reflows under the finger, subtract
       // the distance it already moved so the row stays under the touch.
-      translateY.value = event.translationY - (targetIndex.value - startIndex.value) * h;
+      translateY.value = effective - (targetIndex.value - startIndex.value) * h;
     })
     .onEnd(() => {
       if (!armed.value) return;
       armed.value = false;
+      edgeVelocity.value = 0;
       itemScale.value = withSpring(1, SPRING);
       translateY.value = withSpring(0, SPRING);
       dragActive.value = withTiming(0, { duration: IDLE_MS });
       runOnJS(hapticDrop)();
       runOnJS(onDragEnd)(itemKey);
+      if (scrollRef) runOnJS(stopAutoScroll)();
+    })
+    // Covers the cancelled case too, where onEnd never fires: a timer left
+    // running would keep scrolling the list forever.
+    .onFinalize(() => {
+      if (scrollRef) runOnJS(stopAutoScroll)();
     });
 
   return (
@@ -169,7 +279,10 @@ function DraggableItem({
   );
 }
 
-export function DraggableList({ items, keyExtractor, renderItem, onReorder, itemHeight = 60 }) {
+export function DraggableList({
+  items, keyExtractor, renderItem, onReorder, itemHeight = 60,
+  scrollRef, scrollYRef,
+}) {
   const [activeKey, setActiveKey] = useState(null);
   const [liveOrder, setLiveOrder] = useState(() => items.map(keyExtractor));
   const isDraggingRef = useRef(false);
@@ -198,8 +311,9 @@ export function DraggableList({ items, keyExtractor, renderItem, onReorder, item
     setActiveKey(key);
   }
 
-  // Called from the UI thread only when the slot under the finger changes,
-  // not on every move.
+  // Called from the UI thread when the slot under the finger changes and
+  // from the JS auto-scroll tick when the list moves instead — both paths
+  // land here so the order only ever changes in one place.
   function handleMoveToIndex(key, slot) {
     const current = liveOrderRef.current;
     const from = current.indexOf(key);
@@ -235,6 +349,8 @@ export function DraggableList({ items, keyExtractor, renderItem, onReorder, item
             renderItem={renderItem}
             itemHeight={itemHeight}
             dragActive={dragActive}
+            scrollRef={scrollRef}
+            scrollYRef={scrollYRef}
             onDragStart={handleDragStart}
             onMoveToIndex={handleMoveToIndex}
             onDragEnd={handleDragEnd}

@@ -71,6 +71,10 @@ export default function JournalScreen({ journal, setJournal }) {
   const insets = useSafeAreaInsets();
 
   const composerInputRef = useRef(null);
+  // Auto-scroll while dragging: DraggableList scrolls this ScrollView, so
+  // it needs the ref plus the offset the ScrollView last reported.
+  const scrollRef = useRef(null);
+  const scrollYRef = useRef(0);
   const today = todayKey();
   const pastWeek = last7Days();
 
@@ -243,7 +247,14 @@ export default function JournalScreen({ journal, setJournal }) {
       style={styles.root}
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
     >
-      <ScrollView style={styles.scroll} contentContainerStyle={styles.content} keyboardShouldPersistTaps="always">
+      <ScrollView
+        ref={scrollRef}
+        onScroll={(e) => { scrollYRef.current = e.nativeEvent.contentOffset.y; }}
+        scrollEventThrottle={16}
+        style={styles.scroll}
+        contentContainerStyle={styles.content}
+        keyboardShouldPersistTaps="always"
+      >
         <View style={styles.header}>
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
             <Icon name="check-square" size={24} color={COLORS.text} />
@@ -285,6 +296,8 @@ export default function JournalScreen({ journal, setJournal }) {
                 keyExtractor={(t) => String(t.id)}
                 onReorder={(reordered) => handleReorderSection(items, reordered)}
                 itemHeight={isHabitSection ? 96 : 60}
+                scrollRef={scrollRef}
+                scrollYRef={scrollYRef}
                 renderItem={(t) => {
                   if (t.recurring) {
                     const doneTodayFlag = !!(t.history && t.history[today]);

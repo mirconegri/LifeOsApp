@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import {
   View, Text, ScrollView, StyleSheet, TextInput,
   TouchableOpacity, Linking, Modal, KeyboardAvoidingView, Platform,
@@ -110,9 +110,19 @@ export default function LinksScreen({ links, setLinks }) {
 
   const handleReorder = (reordered) => setLinks(reordered);
 
+  // Auto-scroll while dragging: DraggableList scrolls this ScrollView, so
+  // it needs the ref plus the offset the ScrollView last reported.
+  const scrollRef = useRef(null);
+  const scrollYRef = useRef(0);
+
   return (
     <View style={styles.root}>
-      <ScrollView contentContainerStyle={styles.content}>
+      <ScrollView
+        ref={scrollRef}
+        onScroll={(e) => { scrollYRef.current = e.nativeEvent.contentOffset.y; }}
+        scrollEventThrottle={16}
+        contentContainerStyle={styles.content}
+      >
         <View style={styles.header}>
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
             <Icon name="globe" size={24} color={COLORS.text} />
@@ -143,6 +153,8 @@ export default function LinksScreen({ links, setLinks }) {
               keyExtractor={(l) => String(l.id)}
               onReorder={handleReorder}
               itemHeight={66}
+              scrollRef={scrollRef}
+              scrollYRef={scrollYRef}
               renderItem={(l) => (
                 <Card style={styles.linkCard}>
                   <TouchableOpacity onPress={() => Linking.openURL(l.url)} style={styles.linkInfo}>

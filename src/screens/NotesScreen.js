@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useRef } from 'react';
 import {
   View, Text, ScrollView, StyleSheet, TextInput,
   TouchableOpacity, Modal, KeyboardAvoidingView, Platform,
@@ -101,9 +101,19 @@ export default function NotesScreen({ notes, setNotes }) {
 
   const handleReorder = (reordered) => setNotes(reordered);
 
+  // Auto-scroll while dragging: DraggableList scrolls this ScrollView, so
+  // it needs the ref plus the offset the ScrollView last reported.
+  const scrollRef = useRef(null);
+  const scrollYRef = useRef(0);
+
   return (
     <View style={styles.root}>
-      <ScrollView contentContainerStyle={styles.content}>
+      <ScrollView
+        ref={scrollRef}
+        onScroll={(e) => { scrollYRef.current = e.nativeEvent.contentOffset.y; }}
+        scrollEventThrottle={16}
+        contentContainerStyle={styles.content}
+      >
         <View style={styles.header}>
           <View style={{ flexDirection: 'row', alignItems: 'center' }}><Icon name="file-text" size={24} color={COLORS.text} /><Text style={styles.title}> Notes</Text></View>
           <TouchableOpacity onPress={openAddModal} style={styles.addBtn}>
@@ -128,6 +138,8 @@ export default function NotesScreen({ notes, setNotes }) {
               keyExtractor={(n) => String(n.id)}
               onReorder={handleReorder}
               itemHeight={140}
+              scrollRef={scrollRef}
+              scrollYRef={scrollYRef}
               renderItem={(n) => (
                 <TouchableOpacity onPress={() => openEditModal(n)} activeOpacity={0.8}>
                   <Card style={styles.noteCard}>

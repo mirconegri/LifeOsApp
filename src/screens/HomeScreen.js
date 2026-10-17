@@ -1,5 +1,5 @@
 // src/screens/HomeScreen.js
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   View, Text, ScrollView, StyleSheet, TouchableOpacity, Linking,
 } from 'react-native';
@@ -248,9 +248,19 @@ export default function HomeScreen({
     persistSectionOrder(newOrder);
   };
 
+  // Auto-scroll while dragging: DraggableList scrolls this ScrollView, so
+  // it needs the ref plus the offset the ScrollView last reported.
+  const scrollRef = useRef(null);
+  const scrollYRef = useRef(0);
+
   return (
     <View style={styles.root}>
-      <ScrollView contentContainerStyle={styles.scroll}>
+      <ScrollView
+        ref={scrollRef}
+        onScroll={(e) => { scrollYRef.current = e.nativeEvent.contentOffset.y; }}
+        scrollEventThrottle={16}
+        contentContainerStyle={styles.scroll}
+      >
 
         {/* Header */}
         <View style={styles.header}>
@@ -289,6 +299,8 @@ export default function HomeScreen({
           keyExtractor={(s) => s.id}
           onReorder={handleSectionReorder}
           itemHeight={140}
+          scrollRef={scrollRef}
+          scrollYRef={scrollYRef}
           renderItem={(s) => <View style={styles.sectionBlock}>{s.content}</View>}
         />
 
