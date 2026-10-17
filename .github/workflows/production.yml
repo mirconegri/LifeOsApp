@@ -40,7 +40,12 @@ jobs:
         run: |
           curl -L --fail "${{ steps.eas.outputs.url }}" -o "lifeos-${{ github.ref_name }}.apk"
           ls -lh "lifeos-${{ github.ref_name }}.apk"
+          file "lifeos-${{ github.ref_name }}.apk"
           sha256sum "lifeos-${{ github.ref_name }}.apk"
+          if ! file "lifeos-${{ github.ref_name }}.apk" | grep -qi "Android package"; then
+            echo "::error::Il file scaricato non è un APK. Controlla eas.json (buildType deve essere 'apk' per production)."
+            exit 1
+          fi
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
