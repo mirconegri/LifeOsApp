@@ -18,7 +18,6 @@ module.exports = {
     },
     android: {
       package: "com.mylifeos.app",
-      googleServicesFile: process.env.GOOGLE_SERVICES_JSON ?? "./google-services.json",
       adaptiveIcon: {
         foregroundImage: "./assets/adaptive-icon.png",
         backgroundColor: "#0a0a0f"
@@ -31,8 +30,7 @@ module.exports = {
     },
     plugins: [
       "expo-asset",
-      "expo-web-browser",
-      "react-native-nitro-google-signin"
+      "expo-web-browser"
     ]
   }
 };
