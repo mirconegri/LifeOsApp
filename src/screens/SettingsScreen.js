@@ -260,7 +260,12 @@ export default function SettingsScreen({
 
           <Text style={styles.sectionLabel}>About</Text>
 
-          <View style={styles.row}>
+          <Text style={styles.hint}>
+            No account, no server. Every task, exam and note lives in this phone's
+            storage, and nothing is sent anywhere unless you share a backup yourself.
+          </Text>
+
+          <View style={[styles.row, { marginTop: 10 }]}>
             <View style={styles.rowText}>
               <Text style={styles.rowTitle}>Version</Text>
               <Text style={styles.rowDesc}>Read from the app configuration</Text>

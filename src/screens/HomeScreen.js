@@ -139,6 +139,10 @@ export default function HomeScreen({
   // draggable list — e.g. "Next Target" disappears entirely when there's
   // no upcoming exam, exactly like before, it just also participates in
   // the reordering when it IS present.
+  // Nothing left on the dashboard means the user switched everything off:
+  // say so instead of showing a blank page.
+  const anyModuleOn = on('journal') || on('finances') || on('uni') || on('links');
+
   const sectionRenderers = {
     nextTarget: nextExam && on('uni') ? (
       <View>
@@ -298,6 +302,14 @@ export default function HomeScreen({
             <StatCard label="Study Days" value={Object.keys(heatmap).length} color={COLORS.text} trend="up" />
           </View>
         </View>
+
+        {!anyModuleOn && (
+          <Card style={styles.emptyCard}>
+            <Text style={styles.emptyText}>
+              Every section is switched off. Open the menu, then Settings, to bring one back.
+            </Text>
+          </Card>
+        )}
 
         {/* Reorderable section blocks */}
         {draggableSections.length > 1 && (
