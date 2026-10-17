@@ -76,6 +76,17 @@ export default function SettingsScreen({
             module back on restores everything exactly as it was.
           </Text>
 
+          <Text style={styles.sectionLabel}>Data</Text>
+
+          <View style={styles.row}>
+            <View style={styles.rowText}>
+              <Text style={styles.rowTitle}>Cloud sync</Text>
+              <Text style={styles.rowDesc}>
+                Not available yet — everything stays on this device
+              </Text>
+            </View>
+          </View>
+
           <Text style={styles.sectionLabel}>About</Text>
 
           <View style={styles.row}>

@@ -188,6 +188,16 @@ export default function OnboardingScreen({
                 {googleLoading ? 'Connecting…' : 'Continue with Google'}
               </Text>
             </TouchableOpacity>
+            {/* Signing in provisions a real account: it links the Google
+                identity to the anonymous Firebase user created on first
+                launch. What it does NOT do is move any data — there is no
+                Firestore layer in this app, so every exam, transaction and
+                note stays in this device's storage. Saying that plainly is
+                the honest alternative to a button that implies sync. */}
+            <Text style={styles.googleNote}>
+              Creates your LifeOS account. Cloud sync isn't available yet — your
+              data stays on this device.
+            </Text>
           </View>
         )}
 
@@ -390,6 +400,10 @@ const styles = StyleSheet.create({
     borderRadius: 14, paddingVertical: 15, alignItems: 'center',
   },
   googleBtnText: { color: COLORS.text, fontSize: 15, fontWeight: '600' },
+  googleNote: {
+    color: COLORS.textSub, fontSize: 12, textAlign: 'center',
+    marginTop: 10, lineHeight: 17,
+  },
 
   // Year / credit-type selectors
   fieldLabel: { fontSize: 13, fontWeight: '600', color: COLORS.textMuted, marginBottom: 8, marginTop: 4 },
