@@ -6,18 +6,10 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Icon } from '../components/Icon';
 import { COLORS } from '../config/colors';
-import { CustomAlert } from '../components/CustomAlert';
 
-export default function OnboardingScreen({
-  onComplete, 
-  onGoogleSignIn,
-  onResolveConflictKeepGoogleAccount, 
-  onResolveConflictKeepThisDevice,
-}) {
+export default function OnboardingScreen({ onComplete }) {
   // Navigation & UI States
   const [step, setStep] = useState(0);
-  const [alertConfig, setAlertConfig] = useState(null);
-  const [googleLoading, setGoogleLoading] = useState(false);
 
   // Form Fields
   const [name, setName] = useState('');
@@ -35,9 +27,9 @@ export default function OnboardingScreen({
   ];
 
   const CREDIT_OPTIONS = [
-    { label: 'Triennale (180 CFU)',  value: 180 },
-    { label: 'Magistrale (120 CFU)', value: 120 },
-    { label: 'Ciclo Unico (300 CFU)', value: 300 },
+    { label: 'Bachelor (180 credits)',   value: 180 },
+    { label: 'Master (120 credits)',     value: 120 },
+    { label: 'Single cycle (300 credits)', value: 300 },
   ];
   
   const YEAR_OPTIONS = ['1', '2', '3', '4', '5'];
@@ -62,45 +54,6 @@ export default function OnboardingScreen({
     if (step === 2) return course.trim().length > 0;
     if (step === 3) return selectedGoals.length > 0;
     return true;
-  };
-
-  const applyGoogleProfile = (profile) => {
-    if (profile?.name) setName(profile.name);
-    setStep(2);
-  };
-
-  const handleGoogleSignIn = async () => {
-    setGoogleLoading(true);
-    try {
-      const result = await onGoogleSignIn();
-      if (result.status === 'cancelled') return;
-
-      if (result.status === 'conflict') {
-        setAlertConfig({
-          title: 'Account already in use',
-          message: 'This Google account is already linked to another LifeOS profile. You can stay on this device, or switch to that account — data created here so far won\'t follow.',
-          buttons: [
-            { text: 'Stay here', style: 'cancel', onPress: () => setAlertConfig(null) },
-            { text: 'Use that account', style: 'destructive', onPress: async () => {
-              await onResolveConflictKeepGoogleAccount(result.credential);
-              setAlertConfig(null);
-              applyGoogleProfile(result.profile);
-            }},
-          ],
-        });
-        return;
-      }
-
-      applyGoogleProfile(result.profile);
-    } catch (e) {
-      setAlertConfig({
-        title: 'Sign-in failed',
-        message: 'Something went wrong with Google sign-in. You can continue by entering your name manually.',
-        buttons: [{ text: 'OK', style: 'cancel', onPress: () => setAlertConfig(null) }],
-      });
-    } finally {
-      setGoogleLoading(false);
-    }
   };
 
   const next = () => {
@@ -173,30 +126,8 @@ export default function OnboardingScreen({
               onSubmitEditing={canNext() ? next : undefined}
             />
 
-            <View style={styles.dividerRow}>
-              <View style={styles.dividerLine} />
-              <Text style={styles.dividerText}>or</Text>
-              <View style={styles.dividerLine} />
-            </View>
-
-            <TouchableOpacity
-              style={styles.googleBtn}
-              onPress={handleGoogleSignIn}
-              disabled={googleLoading}
-            >
-              <Text style={styles.googleBtnText}>
-                {googleLoading ? 'Connecting…' : 'Continue with Google'}
-              </Text>
-            </TouchableOpacity>
-            {/* Signing in provisions a real account: it links the Google
-                identity to the anonymous Firebase user created on first
-                launch. What it does NOT do is move any data — there is no
-                Firestore layer in this app, so every exam, transaction and
-                note stays in this device's storage. Saying that plainly is
-                the honest alternative to a button that implies sync. */}
-            <Text style={styles.googleNote}>
-              Creates your LifeOS account. Cloud sync isn't available yet — your
-              data stays on this device.
+            <Text style={styles.localNote}>
+              Your data stays on this device. You can export it anytime from Settings.
             </Text>
           </View>
         )}
@@ -310,7 +241,6 @@ export default function OnboardingScreen({
 
         </ScrollView>
       </KeyboardAvoidingView>
-      <CustomAlert config={alertConfig} />
     </SafeAreaView>
   );
 }
@@ -392,17 +322,8 @@ const styles = StyleSheet.create({
     marginBottom: 14,
   },
 
-  dividerRow: { flexDirection: 'row', alignItems: 'center', marginTop: 18, marginBottom: 18 },
-  dividerLine: { flex: 1, height: 1, backgroundColor: COLORS.border },
-  dividerText: { color: COLORS.textSub, fontSize: 12, marginHorizontal: 10 },
-  googleBtn: {
-    backgroundColor: COLORS.bg2, borderWidth: 1, borderColor: COLORS.border,
-    borderRadius: 14, paddingVertical: 15, alignItems: 'center',
-  },
-  googleBtnText: { color: COLORS.text, fontSize: 15, fontWeight: '600' },
-  googleNote: {
-    color: COLORS.textSub, fontSize: 12, textAlign: 'center',
-    marginTop: 10, lineHeight: 17,
+  localNote: {
+    color: COLORS.textSub, fontSize: 12, lineHeight: 17, marginTop: 4,
   },
 
   // Year / credit-type selectors

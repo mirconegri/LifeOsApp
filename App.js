@@ -10,7 +10,7 @@ import { GestureHandlerRootView } from 'react-native-gesture-handler';
 
 import { COLORS } from './src/config/colors';
 import { Icon } from './src/components/Icon';
-import { TYPE, SPACING } from './src/config/designSystem';
+import { TYPE } from './src/config/designSystem';
 import { NAV } from './src/config/nav';
 import { todayKey } from './src/data/helpers';
 import { loadJSON, saveJSON } from './src/data/storage';
@@ -19,14 +19,6 @@ import {
   INIT_EXAMS, INIT_FINANCES,
   INIT_GROCERIES, INIT_GOALS, INIT_NOTES, INIT_LINKS, INIT_JOURNAL,
 } from './src/data/seedData';
-import { auth } from './src/config/firebase';
-import {
-  onAuthStateChanged, signInAnonymously, signInWithCredential,
-  linkWithCredential, GoogleAuthProvider,
-} from 'firebase/auth';
-import {
-  GoogleOneTapSignIn, isSuccessResponse, isNoSavedCredentialFoundResponse,
-} from 'react-native-nitro-google-signin';
 
 // Screens
 import OnboardingScreen from './src/screens/OnboardingScreen';
@@ -74,28 +66,6 @@ function AppContent() {
   // insets.top  = status bar height (Android) / notch (iOS)
   // insets.bottom = system nav bar height (Android 3-button/gesture) / home indicator (iOS)
   const insets = useSafeAreaInsets();
-
-  const [authUser, setAuthUser] = useState(null);
-
-  // Native library configuration — once only, not on every render.
-  useEffect(() => {
-    GoogleOneTapSignIn.configure({ webClientId: 'autoDetect' });
-  }, []);
-
-  // onAuthStateChanged is the only correct way to know who's logged in:
-  // initializeAuth restores the session from AsyncStorage asynchronously,
-  // so reading auth.currentUser right after mount is unreliable. If
-  // there's still no one at the first event — a true first launch — we
-  // immediately start an anonymous session: this is the already-agreed
-  // "jump in, decide later" pattern. The user doesn't choose anything,
-  // but has a valid Firestore UID from the very first moment regardless.
-  useEffect(() => {
-    const unsub = onAuthStateChanged(auth, (u) => {
-      setAuthUser(u);
-      if (!u) signInAnonymously(auth).catch(() => {});
-    });
-    return unsub;
-  }, []);
 
   const [screen, setScreen]         = useState('home');
   const [ready, setReady]           = useState(false);
@@ -266,49 +236,6 @@ function AppContent() {
     saveJSON('isFirstUse', false);
   };
 
-  // Full flow: native One Tap → Firebase credential → link (if the user
-  // is already anonymous) or direct sign-in. Returns a status object
-  // instead of handling the alert here — the caller decides how to
-  // present it, same principle as every other alertConfig in the project.
-  const signInWithGoogle = async () => {
-    await GoogleOneTapSignIn.checkPlayServices();
-    let response = await GoogleOneTapSignIn.signIn();
-    if (isNoSavedCredentialFoundResponse(response)) {
-      response = await GoogleOneTapSignIn.createAccount();
-    }
-    if (isNoSavedCredentialFoundResponse(response)) {
-      response = await GoogleOneTapSignIn.presentExplicitSignIn();
-    }
-    if (!isSuccessResponse(response)) return { status: 'cancelled' };
-
-    const { user, idToken } = response.data;
-    const credential = GoogleAuthProvider.credential(idToken);
-    const current = auth.currentUser;
-
-    if (current?.isAnonymous) {
-      try {
-        await linkWithCredential(current, credential);
-        return { status: 'linked', profile: user };
-      } catch (e) {
-        if (e.code === 'auth/credential-already-in-use') {
-          // This Google account is already tied to a different Firebase
-          // user elsewhere. We pass back the ready-made credential:
-          // whoever resolves the conflict uses it to sign in directly,
-          // if they choose that path.
-          return { status: 'conflict', credential, profile: user };
-        }
-        throw e;
-      }
-    }
-
-    await signInWithCredential(auth, credential);
-    return { status: 'signedIn', profile: user };
-  };
-
-  const resolveConflictKeepGoogleAccount = (credential) =>
-    signInWithCredential(auth, credential);
-  const resolveConflictKeepThisDevice = () => {}; // stays on the current anonymous user, deliberately
-
   const dismissTip = (tipId) => {
     const updated = [...tipsShown, tipId];
     setTipsShown(updated);
@@ -372,12 +299,7 @@ function AppContent() {
 
   if (isFirstUse) {
     return (
-      <OnboardingScreen
-        onComplete={handleOnboardingComplete}
-        onGoogleSignIn={signInWithGoogle}
-        onResolveConflictKeepGoogleAccount={resolveConflictKeepGoogleAccount}
-        onResolveConflictKeepThisDevice={resolveConflictKeepThisDevice}
-      />
+      <OnboardingScreen onComplete={handleOnboardingComplete} />
     );
   }
 
@@ -534,7 +456,6 @@ const styles = StyleSheet.create({
     backgroundColor: COLORS.bg2, // slight depth separation from content
   },
   menuBtn: { padding: 8 },
-  menuIcon: { fontSize: 20, color: COLORS.textMuted },
   logo: { fontSize: 15, fontWeight: 'bold', color: COLORS.text },
   screenLabel: { fontSize: 13, color: COLORS.textMuted },
 
