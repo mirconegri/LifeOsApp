@@ -11,4 +11,5 @@ npm-debug.*
 *.orig.*
 
 .claude/
+.omc/
 dist/
