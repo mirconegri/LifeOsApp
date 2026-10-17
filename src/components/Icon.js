@@ -20,6 +20,8 @@ const nameToPascal = {
   'flame': 'Flame',
   'plus': 'Plus',
   'trash-2': 'Trash2',
+  'download': 'Download',
+  'upload': 'Upload',
   'pencil': 'Pencil',
   'settings': 'Settings',
   'user': 'User',

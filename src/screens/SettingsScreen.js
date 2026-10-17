@@ -23,6 +23,9 @@ import { CustomAlert } from '../components/CustomAlert';
 import { COLORS } from '../config/colors';
 import { TYPE } from '../config/designSystem';
 import { MODULES } from '../config/modules';
+import {
+  exportToFile, pickBackupFile, applyBackup, clearAllData, summarize,
+} from '../data/backup';
 
 // Never hardcode a version here again — this reads the value Expo was
 // built with, so package.json and app.config.js stay the only sources.
@@ -34,9 +37,15 @@ export default function SettingsScreen({
   modules,
   moduleCounts,
   onToggleModule,
+  onDataChanged,
 }) {
   const insets = useSafeAreaInsets();
   const [alert, setAlert] = useState(null);
+  // One flag, one spinner-free guard: the buttons are cheap, double taps are not.
+  const [busy, setBusy] = useState(false);
+
+  const notify = (title, message) =>
+    setAlert({ title, message, buttons: [{ text: 'OK', onPress: () => setAlert(null) }] });
 
   // Turning a module off only hides it. Ask first when there is something to
   // hide, so the count is never a surprise; an empty module just switches.
@@ -59,6 +68,99 @@ export default function SettingsScreen({
           text: 'Hide',
           style: 'destructive',
           onPress: () => { onToggleModule(id, false); setAlert(null); },
+        },
+      ],
+    });
+  };
+
+  const runImport = async (data, mode) => {
+    setAlert(null);
+    setBusy(true);
+    try {
+      await applyBackup(data, mode);
+      if (onDataChanged) await onDataChanged();
+      notify('Import complete', 'Your data is on screen now.');
+    } catch (e) {
+      notify('Import failed', e.message);
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const handleExport = async () => {
+    setBusy(true);
+    try {
+      await exportToFile();
+    } catch (e) {
+      notify('Export failed', e.message);
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const handleImport = async () => {
+    setBusy(true);
+    try {
+      const picked = await pickBackupFile();
+      if (!picked) return; // file picker dismissed
+      const counts = summarize(picked.data);
+      const parts = [
+        [counts.tasks, 'task'], [counts.exams, 'exam'], [counts.transactions, 'transaction'],
+        [counts.groceries, 'grocery item'], [counts.goals, 'goal'],
+        [counts.notes, 'note'], [counts.links, 'link'],
+      ].filter(([n]) => n > 0).map(([n, word]) => `${n} ${word}${n === 1 ? '' : 's'}`);
+
+      setAlert({
+        title: 'Import this backup?',
+        message: parts.length ? `It contains ${parts.join(', ')}.` : 'It contains no items.',
+        buttons: [
+          { text: 'Cancel', style: 'cancel', onPress: () => setAlert(null) },
+          { text: 'Merge', onPress: () => runImport(picked.data, 'merge') },
+          { text: 'Replace', style: 'destructive', onPress: () => runImport(picked.data, 'replace') },
+        ],
+      });
+    } catch (e) {
+      notify('Import failed', e.message);
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  // Two steps on purpose: the first tells you what is about to go, the second
+  // gives you a chance to export first.
+  const handleDeleteAll = () => {
+    setAlert({
+      title: 'Delete everything?',
+      message: 'Every task, exam, note and transaction on this device will be erased. This cannot be undone.',
+      buttons: [
+        { text: 'Cancel', style: 'cancel', onPress: () => setAlert(null) },
+        {
+          text: 'Continue',
+          style: 'destructive',
+          onPress: () => setAlert({
+            title: 'Last chance',
+            message: 'Export a backup first if you might want this data again.',
+            buttons: [
+              { text: 'Cancel', style: 'cancel', onPress: () => setAlert(null) },
+              {
+                text: 'Delete all',
+                style: 'destructive',
+                onPress: async () => {
+                  setAlert(null);
+                  setBusy(true);
+                  try {
+                    await clearAllData();
+                    if (onDataChanged) await onDataChanged();
+                    notify('Deleted', 'Everything has been removed from this device.');
+                  } catch (e) {
+                    notify('Delete failed', e.message);
+                  } finally {
+                    setBusy(false);
+                  }
+                },
+              },
+            ],
+          }),
         },
       ],
     });
@@ -115,13 +217,45 @@ export default function SettingsScreen({
 
           <Text style={styles.sectionLabel}>Data</Text>
 
-          <View style={styles.row}>
-            <View style={styles.rowText}>
-              <Text style={styles.rowTitle}>Cloud sync</Text>
-              <Text style={styles.rowDesc}>
-                Not available yet — everything stays on this device
-              </Text>
-            </View>
+          <View style={styles.dataList}>
+            <TouchableOpacity
+              style={[styles.dataRow, styles.dataRowDivider]}
+              onPress={handleExport}
+              disabled={busy}
+              accessibilityLabel="Export data to a file"
+            >
+              <View style={styles.rowText}>
+                <Text style={styles.rowTitle}>Export data</Text>
+                <Text style={styles.rowDesc}>Save everything as a readable JSON file</Text>
+              </View>
+              <Icon name="download" size={18} color={COLORS.textMuted} />
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={[styles.dataRow, styles.dataRowDivider]}
+              onPress={handleImport}
+              disabled={busy}
+              accessibilityLabel="Import data from a file"
+            >
+              <View style={styles.rowText}>
+                <Text style={styles.rowTitle}>Import data</Text>
+                <Text style={styles.rowDesc}>Restore from a backup, merging or replacing</Text>
+              </View>
+              <Icon name="upload" size={18} color={COLORS.textMuted} />
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={styles.dataRow}
+              onPress={handleDeleteAll}
+              disabled={busy}
+              accessibilityLabel="Delete all data on this device"
+            >
+              <View style={styles.rowText}>
+                <Text style={[styles.rowTitle, { color: COLORS.red }]}>Delete all data</Text>
+                <Text style={styles.rowDesc}>Erase everything stored on this device</Text>
+              </View>
+              <Icon name="trash-2" size={18} color={COLORS.red} />
+            </TouchableOpacity>
           </View>
 
           <Text style={styles.sectionLabel}>About</Text>
@@ -169,6 +303,18 @@ const styles = StyleSheet.create({
     borderWidth: 1, borderColor: COLORS.border, borderRadius: 14,
     paddingHorizontal: 16, paddingVertical: 14,
   },
+
+  // Same card treatment as the module list: one block, hairline dividers.
+  dataList: {
+    backgroundColor: COLORS.bg2,
+    borderWidth: 1, borderColor: COLORS.border, borderRadius: 14,
+    paddingHorizontal: 16,
+  },
+  dataRow: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
+    paddingVertical: 14,
+  },
+  dataRowDivider: { borderBottomWidth: 1, borderBottomColor: COLORS.hairline },
 
   // One card holding every switch, so the list reads as a single control.
   moduleList: {

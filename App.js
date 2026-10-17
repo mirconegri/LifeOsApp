@@ -1,5 +1,5 @@
 // App.js — LifeOS root component
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import {
   View, Text, TouchableOpacity,
   ScrollView, StatusBar, Modal, StyleSheet, Platform,
@@ -144,62 +144,64 @@ function AppContent() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [drawerMounted]);
 
-  useEffect(() => {
-    (async () => {
-      const isFirst = await loadJSON('isFirstUse', true);
-      setIsFirstUse(isFirst);
-      setUserName(     await loadJSON('userName',      ''));
-      setCourse(       await loadJSON('course',        ''));
-      setTotalCredits( await loadJSON('totalCredits',  180));
-      setTipsShown(    await loadJSON('tipsShown',     []));
-      setExams(        await loadJSON('exams',         INIT_EXAMS));
-      setFinances(     await loadJSON('finances',      INIT_FINANCES));
-      setGroceries(    await loadJSON('groceries',     INIT_GROCERIES));
-      setGoals(        await loadJSON('goals',         INIT_GOALS));
-      setNotes(        await loadJSON('notes',         INIT_NOTES));
-      setLinks(        await loadJSON('links',         INIT_LINKS));
-      setHeatmap(      await loadJSON('heatmap',       {}));
-      setLogged(       await loadJSON('loggedSeconds', 0));
-      // First launch after this version: the old single University flag
-      // becomes the university module, everything else starts on.
-      const savedModules = await loadJSON('modules', null);
-      if (savedModules) {
-        setModules(normalizeModules(savedModules));
-      } else {
-        const migrated = { ...DEFAULT_MODULES, uni: await loadJSON('universityEnabled', true) };
-        setModules(migrated);
-        saveJSON('modules', migrated);
+  // Reads every key back into state. Runs on mount and again after an import
+  // or a full wipe, so the UI never has to be restarted to show new data.
+  const loadAllData = useCallback(async () => {
+    const isFirst = await loadJSON('isFirstUse', true);
+    setIsFirstUse(isFirst);
+    setUserName(     await loadJSON('userName',      ''));
+    setCourse(       await loadJSON('course',        ''));
+    setTotalCredits( await loadJSON('totalCredits',  180));
+    setTipsShown(    await loadJSON('tipsShown',     []));
+    setExams(        await loadJSON('exams',         INIT_EXAMS));
+    setFinances(     await loadJSON('finances',      INIT_FINANCES));
+    setGroceries(    await loadJSON('groceries',     INIT_GROCERIES));
+    setGoals(        await loadJSON('goals',         INIT_GOALS));
+    setNotes(        await loadJSON('notes',         INIT_NOTES));
+    setLinks(        await loadJSON('links',         INIT_LINKS));
+    setHeatmap(      await loadJSON('heatmap',       {}));
+    setLogged(       await loadJSON('loggedSeconds', 0));
+    // First launch after this version: the old single University flag
+    // becomes the university module, everything else starts on.
+    const savedModules = await loadJSON('modules', null);
+    if (savedModules) {
+      setModules(normalizeModules(savedModules));
+    } else {
+      const migrated = { ...DEFAULT_MODULES, uni: await loadJSON('universityEnabled', true) };
+      setModules(migrated);
+      saveJSON('modules', migrated);
+    }
+
+    let loadedJournal = await loadJSON('journal', INIT_JOURNAL);
+
+    const habitsMigrated = await loadJSON('habitsMigrated', false);
+    if (!habitsMigrated) {
+      const oldHabits = await loadJSON('habits', []);
+      if (oldHabits.length > 0) {
+        const existingIds = new Set(loadedJournal.map(j => j.id));
+        let nextId = Math.max(0, ...loadedJournal.map(j => j.id || 0), ...oldHabits.map(h => h.id || 0)) + 1;
+        const migrated = oldHabits.map(h => ({
+          id: existingIds.has(h.id) ? nextId++ : h.id,
+          text: h.name,
+          icon: h.icon || '🌟',
+          recurring: true,
+          history: h.history || {},
+          streak: h.streak || 0,
+          date: null,
+          priority: 'medium',
+          done: false,
+        }));
+        loadedJournal = [...loadedJournal, ...migrated];
+        saveJSON('journal', loadedJournal);
       }
+      saveJSON('habitsMigrated', true);
+    }
+    setJournal(loadedJournal);
 
-      let loadedJournal = await loadJSON('journal', INIT_JOURNAL);
-
-      const habitsMigrated = await loadJSON('habitsMigrated', false);
-      if (!habitsMigrated) {
-        const oldHabits = await loadJSON('habits', []);
-        if (oldHabits.length > 0) {
-          const existingIds = new Set(loadedJournal.map(j => j.id));
-          let nextId = Math.max(0, ...loadedJournal.map(j => j.id || 0), ...oldHabits.map(h => h.id || 0)) + 1;
-          const migrated = oldHabits.map(h => ({
-            id: existingIds.has(h.id) ? nextId++ : h.id,
-            text: h.name,
-            icon: h.icon || '🌟',
-            recurring: true,
-            history: h.history || {},
-            streak: h.streak || 0,
-            date: null,
-            priority: 'medium',
-            done: false,
-          }));
-          loadedJournal = [...loadedJournal, ...migrated];
-          saveJSON('journal', loadedJournal);
-        }
-        saveJSON('habitsMigrated', true);
-      }
-      setJournal(loadedJournal);
-
-      setReady(true);
-    })();
+    setReady(true);
   }, []);
+
+  useEffect(() => { loadAllData(); }, [loadAllData]);
 
   useEffect(() => {
     if (timerRunning) {
@@ -462,6 +464,7 @@ function AppContent() {
         modules={modules}
         moduleCounts={moduleCounts}
         onToggleModule={toggleModule}
+        onDataChanged={loadAllData}
       />
     </View>
   );
