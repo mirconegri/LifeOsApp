@@ -65,6 +65,8 @@ const SPRING       = { damping: 20, stiffness: 300, mass: 0.8 };
 // Auto-scroll bands. The top band starts below the app's 52px top bar so a
 // row is never dragged under the header; the bottom band clears the tab
 // strip plus the gesture bar.
+// Read once: worklets can't call Dimensions.get, and the app is portrait-locked.
+const WINDOW_H    = Dimensions.get('window').height;
 const EDGE_TOP    = 110;
 const EDGE_BOTTOM = 160;
 const SCROLL_TICK = 16;     // ms — one scroll step per frame
@@ -187,6 +189,7 @@ function DraggableItem({
 
   function startAutoScroll() {
     clearInterval(autoScrollTimer.current);
+    if (!scrollRef || !scrollRef.current) return; // no parent ScrollView, no auto-scroll
     lastScrollY.current = scrollYRef ? scrollYRef.current : 0;
     autoScrollTimer.current = setInterval(autoScrollTick, SCROLL_TICK);
   }
@@ -215,7 +218,7 @@ function DraggableItem({
       dragActive.value = withTiming(1, { duration: IDLE_MS });
       runOnJS(onDragStart)(itemKey);
       runOnJS(hapticPickup)();
-      if (scrollRef) runOnJS(startAutoScroll)();
+      runOnJS(startAutoScroll)(); // ref-free call: refs can't cross into the worklet
     })
     .onUpdate((event) => {
       if (!armed.value) return;
@@ -223,13 +226,12 @@ function DraggableItem({
 
       // Edge proximity → scroll speed. Proportional, so the row creeps near
       // the band edge and runs at the very edge, like the native lists.
-      const windowH = Dimensions.get('window').height;
       let velocity = 0;
       if (event.absoluteY < EDGE_TOP) {
         const depth = (EDGE_TOP - event.absoluteY) / EDGE_TOP;
         velocity = -Math.round(MAX_STEP * Math.min(1, depth));
-      } else if (event.absoluteY > windowH - EDGE_BOTTOM) {
-        const depth = (event.absoluteY - (windowH - EDGE_BOTTOM)) / EDGE_BOTTOM;
+      } else if (event.absoluteY > WINDOW_H - EDGE_BOTTOM) {
+        const depth = (event.absoluteY - (WINDOW_H - EDGE_BOTTOM)) / EDGE_BOTTOM;
         velocity = Math.round(MAX_STEP * Math.min(1, depth));
       }
       edgeVelocity.value = velocity;
@@ -262,12 +264,12 @@ function DraggableItem({
       dragActive.value = withTiming(0, { duration: IDLE_MS });
       runOnJS(hapticDrop)();
       runOnJS(onDragEnd)(itemKey);
-      if (scrollRef) runOnJS(stopAutoScroll)();
+      runOnJS(stopAutoScroll)();
     })
     // Covers the cancelled case too, where onEnd never fires: a timer left
     // running would keep scrolling the list forever.
     .onFinalize(() => {
-      if (scrollRef) runOnJS(stopAutoScroll)();
+      runOnJS(stopAutoScroll)();
     });
 
   return (
