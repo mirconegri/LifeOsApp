@@ -51,8 +51,11 @@ function SectionHeader({ title, onPress }) {
 export default function HomeScreen({
   exams, tasks, finances, heatmap, links,
   userName, course, isFirstUse, tipsShown, onDismissTip,
-  onNavigate,
+  onNavigate, modules = {},
 }) {
+  // A section whose module is switched off simply has nothing to render —
+  // the same path an empty "Next Target" already takes.
+  const on = (id) => modules[id] !== false;
   const today    = todayKey();
   const dateLabel = new Date().toLocaleDateString('en-US', { weekday: 'long', day: 'numeric', month: 'long' });
 
@@ -137,7 +140,7 @@ export default function HomeScreen({
   // no upcoming exam, exactly like before, it just also participates in
   // the reordering when it IS present.
   const sectionRenderers = {
-    nextTarget: nextExam ? (
+    nextTarget: nextExam && on('uni') ? (
       <View>
         <SectionHeader title="Next Target" onPress={() => go('uni')} />
         <TouchableOpacity onPress={() => go('uni')} activeOpacity={0.8}>
@@ -152,7 +155,7 @@ export default function HomeScreen({
       </View>
     ) : null,
 
-    todaysTasks: (
+    todaysTasks: on('journal') ? (
       <View>
         <SectionHeader title="Tasks" onPress={() => go('journal')} />
         {homeTasks.length === 0 ? (
@@ -200,9 +203,9 @@ export default function HomeScreen({
           </Card>
         )}
       </View>
-    ),
+    ) : null,
 
-    quickLinks: (
+    quickLinks: on('links') ? (
       <View>
         <SectionHeader title="Quick Links" onPress={() => go('links')} />
         <View style={styles.linkGrid}>
@@ -218,7 +221,7 @@ export default function HomeScreen({
           )}
         </View>
       </View>
-    ),
+    ) : null,
   };
 
   // Build the draggable items list from the persisted order, skipping any
@@ -276,15 +279,21 @@ export default function HomeScreen({
         {/* Dashboard Grid — fixed stats, not reorderable */}
         <Text style={styles.sectionTitle}>Dashboard</Text>
         <View style={styles.statsGrid}>
-          <View style={styles.statGridItem}>
-            <StatCard label="Tasks Done" value={`${completedTasks}/${totalTasks}`} color={COLORS.green} trend="up" />
-          </View>
-          <View style={styles.statGridItem}>
-            <StatCard label="Balance" value={`€${fmt(currentBalance)}`} color={currentBalance >= 0 ? COLORS.accent : COLORS.red} trend={currentBalance > 0 ? 'up' : currentBalance < 0 ? 'down' : 'flat'} />
-          </View>
-          <View style={styles.statGridItem}>
-            <StatCard label="Avg Grade" value={average ? average.toFixed(1) : '-'} color={COLORS.amber} trend={average ? (average > 27 ? 'up' : average > 24 ? 'flat' : 'down') : 'flat'} />
-          </View>
+          {on('journal') && (
+            <View style={styles.statGridItem}>
+              <StatCard label="Tasks Done" value={`${completedTasks}/${totalTasks}`} color={COLORS.green} trend="up" />
+            </View>
+          )}
+          {on('finances') && (
+            <View style={styles.statGridItem}>
+              <StatCard label="Balance" value={`€${fmt(currentBalance)}`} color={currentBalance >= 0 ? COLORS.accent : COLORS.red} trend={currentBalance > 0 ? 'up' : currentBalance < 0 ? 'down' : 'flat'} />
+            </View>
+          )}
+          {on('uni') && (
+            <View style={styles.statGridItem}>
+              <StatCard label="Avg Grade" value={average ? average.toFixed(1) : '-'} color={COLORS.amber} trend={average ? (average > 27 ? 'up' : average > 24 ? 'flat' : 'down') : 'flat'} />
+            </View>
+          )}
           <View style={styles.statGridItem}>
             <StatCard label="Study Days" value={Object.keys(heatmap).length} color={COLORS.text} trend="up" />
           </View>

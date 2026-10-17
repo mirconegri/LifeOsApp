@@ -12,6 +12,7 @@ import { COLORS } from './src/config/colors';
 import { Icon } from './src/components/Icon';
 import { TYPE } from './src/config/designSystem';
 import { NAV } from './src/config/nav';
+import { MODULES, DEFAULT_MODULES, normalizeModules } from './src/config/modules';
 import { todayKey } from './src/data/helpers';
 import { loadJSON, saveJSON } from './src/data/storage';
 import { FadeSlideIn } from './src/components/FadeSlideIn';
@@ -98,8 +99,9 @@ function AppContent() {
   // Settings is a modal, not a route: it is a leaf reachable from the
   // drawer and is never a navigation destination of its own.
   const [settingsVisible, setSettingsVisible] = useState(false);
-  // Defaults to true so an existing install keeps its University tab.
-  const [universityEnabled, setUniversityEnabled] = useState(true);
+  // One switch per optional section. Home and Stats are not in here: they
+  // are the frame, and they stay reachable whatever the user turns off.
+  const [modules, setModules] = useState(DEFAULT_MODULES);
 
   const openDrawer = () => {
     setDrawerMounted(true);
@@ -158,7 +160,16 @@ function AppContent() {
       setLinks(        await loadJSON('links',         INIT_LINKS));
       setHeatmap(      await loadJSON('heatmap',       {}));
       setLogged(       await loadJSON('loggedSeconds', 0));
-      setUniversityEnabled(await loadJSON('universityEnabled', true));
+      // First launch after this version: the old single University flag
+      // becomes the university module, everything else starts on.
+      const savedModules = await loadJSON('modules', null);
+      if (savedModules) {
+        setModules(normalizeModules(savedModules));
+      } else {
+        const migrated = { ...DEFAULT_MODULES, uni: await loadJSON('universityEnabled', true) };
+        setModules(migrated);
+        saveJSON('modules', migrated);
+      }
 
       let loadedJournal = await loadJSON('journal', INIT_JOURNAL);
 
@@ -242,18 +253,21 @@ function AppContent() {
     saveJSON('tipsShown', updated);
   };
 
-  // Only the flag is persisted. Exams and grades stay untouched on disk, so
-  // switching the module back on restores everything as it was.
-  const toggleUniversity = (enabled) => {
-    setUniversityEnabled(enabled);
-    saveJSON('universityEnabled', enabled);
+  // Only the flags are persisted: switching a module off never touches the
+  // data it owns, so switching it back on restores everything as it was.
+  const toggleModule = (id, enabled) => {
+    setModules((prev) => {
+      const next = { ...prev, [id]: enabled };
+      saveJSON('modules', next);
+      return next;
+    });
   };
 
-  // Switching the module off while the University screen is open would
-  // leave the app rendering a tab that no longer exists — fall back to Home.
+  // Switching a module off while its screen is open would leave the app
+  // rendering a tab that no longer exists — fall back to Home.
   useEffect(() => {
-    if (!universityEnabled && screen === 'uni') setScreen('home');
-  }, [universityEnabled, screen]);
+    if (modules[screen] === false) setScreen('home');
+  }, [modules, screen]);
 
   const pExams      = usePersist('exams',      setExams);
   const pFinances   = usePersist('finances',   setFinances);
@@ -310,7 +324,7 @@ function AppContent() {
         finances={finances} heatmap={heatmap} links={links}
         userName={userName} course={course} isFirstUse={isFirstUse}
         tipsShown={tipsShown} onDismissTip={dismissTip}
-        onNavigate={navigateTo}
+        onNavigate={navigateTo} modules={modules}
         {...timerProps}
       />
     ),
@@ -323,16 +337,27 @@ function AppContent() {
     journal:   <JournalScreen   journal={journal}     setJournal={pJournal}    />,
     stats:     <StatsScreen
                  exams={exams} journal={journal} heatmap={heatmap}
-                 finances={finances}
+                 finances={finances} modules={modules}
                  loggedSeconds={loggedSeconds + timerSec}
                />,
   };
 
-  // One place decides whether the university section is reachable; the
-  // drawer and the bottom tab strip both read from it.
-  const visibleNav     = universityEnabled ? NAV : NAV.filter((n) => n.id !== 'uni');
+  // One place decides which sections are reachable; the drawer and the
+  // bottom tab strip both read from it. Home and Stats are never in MODULES,
+  // so they always survive the filter.
+  const visibleNav     = NAV.filter((n) => modules[n.id] !== false);
   const bottomNavItems = visibleNav.filter((n) => n.bottomNav);
+  // A single tab is not a tab strip: the drawer still reaches everything.
+  const showBottomNav  = bottomNavItems.length > 1;
   const currentNav     = NAV.find((n) => n.id === screen);
+
+  // Counts shown in the switch-off confirmation, so the user can see how
+  // much data is being hidden before agreeing to it.
+  const moduleData = { uni: exams, journal, finances, groceries, goals, notes, links };
+  const moduleCounts = MODULES.reduce((acc, m) => {
+    acc[m.id] = (moduleData[m.id] || []).length;
+    return acc;
+  }, {});
 
   return (
     // Plain View instead of SafeAreaView: we manage insets explicitly via
@@ -406,7 +431,7 @@ function AppContent() {
           paddingBottom = insets.bottom (system nav bar / home indicator) + 8
           base visual padding. Without this, on Android with 3-button nav
           (e.g. Galaxy A34) the tab strip renders behind the system buttons. */}
-      <View style={[styles.bottomNav, { paddingBottom: insets.bottom + 8 }]}>
+      {showBottomNav && <View style={[styles.bottomNav, { paddingBottom: insets.bottom + 8 }]}>
         {bottomNavItems.map((n) => (
           <TouchableOpacity
             key={n.id}
@@ -429,13 +454,14 @@ function AppContent() {
             </Text>
           </TouchableOpacity>
         ))}
-      </View>
+      </View>}
 
       <SettingsScreen
         visible={settingsVisible}
         onClose={() => setSettingsVisible(false)}
-        universityEnabled={universityEnabled}
-        onToggleUniversity={toggleUniversity}
+        modules={modules}
+        moduleCounts={moduleCounts}
+        onToggleModule={toggleModule}
       />
     </View>
   );

@@ -12,7 +12,10 @@ import { calculateAverages, predictedDegreeGrade, localDateKey, gradeWeight } fr
 
 const WEEKDAY_SHORT = ['S', 'M', 'T', 'W', 'T', 'F', 'S'];
 
-export default function StatsScreen({ exams, journal, heatmap, finances = [] }) {
+export default function StatsScreen({ exams, journal, heatmap, finances = [], modules = {} }) {
+  // Blocks tied to a module that is switched off are skipped, so Stats never
+  // shows numbers from a section the user has hidden.
+  const on = (id) => modules[id] !== false;
   const habits     = journal.filter(t => t.recurring);
   const oneTimeTasks = journal.filter(t => !t.recurring);
 
@@ -93,35 +96,45 @@ export default function StatsScreen({ exams, journal, heatmap, finances = [] }) 
       {/* ─── General Overview ─── */}
       <Text style={styles.sectionTitle}>General Overview</Text>
       <View style={styles.gridRow}>
-        <View style={styles.gridCol}>
-          <StatCard label="Completed Tasks" value={completedTasks} color={COLORS.green} />
-        </View>
-        <View style={styles.gridCol}>
-          <StatCard label="Passed Exams" value={`${passedExams}/${exams.length}`} color={COLORS.accent} />
-        </View>
+        {on('journal') && (
+          <View style={styles.gridCol}>
+            <StatCard label="Completed Tasks" value={completedTasks} color={COLORS.green} />
+          </View>
+        )}
+        {on('uni') && (
+          <View style={styles.gridCol}>
+            <StatCard label="Passed Exams" value={`${passedExams}/${exams.length}`} color={COLORS.accent} />
+          </View>
+        )}
       </View>
 
       <View style={styles.gridRow}>
-        <View style={styles.gridCol}>
-          <StatCard label="Best Streak" value={`${maxStreak}d`} color={COLORS.amber} />
-        </View>
+        {on('journal') && (
+          <View style={styles.gridCol}>
+            <StatCard label="Best Streak" value={`${maxStreak}d`} color={COLORS.amber} />
+          </View>
+        )}
         <View style={styles.gridCol}>
           <StatCard label="Study Days" value={studyDays} sub={`${studyHours}h total`} color={COLORS.text} />
         </View>
       </View>
 
       {/* ─── Task completion, last 7 days ─── */}
-      <Text style={styles.sectionTitle}>Tasks Completed — Last 7 Days</Text>
-      <Card style={styles.chartCard}>
-        {last7TaskData.every(d => d.value === 0) ? (
-          <Text style={styles.emptyChartText}>Complete a task to see your trend here.</Text>
-        ) : (
-          <BarChart data={last7TaskData} color={COLORS.accent} height={90} />
-        )}
-      </Card>
+      {on('journal') && (
+        <>
+          <Text style={styles.sectionTitle}>Tasks Completed — Last 7 Days</Text>
+          <Card style={styles.chartCard}>
+            {last7TaskData.every(d => d.value === 0) ? (
+              <Text style={styles.emptyChartText}>Complete a task to see your trend here.</Text>
+            ) : (
+              <BarChart data={last7TaskData} color={COLORS.accent} height={90} />
+            )}
+          </Card>
+        </>
+      )}
 
       {/* ─── Grade trend ─── */}
-      {gradeTrend.length > 0 && (
+      {on('uni') && gradeTrend.length > 0 && (
         <>
           <Text style={styles.sectionTitle}>Grade Trend — Recent Exams</Text>
           <Card style={styles.chartCard}>
@@ -132,6 +145,8 @@ export default function StatsScreen({ exams, journal, heatmap, finances = [] }) 
       )}
 
       {/* ─── University & Predictions ─── */}
+      {on('uni') && (
+        <>
       <Text style={styles.sectionTitle}>University & Predictions</Text>
       <Card style={styles.missionCard}>
         <View style={styles.missionItem}>
@@ -158,9 +173,11 @@ export default function StatsScreen({ exams, journal, heatmap, finances = [] }) 
           <ProgressBar pct={graduationPct} color={COLORS.green} />
         </View>
       </Card>
+        </>
+      )}
 
       {/* ─── Spending by category ─── */}
-      {spendByCategory.length > 0 && (
+      {on('finances') && spendByCategory.length > 0 && (
         <>
           <Text style={styles.sectionTitle}>Spending — Last 30 Days</Text>
           <Card style={styles.chartCard}>
@@ -174,7 +191,7 @@ export default function StatsScreen({ exams, journal, heatmap, finances = [] }) 
       )}
 
       {/* ─── Habit leaderboard ─── */}
-      {habitLeaderboard.length > 0 && (
+      {on('journal') && habitLeaderboard.length > 0 && (
         <>
           <Text style={styles.sectionTitle}>Habit Streaks</Text>
           <Card style={styles.leaderboardCard}>
