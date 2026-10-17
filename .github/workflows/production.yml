@@ -5,20 +5,69 @@ on:
     tags:
       - 'v*'
 
+permissions:
+  contents: write
+
 jobs:
   build:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+
       - uses: actions/setup-node@v4
         with:
           node-version: 24
           cache: npm
-      - uses: expo/expo-github-action@v8
+
+      - name: Verify EXPO_TOKEN
+        run: |
+          if [ -z "${{ secrets.EXPO_TOKEN }}" ]; then
+            echo "::error::EXPO_TOKEN secret is not set. Add it in Settings → Secrets → Actions."
+            exit 1
+          fi
+
+      - name: Setup EAS
+        uses: expo/expo-github-action@v8
         with:
           eas-version: latest
           token: ${{ secrets.EXPO_TOKEN }}
-      - run: npm ci
-      - run: eas build --platform android --profile production --non-interactive --no-wait
-      # Submit automatico alle store, da abilitare quando serve:
-      # - run: eas submit --platform android --profile production --non-interactive
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build Android (production)
+        run: |
+          eas build --platform android --profile production --non-interactive --json > build.json
+          cat build.json
+
+      - name: Extract artifact URL
+        id: artifact
+        run: |
+          URL=$(jq -r '.[0].artifacts.buildUrl // empty' build.json)
+          if [ -z "$URL" ]; then
+            echo "::error::Could not extract artifact URL from build.json"
+            cat build.json
+            exit 1
+          fi
+          echo "url=$URL" >> "$GITHUB_OUTPUT"
+          echo "Artifact: $URL"
+
+      - name: Download APK
+        run: |
+          curl -L --fail "${{ steps.artifact.outputs.url }}" -o "lifeos-${{ github.ref_name }}.apk"
+          ls -lh "lifeos-${{ github.ref_name }}.apk"
+          sha256sum "lifeos-${{ github.ref_name }}.apk"
+
+      - name: Create / update GitHub Release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          TAG="${{ github.ref_name }}"
+          FILE="lifeos-${TAG}.apk"
+          if gh release view "$TAG" >/dev/null 2>&1; then
+            gh release upload "$TAG" "$FILE" --clobber
+          else
+            gh release create "$TAG" "$FILE" \
+              --title "LifeOS $TAG" \
+              --generate-notes
+          fi
