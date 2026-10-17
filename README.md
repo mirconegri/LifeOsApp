@@ -282,8 +282,8 @@ The following are explicitly planned and not yet implemented. Play Store publica
 
 1. **Migrate global state to Zustand** — remove the 11+ state pieces from `App.js` to eliminate full-tree re-renders on every update
 2. **Adopt React Navigation** (Bottom Tabs + Drawer) — replaces the hand-rolled `useState` navigator and fixes the Android back-button issue
-3. **Migrate from AsyncStorage to `expo-sqlite`** — enables relational queries and a JSON export / cloud backup option
-4. **Google Sign-In with cloud sync** — Firebase or Supabase under evaluation; both offer a free tier sufficient for current data volumes
+3. **Migrate from AsyncStorage to `expo-sqlite`** — enables relational queries at scale; JSON export and import already ship in Settings
+4. **Encrypted backups** — the export is plain JSON by design; a password-protected variant would need a key derivation step
 5. **Home screen widgets** — quick-add expense, quick-add task, and university status at a glance without opening the app
 6. **Ad banners** — once the architecture items above are stable
 
@@ -291,6 +291,7 @@ The following are explicitly planned and not yet implemented. Play Store publica
 
 | Version | Date | Highlights |
 |---|---|---|
+| `v1.1.0` | Oct 2026 | Local-first release: Firebase and all cloud sign-in removed, every optional section can be switched off without touching its data, and all data exports to and imports from a readable JSON file |
 | `v1.7` | Jul 2026 | Drag-to-reorder and Grade Simulator fixes (in progress); drawer safe-area padding adjustments |
 | `v1.6` | Jun 2026 | Left-side drawer redesign, full English localization, per-screen Clear All action, black splash screen, Study Heatmap removed from Stats |
 | `v1.5` | Jun 2026 | Pre-seeded demo data, onboarding credit/year presets with custom Other option, architecture audit — React Navigation / SQLite / cloud-sync roadmap defined |
