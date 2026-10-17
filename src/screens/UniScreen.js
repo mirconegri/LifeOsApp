@@ -430,11 +430,17 @@ export default function UniScreen({ exams, setExams, totalCredits }) {
         )}
       </ScrollView>
 
-      {/* ─── Add / Edit Modal — full screen, opaque ─── */}
+      {/* ─── Add / Edit Modal — full screen, opaque ───
+          statusBar/navigationBarTranslucent keep the modal's own window
+          under the system bars. Without them Android sizes that window
+          above the navigation bar, and the strip left uncovered is what
+          flashed white while the sheet slid in. */}
       <Modal
         visible={modalVisible}
         animationType="slide"
         transparent={false}
+        statusBarTranslucent
+        navigationBarTranslucent
         onRequestClose={closeModal}
       >
         <KeyboardAvoidingView

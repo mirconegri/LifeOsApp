@@ -186,7 +186,17 @@ export default function LinksScreen({ links, setLinks }) {
       </ScrollView>
 
       {/* Add / Edit Modal */}
-      <Modal visible={modalVisible} animationType="slide" transparent={false} onRequestClose={closeModal}>
+      {/* Edge-to-edge: without these the modal's own window stops at the
+          system bars and the strip left uncovered flashes white as the
+          sheet slides in. */}
+      <Modal
+        visible={modalVisible}
+        animationType="slide"
+        transparent={false}
+        statusBarTranslucent
+        navigationBarTranslucent
+        onRequestClose={closeModal}
+      >
         <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={styles.modalRoot} keyboardVerticalOffset={0} enabled={true}>
           <View style={[styles.modalHeader, { paddingTop: insets.top + 16 }]}>
             <TouchableOpacity onPress={closeModal}><Text style={styles.modalCancelText}>Cancel</Text></TouchableOpacity>

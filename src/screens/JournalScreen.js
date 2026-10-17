@@ -428,7 +428,17 @@ export default function JournalScreen({ journal, setJournal }) {
       {/* ── Full edit modal — used for habits (icon, recurring) and for
           editing details of an existing task that the composer doesn't
           cover. ── */}
-      <Modal visible={editModalVisible} animationType="slide" transparent={false} onRequestClose={closeEditModal}>
+      {/* Edge-to-edge: without these the modal's own window stops at the
+          system bars and the strip left uncovered flashes white as the
+          sheet slides in. */}
+      <Modal
+        visible={editModalVisible}
+        animationType="slide"
+        transparent={false}
+        statusBarTranslucent
+        navigationBarTranslucent
+        onRequestClose={closeEditModal}
+      >
         <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={styles.modalRoot} keyboardVerticalOffset={0} enabled={true}>
           <View style={[styles.modalHeader, { paddingTop: insets.top + 16 }]}>
             <TouchableOpacity onPress={closeEditModal}><Text style={styles.modalCancelText}>Cancel</Text></TouchableOpacity>
