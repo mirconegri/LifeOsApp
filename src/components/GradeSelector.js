@@ -32,7 +32,18 @@
 // you're after often falls back into that visible window, which is why
 // it looked like "works once you start typing." Fixed by making the
 // dropdown's contents an actual ScrollView instead of a clipped View.
-import React, { useState, useRef } from 'react';
+//
+// ── Fix #3: backspace left the field unable to accept any further digit ─
+// The TextInput was fed from TWO different places: `query` while focused,
+// and the committed value's display string while not. One native buffer,
+// two writers — and editing an already-committed grade ran them out of
+// step, because backspacing calls onChange(null) while the buffer still
+// holds the truncated text. From then on React's idea of the text and the
+// buffer's disagreed, so the next keystroke was either swallowed or
+// reverted on the following render. There is now a single `text` state
+// that owns the field: while the user is typing it is theirs, and the
+// moment they leave it re-syncs to whatever the parent committed.
+import React, { useState, useRef, useEffect } from 'react';
 import {
   View, Text, TextInput, TouchableOpacity, ScrollView, StyleSheet,
 } from 'react-native';
@@ -45,6 +56,9 @@ const ALL_GRADES = [
   { label: '30L', value: 31 },
 ];
 
+const BLUR_DELAY = 150;  // lets a dropdown tap win the race — see Fix #1
+const SELECT_HOLD = 200; // keeps the tapped row highlighted before closing
+
 function gradeToDisplay(val) {
   if (val === null || val === undefined || val === '') return '';
   if (val === 31) return '30L';
@@ -52,52 +66,51 @@ function gradeToDisplay(val) {
 }
 
 export function GradeSelector({ value, onChange, placeholder = 'Grade (18–30L)', label }) {
-  const [query, setQuery] = useState('');
+  const [text, setText] = useState(() => gradeToDisplay(value));
   const [focused, setFocused] = useState(false);
   const blurTimer = useRef(null);
 
-  const displayValue = gradeToDisplay(value);
+  // While the user is typing the field belongs to them; the moment they
+  // leave, it mirrors whatever the parent committed. This is what keeps the
+  // buffer and the state from drifting apart — see Fix #3.
+  useEffect(() => {
+    if (!focused) setText(gradeToDisplay(value));
+  }, [value, focused]);
 
-  // When focused: show filtered options based on query
-  // When not focused: show the selected value
-  const filtered = ALL_GRADES.filter(g =>
-    g.label.startsWith(query)
-  );
+  // When focused: show filtered options based on what has been typed
+  const filtered = ALL_GRADES.filter(g => g.label.startsWith(text));
 
   function tryAutoCommit() {
-    const exactMatch = ALL_GRADES.find(g => g.label === query);
-    if (exactMatch) {
-      onChange(exactMatch.value);
-    }
+    const exactMatch = ALL_GRADES.find(g => g.label === text);
+    if (exactMatch) onChange(exactMatch.value);
   }
 
   function handleSelect(grade) {
     clearTimeout(blurTimer.current);
     onChange(grade.value);
-    setQuery(grade.label);
-    // 200ms delay: mostra opzione evidenziata, poi chiude dropdown
-    blurTimer.current = setTimeout(() => setFocused(false), 200);
+    setText(grade.label);
+    blurTimer.current = setTimeout(() => setFocused(false), SELECT_HOLD);
   }
 
   function handleClear() {
     onChange(null);
-    setQuery('');
+    setText('');
   }
 
-  function handleChangeText(text) {
-    const clean = text.replace(/[^0-9Ll]/g, '').toUpperCase();
-    setQuery(clean);
+  function handleChangeText(next) {
+    const clean = next.replace(/[^0-9Ll]/g, '').toUpperCase();
+    setText(clean);
     if (clean === '') {
       onChange(null);
-    } else {
-      // Live match: digitando "25" committa subito, senza aspettare blur
-      const match = ALL_GRADES.find(g => g.label === clean);
-      if (match) {
-        onChange(match.value);
-      } else if (value != null && value !== '' && gradeToDisplay(value) !== clean) {
-        // Utente modifica da valore committato → lo rimuove
-        onChange(null);
-      }
+      return;
+    }
+    // Live match: digitando "25" committa subito, senza aspettare blur
+    const match = ALL_GRADES.find(g => g.label === clean);
+    if (match) {
+      onChange(match.value);
+    } else if (value != null && value !== '' && gradeToDisplay(value) !== clean) {
+      // Utente modifica da valore committato → lo rimuove
+      onChange(null);
     }
   }
 
@@ -111,13 +124,13 @@ export function GradeSelector({ value, onChange, placeholder = 'Grade (18–30L)
           style={styles.input}
           placeholder={placeholder}
           placeholderTextColor={COLORS.textSub}
-          value={focused ? query : displayValue}
+          value={text}
           onChangeText={handleChangeText}
           onFocus={() => {
             clearTimeout(blurTimer.current);
             setFocused(true);
             // Se c'è già un voto selezionato, mostralo nell'input
-            setQuery(value != null && value !== '' ? gradeToDisplay(value) : '');
+            setText(value != null && value !== '' ? gradeToDisplay(value) : '');
           }}
           onBlur={() => {
             tryAutoCommit();
@@ -126,7 +139,7 @@ export function GradeSelector({ value, onChange, placeholder = 'Grade (18–30L)
             // run and call handleSelect — which cancels this timer — before
             // the dropdown unmounts itself. See file header for the bug
             // this fixes.
-            blurTimer.current = setTimeout(() => setFocused(false), 150);
+            blurTimer.current = setTimeout(() => setFocused(false), BLUR_DELAY);
           }}
           onSubmitEditing={tryAutoCommit}
           keyboardType="default"
