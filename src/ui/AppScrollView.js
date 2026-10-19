@@ -22,6 +22,7 @@
 // for discrete work; continuous values belong in shared values.
 
 import React, { useCallback, useLayoutEffect, useRef } from 'react';
+import { StyleSheet } from 'react-native';
 import Animated from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
@@ -70,18 +71,24 @@ export const AppScrollView = React.forwardRef(function AppScrollView({
     resetScroll();
   }, [resetScroll]);
 
+  // The caller's content padding is preserved and the nav reservation is
+  // ADDED to it. Merging [insetStyle, callerStyle] instead would let a
+  // caller's paddingBottom override the reservation and tuck the last row
+  // under the floating nav (this bit Finances/Stats/Uni/Notes/Links/Journal).
+  const callerInsets = StyleSheet.flatten(contentContainerStyle) || {};
   const insetStyle = {
-    paddingTop: topInset ? insets.top + TOP_GAP : 0,
+    paddingTop: topInset ? insets.top + TOP_GAP : callerInsets.paddingTop,
     paddingBottom: bottomInset
-      ? NAV_RESERVATION + NAV_GAP + insets.bottom + SCREEN_BOTTOM_GAP
-      : 0,
+      ? (callerInsets.paddingBottom || 0)
+        + NAV_RESERVATION + NAV_GAP + insets.bottom + SCREEN_BOTTOM_GAP
+      : callerInsets.paddingBottom,
   };
 
   return (
     <Animated.ScrollView
       ref={ref}
       style={style}
-      contentContainerStyle={[insetStyle, contentContainerStyle]}
+      contentContainerStyle={[contentContainerStyle, insetStyle]}
       onScroll={scrollHandler}
       scrollEventThrottle={scrollEventThrottle}
       horizontal={horizontal}
