@@ -8,6 +8,14 @@ import {
 import { SafeAreaProvider, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 
+import {
+  useFonts,
+  SpaceGrotesk_400Regular,
+  SpaceGrotesk_500Medium,
+  SpaceGrotesk_600SemiBold,
+  SpaceGrotesk_700Bold,
+} from '@expo-google-fonts/space-grotesk';
+
 import { COLORS } from './src/config/colors';
 import { Icon } from './src/components/Icon';
 import { TYPE } from './src/config/designSystem';
@@ -67,6 +75,17 @@ function AppContent() {
   // insets.top  = status bar height (Android) / notch (iOS)
   // insets.bottom = system nav bar height (Android 3-button/gesture) / home indicator (iOS)
   const insets = useSafeAreaInsets();
+
+  // Fonts are loaded before the first frame. The storage `ready` gate below
+  // is reused for this, so there is never a flash of the system font.
+  // If the font module fails (unexpected asset error), `fontError` lets the
+  // app render anyway instead of hanging on the blank gate forever.
+  const [fontsLoaded, fontError] = useFonts({
+    SpaceGrotesk_400Regular,
+    SpaceGrotesk_500Medium,
+    SpaceGrotesk_600SemiBold,
+    SpaceGrotesk_700Bold,
+  });
 
   const [screen, setScreen]         = useState('home');
   const [ready, setReady]           = useState(false);
@@ -305,7 +324,7 @@ function AppContent() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [screen]);
 
-  if (!ready) {
+  if (!ready || (!fontsLoaded && !fontError)) {
     return (
       <View style={{ flex: 1, backgroundColor: COLORS.bg }}>
         <StatusBar barStyle="light-content" backgroundColor={COLORS.bg} />
