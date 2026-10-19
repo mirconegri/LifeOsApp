@@ -2,21 +2,30 @@
 import React, { useState } from 'react';
 import {
   View, Text, ScrollView, StyleSheet, TextInput,
-  TouchableOpacity, KeyboardAvoidingView, Platform, Modal,
+  KeyboardAvoidingView, Platform, Modal,
 } from 'react-native';
-import { COLORS } from '../config/colors';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+
+import { M3, MODULE_TONES } from '../config/colors';
+import { SHAPE, SPACING } from '../config/designSystem';
+import { TEXT } from '../ui/type';
 import { AppScrollView } from '../ui/AppScrollView';
+import { ScreenHeader } from '../ui/ScreenHeader';
+import { StatRow } from '../ui/StatRow';
+import { GroupItem } from '../ui/GroupItem';
+import { Chip } from '../ui/Chip';
+import { CtaButton } from '../ui/CtaButton';
+import { IconButton } from '../ui/IconButton';
+import { SpringPressable } from '../ui/SpringPressable';
+import { WavyProgress } from '../ui/WavyProgress';
+import { EmptyState } from '../ui/EmptyState';
 import { Card } from '../components/Card';
 import { Pill } from '../components/Pill';
-import { ProgressBar } from '../components/ProgressBar';
-import { StatCard } from '../components/StatCard';
 import { CustomAlert } from '../components/CustomAlert';
 import { DatePicker } from '../components/DatePicker';
-import { Icon } from '../components/Icon';
 import { GradeSelector } from '../components/GradeSelector';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import {
-  calculateAverages, predictedDegreeGrade as calcPredictedGrade, diffDays,
+  predictedDegreeGrade as calcPredictedGrade, diffDays,
   gradeWeight, gradeLabel,
 } from '../data/helpers';
 
@@ -33,6 +42,13 @@ function statusColor(s) {
   if (s === 'passed')    return 'green';
   if (s === 'preparing') return 'accent';
   return 'muted';
+}
+
+// Module tone for the leading icon tile of an exam row.
+function examTone(s) {
+  if (s === 'passed')    return MODULE_TONES.journal;
+  if (s === 'preparing') return MODULE_TONES.uni;
+  return { container: M3.surfaceContainerHighest, on: M3.onSurfaceVariant };
 }
 
 function gradeDisplay(val) {
@@ -116,6 +132,12 @@ export default function UniScreen({ exams, setExams, totalCredits }) {
 
   const thisYear     = new Date().getFullYear();
   const passedThisYear = passedExams.filter(e => e.date && e.date.startsWith(String(thisYear)));
+
+  // Preparing first, then to start, then passed. Same order as before.
+  const statusOrder = { preparing: 0, 'to start': 1, passed: 2 };
+  const sortedExams = [...exams].sort(
+    (a, b) => (statusOrder[a.status] ?? 3) - (statusOrder[b.status] ?? 3),
+  );
 
   // ── Simulator projection ──────────────────────────────────────────────────
   // Fixed: gradeToNumber/gradeWeight never returns NaN anymore, so a
@@ -256,51 +278,58 @@ export default function UniScreen({ exams, setExams, totalCredits }) {
       {/* Screen-level scroll: AppScrollView reserves the status bar and the
           floating nav, and keeps keyboardShouldPersistTaps="always" so the
           first tap on GradeSelector's dropdown registers. */}
-      <AppScrollView contentContainerStyle={styles.scrollContent}>
+      <AppScrollView contentContainerStyle={styles.content}>
 
-        {/* ─── Stat Grid ─── */}
-        <View style={{flexDirection:'row', alignItems:'center', gap:6, marginTop:10, marginBottom:10}}><Icon name="bar-chart-3" size={14} color={COLORS.textMuted} /><Text style={styles.sectionTitle}> Overview</Text></View>
-        <View style={styles.statsGrid}>
-          <View style={styles.gridItem}>
-            <StatCard label="Credits Earned" value={`${cfuAcquired}/${totalCredits}`} color={COLORS.accent} />
-          </View>
-          <View style={styles.gridItem}>
-            <StatCard label="Passed This Year" value={passedThisYear.length} color={COLORS.green} />
-          </View>
-          <View style={styles.gridItem}>
-            <StatCard label="Arithmetic Avg" value={average ? average.toFixed(2) : '-'} color={COLORS.text} />
-          </View>
-          <View style={styles.gridItem}>
-            <StatCard label="Weighted Avg" value={weightedAverage ? weightedAverage.toFixed(2) : '-'} color={COLORS.amber} />
-          </View>
-          {hasExpected && (
-            <>
-              <View style={styles.gridItem}>
-                <StatCard label="Arith. Avg (proj.)" value={avgWithExpected ? avgWithExpected.toFixed(2) : '-'} color={COLORS.textMuted} />
-              </View>
-              <View style={styles.gridItem}>
-                <StatCard label="Weighted (proj.)" value={wavgWithExpected ? wavgWithExpected.toFixed(2) : '-'} color={COLORS.textMuted} />
-              </View>
-            </>
-          )}
-          <View style={[styles.gridItem, { width: '100%' }]}>
-            <StatCard label="Est. Degree Grade" value={predictedGrade ? `${predictedGrade}/110` : '-'} color={COLORS.green} />
-          </View>
-        </View>
+        <ScreenHeader
+          title="University"
+          subtitle={`${exams.length} exam${exams.length === 1 ? '' : 's'} · ${passedExams.length} passed`}
+          style={styles.headerFlush}
+        />
 
-        {/* ─── Credits Progress ─── */}
-        <View style={styles.creditBar}>
-          <View style={styles.creditBarHeader}>
-            <Text style={styles.creditLabel}>CREDITS PROGRESS</Text>
-            <Text style={styles.creditValue}>{cfuAcquired} / {totalCredits || '?'}</Text>
+        {/* ─── Overview: credits ring + three-column stat row ─── */}
+        <View style={styles.overview}>
+          <View style={styles.ringHost}>
+            <WavyProgress
+              variant="circular"
+              progress={Math.min(1, Math.max(0, cfuPct / 100))}
+              size={132}
+              stroke={9}
+              color={MODULE_TONES.uni.on}
+              trackColor={MODULE_TONES.uni.container}
+              animate={false}
+              accessibilityLabel="Credits earned"
+            />
+            <View style={styles.ringCenter} pointerEvents="none">
+              <Text style={[TEXT.headlineSmall, styles.ringValue]}>
+                {Math.round(cfuPct)}%
+              </Text>
+              <Text style={[TEXT.labelSmall, styles.ringLabel]}>credits</Text>
+            </View>
           </View>
-          <ProgressBar pct={cfuPct} color={COLORS.accent} />
+          <View style={styles.overviewStats}>
+            <StatRow
+              stats={[
+                { value: `${cfuAcquired}/${totalCredits}`, label: 'Credits' },
+                { value: average ? average.toFixed(1) : '—', label: 'Average' },
+                { value: predictedGrade ? `${predictedGrade}` : '—', label: 'Predicted' },
+              ]}
+            />
+            <Text style={[TEXT.bodySmall, styles.overviewMeta]}>
+              Passed this year {passedThisYear.length} · Weighted{' '}
+              {weightedAverage ? weightedAverage.toFixed(2) : '—'}
+            </Text>
+            {hasExpected ? (
+              <Text style={[TEXT.bodySmall, styles.overviewMeta]}>
+                Projected {avgWithExpected.toFixed(2)} / {wavgWithExpected.toFixed(2)}
+              </Text>
+            ) : null}
+          </View>
         </View>
 
         {/* ─── Grade Simulator ─── */}
-        <Text style={styles.sectionTitle}>🧮 Grade Simulator</Text>
+        <Text style={[TEXT.titleLargeEmphasized, styles.blockTitle]}>Grade simulator</Text>
         <Card style={styles.simCard}>
-          <Text style={styles.simSubtitle}>How would a new grade affect your average?</Text>
+          <Text style={[TEXT.bodyMedium, styles.simSubtitle]}>How would a new grade affect your average?</Text>
 
           {/* Grade picker sits ABOVE the CFU field, not beside it.
               GradeSelector's dropdown opens downward; stacking these
@@ -322,9 +351,9 @@ export default function UniScreen({ exams, setExams, totalCredits }) {
             />
           </View>
           <TextInput
-            style={styles.input}
+            style={[styles.input, TEXT.bodyLarge]}
             placeholder={`CFU for this exam (${SIM_MIN_CREDITS}–${SIM_MAX_CREDITS})`}
-            placeholderTextColor={COLORS.textSub}
+            placeholderTextColor={M3.outline}
             keyboardType="numeric"
             value={simCredits}
             onChangeText={v => setSimCredits(v.replace(/[^0-9]/g, ''))}
@@ -334,97 +363,111 @@ export default function UniScreen({ exams, setExams, totalCredits }) {
           {simReady ? (
             <View style={styles.simResults}>
               <View style={styles.simResultItem}>
-                <Text style={styles.simResultLabel}>New Arithmetic</Text>
-                <Text style={[styles.simResultVal, { color: projectedAvg >= average ? COLORS.green : COLORS.red }]}>
+                <Text style={[TEXT.labelSmall, styles.simResultLabel]}>New arithmetic</Text>
+                <Text style={[TEXT.titleMedium, styles.simResultVal, { color: projectedAvg >= average ? MODULE_TONES.journal.on : M3.error }]}>
                   {projectedAvg.toFixed(2)}
-                  <Text style={styles.simDelta}>
+                  <Text style={[TEXT.labelSmall, styles.simDelta]}>
                     {' '}({projectedAvg >= average ? '+' : ''}{(projectedAvg - average).toFixed(2)})
                   </Text>
                 </Text>
               </View>
               <View style={styles.simResultItem}>
-                <Text style={styles.simResultLabel}>New Weighted</Text>
-                <Text style={[styles.simResultVal, { color: projectedWavg >= weightedAverage ? COLORS.green : COLORS.red }]}>
+                <Text style={[TEXT.labelSmall, styles.simResultLabel]}>New weighted</Text>
+                <Text style={[TEXT.titleMedium, styles.simResultVal, { color: projectedWavg >= weightedAverage ? MODULE_TONES.journal.on : M3.error }]}>
                   {projectedWavg.toFixed(2)}
-                  <Text style={styles.simDelta}>
+                  <Text style={[TEXT.labelSmall, styles.simDelta]}>
                     {' '}({projectedWavg >= weightedAverage ? '+' : ''}{(projectedWavg - weightedAverage).toFixed(2)})
                   </Text>
                 </Text>
               </View>
               <View style={styles.simResultItem}>
-                <Text style={styles.simResultLabel}>Est. Degree</Text>
-                <Text style={[styles.simResultVal, { color: COLORS.green }]}>
+                <Text style={[TEXT.labelSmall, styles.simResultLabel]}>Est. degree</Text>
+                <Text style={[TEXT.titleMedium, styles.simResultVal, { color: MODULE_TONES.journal.on }]}>
                   {calcPredictedGrade(projectedWavg)}/110
                 </Text>
               </View>
             </View>
           ) : (
-            // Explains exactly what's missing instead of staying silent —
-            // this was the other source of "it doesn't work": the simulator
-            // used to just render nothing with no explanation.
-            <Text style={styles.simHint}>{simMissing}</Text>
+            // Explains exactly what's missing instead of staying silent.
+            <Text style={[TEXT.bodySmall, styles.simHint]}>{simMissing}</Text>
           )}
         </Card>
 
-        {/* ─── Add Exam Button ─── */}
-        <TouchableOpacity onPress={openAddModal} style={styles.addFullBtn}>
-          <Text style={styles.addFullBtnText}>+ Add New Exam</Text>
-        </TouchableOpacity>
+        {/* ─── Add Exam ─── */}
+        <CtaButton
+          label="Add exam"
+          icon="plus"
+          onPress={openAddModal}
+          style={styles.addExam}
+        />
 
-        {/* ─── Exams List ─── */}
-        <View style={styles.listHeaderRow}>
-          <Text style={styles.sectionTitle}>📋 Exams ({exams.length})</Text>
-          {exams.length > 0 && (
-            <TouchableOpacity onPress={confirmClearAll}>
-              <Text style={styles.clearAllText}>Clear All</Text>
-            </TouchableOpacity>
-          )}
+        {/* ─── Exams: grouped rows with status chips + prep line ─── */}
+        <View style={styles.listHeader}>
+          <Text style={[TEXT.titleLargeEmphasized, styles.listTitle]}>
+            Exams ({exams.length})
+          </Text>
+          {exams.length > 0 ? (
+            <SpringPressable
+              onPress={confirmClearAll}
+              haptic="selection"
+              accessibilityLabel="Clear all exams"
+              style={styles.clearAll}
+              contentStyle={styles.clearAllContent}
+            >
+              <Text style={[TEXT.labelLarge, styles.clearAllText]}>Clear all</Text>
+            </SpringPressable>
+          ) : null}
         </View>
-        {exams.length === 0 ? (
-          <Card><Text style={styles.emptyText}>No exams yet. Add your first one!</Text></Card>
+
+        {sortedExams.length === 0 ? (
+          <EmptyState
+            icon="graduation-cap"
+            title="No exams yet"
+            body="Add your first exam to watch the credits ring and your average fill in."
+            tone={MODULE_TONES.uni}
+          />
         ) : (
-          exams
-            .slice()
-            .sort((a, b) => {
-              const order = { preparing: 0, 'to start': 1, passed: 2 };
-              return (order[a.status] ?? 3) - (order[b.status] ?? 3);
-            })
-            .map(exam => (
-              <TouchableOpacity key={exam.id} onPress={() => openEditModal(exam)}>
-                <Card style={styles.examCard}>
-                  <View style={styles.examInfoRow}>
-                    <View style={styles.examLeft}>
-                      <Text style={styles.examName}>{exam.name}</Text>
-                      <Text style={styles.examSub}>
-                        {exam.credits} CFU{exam.date ? ` · ${exam.date}` : ''}
+          <View style={styles.group}>
+            {sortedExams.map((exam, index) => {
+              const days = exam.date ? Math.max(0, diffDays(exam.date)) : null;
+              const prepPct = days != null
+                ? Math.max(0, Math.min(100, 100 - (days / 30) * 100))
+                : null;
+              const gradeText = exam.achievedGrade
+                ? gradeDisplay(exam.achievedGrade)
+                : exam.expectedGrade
+                  ? `(${gradeDisplay(exam.expectedGrade)})`
+                  : '—';
+              const showPrep = !exam.achievedGrade && exam.status === 'preparing' && days != null;
+              return (
+                <GroupItem
+                  key={exam.id}
+                  index={index}
+                  count={sortedExams.length}
+                  icon="graduation-cap"
+                  tone={examTone(exam.status)}
+                  title={exam.name}
+                  secondary={`${exam.credits} CFU${exam.date ? ` · ${exam.date}` : ''}`}
+                  status={showPrep
+                    ? `${Math.round(prepPct)}% prep · ${days} day${days === 1 ? '' : 's'} left`
+                    : undefined}
+                  statusIcon={showPrep ? 'clock' : undefined}
+                  statusColor={showPrep ? MODULE_TONES.journal.on : undefined}
+                  trailing={(
+                    <View style={styles.examTrailing}>
+                      <Text style={[TEXT.titleMedium, {
+                        color: exam.achievedGrade ? MODULE_TONES.journal.on : M3.onSurfaceVariant,
+                      }]}>
+                        {gradeText}
                       </Text>
-                    </View>
-                    <View style={styles.examRight}>
                       <Pill color={statusColor(exam.status)}>{exam.status}</Pill>
-                      <Text style={styles.gradeText}>
-                        {exam.achievedGrade
-                          ? gradeDisplay(exam.achievedGrade)
-                          : exam.expectedGrade
-                            ? `(${gradeDisplay(exam.expectedGrade)})`
-                            : '—'}
-                      </Text>
-                    </View>
-                  </View>
-                  {!exam.achievedGrade && exam.status === 'preparing' && exam.date && (
-                    <View style={styles.prepContainer}>
-                      <View style={styles.prepHeader}>
-                        <Text style={styles.prepLabel}>Prep progress</Text>
-                        <Text style={styles.prepDays}>{Math.max(0, diffDays(exam.date))} days left</Text>
-                      </View>
-                      <ProgressBar
-                        pct={Math.max(0, Math.min(100, 100 - (diffDays(exam.date) / 30) * 100))}
-                        color={COLORS.green}
-                      />
                     </View>
                   )}
-                </Card>
-              </TouchableOpacity>
-            ))
+                  onPress={() => openEditModal(exam)}
+                />
+              );
+            })}
+          </View>
         )}
       </AppScrollView>
 
@@ -448,12 +491,14 @@ export default function UniScreen({ exams, setExams, totalCredits }) {
           enabled={true}
         >
           {/* Header */}
-          <View style={[styles.modalHeader, { paddingTop: insets.top + 16 }]}>
-            <TouchableOpacity onPress={closeModal} style={styles.modalHeaderBtn}>
-              <Text style={styles.modalCancelText}>Cancel</Text>
-            </TouchableOpacity>
-            <Text style={styles.modalTitle}>
-              {editingId ? 'Edit Exam' : 'Add Exam'}
+          <View style={[styles.modalHeader, { paddingTop: insets.top + 12 }]}>
+            <IconButton
+              icon="x"
+              onPress={closeModal}
+              accessibilityLabel="Close exam form"
+            />
+            <Text style={[TEXT.titleLargeEmphasized, styles.modalTitle]}>
+              {editingId ? 'Edit exam' : 'Add exam'}
             </Text>
             <View style={styles.modalHeaderRight} />
           </View>
@@ -465,41 +510,37 @@ export default function UniScreen({ exams, setExams, totalCredits }) {
             showsVerticalScrollIndicator={false}
           >
             {/* Name */}
+            <Text style={styles.fieldLabel}>Exam name *</Text>
             <TextInput
-              placeholder="Exam name *"
-              placeholderTextColor={COLORS.textSub}
+              placeholder="e.g. Analysis 1"
+              placeholderTextColor={M3.outline}
               value={formName}
               onChangeText={setFormName}
-              style={styles.input}
+              style={[styles.input, TEXT.bodyLarge]}
             />
 
             {/* Credits */}
+            <Text style={styles.fieldLabel}>Credits (3–15) *</Text>
             <TextInput
-              placeholder="Credits (3–15) *"
-              placeholderTextColor={COLORS.textSub}
+              placeholder="e.g. 9"
+              placeholderTextColor={M3.outline}
               value={formCredits}
               onChangeText={v => setFormCredits(v.replace(/[^0-9]/g, ''))}
               keyboardType="numeric"
-              style={styles.input}
+              style={[styles.input, TEXT.bodyLarge]}
             />
 
             {/* Status selector */}
             <Text style={styles.fieldLabel}>Status *</Text>
             <View style={styles.statusRow}>
               {STATUSES.map(s => (
-                <TouchableOpacity
+                <Chip
                   key={s}
+                  label={s}
+                  selected={formStatus === s}
                   onPress={() => handleStatusChange(s)}
-                  style={[
-                    styles.statusChip,
-                    formStatus === s && styles.statusChipActive,
-                    { marginRight: 8, marginBottom: 8 },
-                  ]}
-                >
-                  <Text style={[styles.statusChipText, formStatus === s && styles.statusChipTextActive]}>
-                    {s.toUpperCase()}
-                  </Text>
-                </TouchableOpacity>
+                  accessibilityLabel={`Status ${s}`}
+                />
               ))}
             </View>
 
@@ -539,19 +580,25 @@ export default function UniScreen({ exams, setExams, totalCredits }) {
           {/* Footer — fixed action buttons */}
           <View style={styles.modalFooter}>
             {editingId ? (
-              <TouchableOpacity onPress={() => confirmDelete(editingId)} style={[styles.footerBtn, styles.btnDelete]}>
-                <Text style={styles.btnDeleteText}>Delete</Text>
-              </TouchableOpacity>
+              <CtaButton
+                label="Delete"
+                variant="destructive"
+                onPress={() => confirmDelete(editingId)}
+                style={styles.footerBtn}
+              />
             ) : (
-              <TouchableOpacity onPress={closeModal} style={[styles.footerBtn, styles.btnCancel]}>
-                <Text style={styles.btnCancelText}>Cancel</Text>
-              </TouchableOpacity>
+              <CtaButton
+                label="Cancel"
+                variant="tonal"
+                onPress={closeModal}
+                style={styles.footerBtn}
+              />
             )}
-            <TouchableOpacity onPress={handleSave} style={[styles.footerBtn, styles.btnSave]}>
-              <Text style={styles.btnSaveText}>
-                {editingId ? 'Update Exam' : 'Add Exam'}
-              </Text>
-            </TouchableOpacity>
+            <CtaButton
+              label={editingId ? 'Update exam' : 'Add exam'}
+              onPress={handleSave}
+              style={[styles.footerBtn, styles.footerPrimary]}
+            />
           </View>
         </KeyboardAvoidingView>
       </Modal>
@@ -560,71 +607,93 @@ export default function UniScreen({ exams, setExams, totalCredits }) {
 }
 
 const styles = StyleSheet.create({
-  container:    { flex: 1, backgroundColor: COLORS.bg },
-  scrollContent:{ padding: 16, paddingBottom: 40 },
+  container: { flex: 1, backgroundColor: M3.background },
+  content: { paddingHorizontal: 20, paddingBottom: 24 },
+  headerFlush: { paddingHorizontal: 0 },
 
-  sectionTitle: { fontSize: 13, fontWeight: '600', color: COLORS.textMuted, textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 10, marginTop: 10 },
-  listHeaderRow:{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-  clearAllText: { fontSize: 12, color: COLORS.red, fontWeight: '600' },
-
-  statsGrid:   { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between', marginBottom: 8 },
-  gridItem:    { width: '48%', marginBottom: 10 },
-
-  creditBar:   { marginBottom: 16 },
-  creditBarHeader: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 6 },
-  creditLabel: { fontSize: 12, color: COLORS.textMuted, fontWeight: '600' },
-  creditValue: { fontSize: 13, color: COLORS.accent, fontWeight: 'bold' },
+  // Overview: credits ring on the left, three-column stat row on the right.
+  overview: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    marginTop: 8,
+    marginBottom: 8,
+  },
+  ringHost: { width: 132, height: 132, alignItems: 'center', justifyContent: 'center' },
+  ringCenter: {
+    ...StyleSheet.absoluteFillObject,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  ringValue: { color: M3.onSurface },
+  ringLabel: { color: M3.onSurfaceVariant, marginTop: 1 },
+  overviewStats: { flex: 1 },
+  overviewMeta: { color: M3.outline, marginTop: 6 },
 
   // Simulator
-  simCard:     { marginBottom: 16, padding: 16, overflow: 'visible' },
-  simSubtitle: { fontSize: 12, color: COLORS.textMuted, marginBottom: 12 },
+  blockTitle: { color: M3.onSurface, marginTop: SPACING.md, marginBottom: 8 },
+  simCard: { marginBottom: SPACING.md },
+  simSubtitle: { color: M3.onSurfaceVariant, marginBottom: 12 },
   simGradeRow: { zIndex: 200, elevation: 200, marginBottom: 4 },
-  simResults:  { flexDirection: 'row', justifyContent: 'space-between', flexWrap: 'wrap', marginTop: 4 },
-  simResultItem:{ alignItems: 'center', flex: 1, minWidth: '30%' },
-  simResultLabel:{ fontSize: 11, color: COLORS.textSub, marginBottom: 4, textAlign: 'center' },
-  simResultVal: { fontSize: 16, fontWeight: '700', textAlign: 'center' },
-  simDelta:    { fontSize: 11, fontWeight: '400' },
-  simHint:     { fontSize: 12, color: COLORS.textSub, textAlign: 'center', paddingVertical: 8 },
+  simResults: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    flexWrap: 'wrap',
+    marginTop: 8,
+    gap: 8,
+  },
+  simResultItem: { alignItems: 'center', flex: 1, minWidth: 90 },
+  simResultLabel: { color: M3.onSurfaceVariant, marginBottom: 4, textAlign: 'center' },
+  simResultVal: { textAlign: 'center' },
+  simDelta: { color: M3.outline, fontWeight: '400' },
+  simHint: { color: M3.outline, textAlign: 'center', paddingVertical: 8 },
 
-  addFullBtn:  { backgroundColor: COLORS.accentGlow, borderWidth: 1, borderColor: COLORS.accent, paddingVertical: 12, borderRadius: 12, alignItems: 'center', marginBottom: 16 },
-  addFullBtnText:{ color: COLORS.accent, fontWeight: '700', fontSize: 14 },
+  // Filled form fields: surfaceContainerHigh, radius 16, no border, label above.
+  input: {
+    backgroundColor: M3.surfaceContainerHigh,
+    borderRadius: SHAPE.lg,
+    minHeight: 56,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    color: M3.onSurface,
+    marginBottom: 12,
+  },
+  fieldLabel: { color: M3.onSurfaceVariant, marginBottom: 6, marginTop: 4 },
 
-  emptyText:   { color: COLORS.textSub, textAlign: 'center', marginVertical: 20, fontSize: 14 },
+  addExam: { marginVertical: SPACING.md },
+  listHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginTop: SPACING.sm,
+    marginBottom: 8,
+  },
+  listTitle: { color: M3.onSurface },
+  clearAll: { borderRadius: SHAPE.full },
+  clearAllContent: { paddingHorizontal: 10, paddingVertical: 6, borderRadius: SHAPE.full },
+  clearAllText: { color: M3.error },
+  group: { gap: 2 },
+  examTrailing: { alignItems: 'flex-end', gap: 4 },
 
-  examCard:    { marginBottom: 10, paddingVertical: 14 },
-  examInfoRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start' },
-  examLeft:    { flex: 1, marginRight: 10 },
-  examName:    { fontSize: 15, fontWeight: '600', color: COLORS.text, marginBottom: 4 },
-  examSub:     { fontSize: 12, color: COLORS.textMuted },
-  examRight:   { alignItems: 'flex-end' },
-  gradeText:   { fontSize: 16, fontWeight: 'bold', color: COLORS.text, marginTop: 6 },
-
-  prepContainer:{ marginTop: 14 },
-  prepHeader:  { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 6 },
-  prepLabel:   { fontSize: 11, color: COLORS.textSub, fontWeight: '500' },
-  prepDays:    { fontSize: 11, color: COLORS.green, fontWeight: '600' },
-
-  // Modal — full screen opaque
-  modalRoot:        { flex: 1, backgroundColor: COLORS.bg },
-  modalHeader:      { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 20, paddingTop: 16, paddingBottom: 12, borderBottomWidth: 1, borderBottomColor: COLORS.border },
-  modalHeaderBtn:   { minWidth: 60 },
-  modalHeaderRight: { width: 60 },
-  modalCancelText:  { fontSize: 16, color: COLORS.accent },
-  modalTitle:       { fontSize: 17, fontWeight: '700', color: COLORS.text, textAlign: 'center' },
-  modalScrollContent:{ padding: 20, paddingBottom: 40 },
-  modalFooter:      { paddingHorizontal: 20, paddingVertical: 12, borderTopWidth: 1, borderTopColor: COLORS.border, flexDirection: 'row', gap: 12 },
-  footerBtn:        { flex: 1, paddingVertical: 14, borderRadius: 10, alignItems: 'center' },
-  input:       { backgroundColor: COLORS.bg3, borderWidth: 1, borderColor: COLORS.border, borderRadius: 10, padding: 12, color: COLORS.text, fontSize: 14, marginBottom: 12 },
-  fieldLabel:  { color: COLORS.textSub, fontSize: 13, marginBottom: 8, marginTop: 4 },
-  statusRow:   { flexDirection: 'row', flexWrap: 'wrap', marginBottom: 14 },
-  statusChip:  { paddingHorizontal: 12, paddingVertical: 8, borderRadius: 12, backgroundColor: COLORS.bg4 },
-  statusChipActive:    { backgroundColor: COLORS.accentGlow },
-  statusChipText:      { fontSize: 11, color: COLORS.textMuted, fontWeight: '600' },
-  statusChipTextActive:{ color: COLORS.accent },
-  btnCancel:   { backgroundColor: COLORS.bg4, marginRight: 10 },
-  btnCancelText:{ color: COLORS.textMuted, fontWeight: '600' },
-  btnDelete:   { backgroundColor: COLORS.redDim, borderWidth: 1, borderColor: COLORS.red, marginRight: 10 },
-  btnDeleteText:{ color: COLORS.red, fontWeight: '600' },
-  btnSave:     { backgroundColor: COLORS.accent },
-  btnSaveText: { color: COLORS.onPrimary, fontWeight: '700' },
+  // Modal — full screen, opaque, own insets.
+  modalRoot: { flex: 1, backgroundColor: M3.background },
+  modalHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 16,
+    paddingBottom: 12,
+  },
+  modalHeaderRight: { width: 40 },
+  modalTitle: { color: M3.onSurface },
+  modalScrollContent: { paddingHorizontal: 20, paddingTop: 8, paddingBottom: 40 },
+  modalFooter: {
+    flexDirection: 'row',
+    gap: 12,
+    paddingHorizontal: 20,
+    paddingVertical: 12,
+  },
+  footerBtn: { flex: 1 },
+  footerPrimary: { flex: 1.4 },
+  statusRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 14 },
 });
