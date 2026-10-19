@@ -44,6 +44,7 @@ export default function ModulesScreen({
         <ScreenHeader
           title="Modules"
           subtitle="Everything outside the main tabs"
+          style={styles.headerFlush}
         />
 
         <View style={styles.grid}>
@@ -120,6 +121,7 @@ export default function ModulesScreen({
 const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: M3.background },
   content: { paddingHorizontal: 20, paddingBottom: 24 },
+  headerFlush: { paddingHorizontal: 0 },
   grid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
