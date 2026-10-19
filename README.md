@@ -140,14 +140,16 @@ Built out of frustration with having a different app for every life domain — o
 
 ## Known Issues
 
-The following bugs are open and unresolved as of the most recent update:
+Open as of the Material 3 Expressive redesign:
 
-- Drag-to-reorder on Home and in Tasks is unreliable — items sometimes deselect mid-drag and scroll speed during a drag gesture is approximately doubled
-- Task completion checkbox does not always register on the first tap
-- The Tasks composer does not reliably stay pinned above the on-screen keyboard while typing
-- Grade Simulator grade dropdown does not commit on tap — a value can only be confirmed by typing it and pressing Enter
-- Android hardware back button closes the app instead of navigating back — a direct consequence of the hand-rolled navigation (see Roadmap)
-- The left-side navigation drawer can overlap the system status bar depending on the device
+- The global search pill is presentational only; working search is a later phase
+- Home's task checkbox is nested inside the row pressable — verify the checkbox responds without also opening Tasks on every device
+- Drag-to-reorder row heights on the Tasks screen are tuned by eye and may need a device-specific nudge
+- `BarChart` replays its grow-in animation whenever its data changes
+- Global state is still held in a monolithic `App.js` — the Zustand migration is the first roadmap item
+- No automated tests, lint or typecheck scripts yet; the honest gates are `expo-doctor`, `expo install --check` and `expo export`
+
+Resolved by the redesign: the drawer/status-bar overlap, the Android back button closing the app, the Grade Selector tap-to-confirm bug, the composer being covered by the keyboard, and Home's unreliable drag-to-reorder (the dashboard is now a fixed, designed layout).
 
 ## Tech Stack
 
@@ -156,10 +158,16 @@ The following bugs are open and unresolved as of the most recent update:
 | React Native | 0.81.5 | |
 | React | 19.1.0 | |
 | Expo SDK | 54 | |
-| expo-blur | — | iOS real blur; flat fallback on Android. Used by `GlassSheet`, `DatePicker`, and `CustomAlert` — not listed in `package.json` (see Design Decisions) |
-| react-native-svg | 15.12.1 | Powers the `ProgressRing` component |
+| react-native-reanimated | 4.1.x | Every animation runs on the UI thread through shared values/worklets |
+| react-native-svg | 15.12.1 | Scalloped blob shapes, wavy progress indicators, gradients |
+| expo-font + @expo-google-fonts/space-grotesk | 14.0.x / 0.4.x | Space Grotesk 400/500/600/700, loaded behind the first-paint gate |
+| expo-haptics | 15.0.8 | Press ticks; lazily required with a `Vibration` fallback for old dev clients |
+| expo-blur | 15.0.8 | Still installed but no longer imported: the redesign uses solid tonal surfaces only |
+| react-native-safe-area-context | 5.6.x | Edge-to-edge insets for screens, modals and the floating nav |
+| react-native-gesture-handler | 2.28.x | Drag-to-reorder gestures on Tasks, Notes and Links |
+| lucide-react-native | 1.57.x | Icons, funnelled through `src/components/Icon.js` |
 | AsyncStorage | 2.2.0 | Sole persistence layer — SQLite migration is a tracked roadmap item |
-| New Architecture | — | Enabled via `newArchEnabled: true` in `app.json` |
+| New Architecture | — | `newArchEnabled: true` in `app.config.js` |
 
 
 ## Architecture
@@ -170,67 +178,83 @@ All data lives on-device via AsyncStorage under a `lifeos_` key prefix. No backe
 
 | Screen | Notes |
 |---|---|
-| `OnboardingScreen` | First-launch: name, degree, year, credit total |
-| `HomeScreen` | Dashboard with reorderable sections and Quick Links |
-| `UniScreen` | Exam tracker, credits bar, stat grid, Grade Simulator |
+| `OnboardingScreen` | First-launch: name, degree, year, credit total; morphing blob hero |
+| `HomeScreen` | Focus hero pager, overdue banner, exam rail, task group, quick links, module grid |
+| `ModulesScreen` | Secondary modules as a blob grid; Settings and the dev kit live here too |
+| `UniScreen` | Credits ring, stat row, grouped exams, Grade Simulator |
 | `JournalScreen` | Unified tasks and habits — presented in the UI as Tasks |
-| `FinancesScreen` | Income and expense tracking |
-| `StatsScreen` | Cross-section analytics — replaces Habits in the bottom nav |
+| `FinancesScreen` | Balance hero, monthly chart, date-grouped transactions |
+| `StatsScreen` | Cross-section analytics, tonal charts, study heatmap |
 | `GroceriesScreen` | Shopping checklist |
 | `GoalsScreen` | Numeric progress goals |
 | `NotesScreen` | Notes with tags |
 | `LinksScreen` | Bookmarks with star and reorder |
+| `SettingsScreen` | Full-screen modal: module switches, backup export/import, version |
 
 
 ### Key Components
 
 | Component | Purpose |
 |---|---|
-| `DraggableList` | Long-press-to-reorder via PanResponder — see Known Issues for current bugs |
-| `GradeSelector` | 18–30L grade picker with typeahead — see Known Issues for tap-to-confirm bug |
-| `DatePicker` | Shared calendar picker used by Exams, Finances, and Goals — enforces context-specific date constraints |
+| `FloatingNav` | Detached M3 nav pill; hides on scroll-down via shared values (the only shadow in the app) |
+| `AppScrollView` | Screen-level Reanimated scroll view: safe-area padding, nav reservation, scroll signals |
+| `HeroPager` / `HeroCard` | Snapping focus cards with blob drift, scale, dots and timed advance |
+| `WavyProgress` | Linear/circular sine progress; at most three animate at once |
+| `Blob` / `MorphBlob` | Polar scalloped shapes morphing on the UI thread |
+| `GroupItem` | Tonal grouped row with 20/4 corner morphing |
+| `SpringPressable` | Press squash + haptic; replaces every `TouchableOpacity` |
+| `DraggableList` | Long-press reorder, still used by Tasks, Notes and Links |
+| `GradeSelector` | 18–30L grade picker with typeahead and deferred blur |
+| `DatePicker` | Shared calendar picker with context-specific date constraints |
 | `TagInput` | Chip input with autocomplete against existing Notes tags |
-| `GlassSheet` | Bottom-sheet modal — real `BlurView` on iOS, flat panel on Android |
-| `CustomAlert` | On-brand replacement for the stock Android alert dialog |
-| `BarChart` | Dependency-free bar chart built from plain `View` components |
+| `Dialog` / `CustomAlert` | Shared dialog primitive; `CustomAlert` keeps its `config` API |
+| `BarChart` | Dependency-free tonal bar chart with a slow-spring grow-in |
 
 ### Key Patterns
 
 - `localDateKey(d)` — timezone-safe `YYYY-MM-DD` formatter. Avoids `toISOString()`, which converts to UTC before formatting and produces off-by-one date errors in UTC+ timezones including Italy (UTC+1/+2)
 - `usePersist(key, setter)` — wraps every state setter so any update auto-saves to AsyncStorage without explicit save calls at each call site
-- Shared `DatePicker` centralizes future-only, past-only, and 5-year-cap constraints in one place rather than duplicating date validation logic per screen
+- Tokens, not values — `M3` roles, `MODULE_TONES` tonal pairs and `tonal(hex)` in `src/config/colors.js`; `TEXT` role styles in `src/ui/type.js` (family-per-weight, because Android ignores `fontWeight` with custom fonts); `SHAPE`, `SPACING`, `SPRING` in `src/config/designSystem.js`
+- UI-thread motion — scroll position, nav visibility, progress and blob morphs never pass through React state; they are shared values consumed by `useAnimatedStyle` / `useAnimatedProps`
+- Reduce Motion — Reanimated's `useReducedMotion()` turns springs into snaps, flattens the wave and disables the hero auto-advance
 
 ## Design Decisions
 
+**Why Material 3 Expressive with tonal depth?** The previous look used 1 px hairline borders, card shadows and translucent "glass" to separate surfaces. On Android `BlurView` never actually blurred (it renders as a flat tint before SDK 55), and hairlines read as clutter. The redesign uses M3's tonal surface ladder (`surfaceContainerLow` → `surfaceContainerHighest`), large radii, scalloped shapes and wavy progress instead: depth comes from colour layering, and the only shadow in the app is the floating nav pill. Motion is Reanimated-only, on the UI thread, honouring Reduce Motion.
+
 **Why AsyncStorage instead of SQLite?** AsyncStorage was chosen to minimize native build complexity during the prototyping phase — it requires no native module compilation, works out of the box with Expo Go, and is sufficient for the current data volume (at most a few hundred records per section). The tradeoff is a flat key-value model that makes relational queries verbose. Migrating to `expo-sqlite` is a tracked roadmap item for when the data model stabilizes.
 
-**Why hand-rolled navigation instead of React Navigation?** The initial version was built quickly to validate the feature set before committing to an architectural pattern. A `useState` screen switcher with a custom drawer is a deliberate short-term tradeoff — it shipped faster but blocks the Android back-button fix. React Navigation adoption is planned once the Zustand migration is complete, so global state doesn't need to be threaded through a navigation context simultaneously with a persistence refactor.
-
-**Why `expo-blur` without declaring it in `package.json`?** `expo-blur` is a transitive dependency of Expo SDK 54 and is available without explicit declaration in an Expo managed workflow. It was not added to `package.json` because Expo's managed workflow guarantees its availability — adding it explicitly could cause version conflicts on future SDK upgrades. The tradeoff is that the dependency is invisible to static analysis tools, which is worth fixing before a production release.
+**Why hand-rolled navigation instead of React Navigation?** The screen switcher is still `useState` + `goToScreen` + a history stack for the Android back button, with a floating nav instead of the old drawer. It was built quickly to validate the feature set before committing to an architectural pattern; React Navigation adoption is planned once the Zustand migration is complete, so global state doesn't need to be threaded through a navigation context simultaneously with a persistence refactor.
 
 **Why pre-seed demo data instead of an empty state?** An empty app on first launch creates a poor first impression — every section shows a blank screen with no indication of what it will look like when used. Pre-seeded data with realistic entries communicates the value of each section immediately and lets users evaluate the app before committing to entering their own data. A Clear All action on every screen ensures the demo data is never in the way.
 
-**Why a monolithic `App.js` for global state?** The current approach of holding all screen-level state in `App.js` was the simplest way to share data across screens without a state management library. It is also the biggest architectural liability — 11+ pieces of state in one component means every small update triggers a re-render of the entire tree. Migrating to Zustand is the first item in the Roadmap.
+**Why a monolithic `App.js` for global state?** The current approach of holding all screen-level state in `App.js` was the simplest way to share data across screens without a state management library. It is also the biggest architectural liability — 11+ pieces of state in one component means every small update triggers a re-render of the entire tree. The redesign keeps every continuous value (scroll, nav visibility, progress) out of that tree via shared values, but the full fix is the Zustand migration.
 
 ## Project Structure
 
 ```
 LifeOS/
-├── App.js                        # Root — navigation state, global state, drawer
-├── app.json                      # Expo config (package: com.mylifeos.app)
+├── App.js                        # Root — screen history, global state, fonts, shell
+├── app.config.js                 # Expo config (package: com.mylifeos.app)
 ├── eas.json                      # EAS Build profiles (preview APK / production AAB)
 ├── package.json
+├── docs/redesign/PLAN.md         # Design audit, decisions and phase log
 ├── src/
 │   ├── config/
-│   │   ├── colors.js             # Design token palette
-│   │   └── nav.js                # Screen registry and bottom-nav config
+│   │   ├── colors.js             # M3 roles, legacy aliases, module tones, tonal()
+│   │   ├── designSystem.js       # SPACING, SHAPE, TEXT sizes, SPRING, legacy aliases
+│   │   ├── modules.js            # Optional-module switches
+│   │   └── nav.js                # Screen registry and floating-nav config
 │   ├── data/
 │   │   ├── helpers.js            # localDateKey, gradeWeight, calculateAverages, …
+│   │   ├── backup.js             # JSON export / import / clear-all
 │   │   ├── seedData.js           # Pre-seeded demo data, date-relative and deterministic
 │   │   └── storage.js            # loadJSON / saveJSON wrappers around AsyncStorage
-│   ├── components/               # Shared UI — Card, StatCard, ProgressBar, DraggableList,
-│   │                             # GradeSelector, DatePicker, TagInput, GlassSheet,
-│   │                             # CustomAlert, BarChart, FadeSlideIn, …
+│   ├── ui/                       # M3 primitives — FloatingNav, AppScrollView, HeroPager,
+│   │                             # WavyProgress, Blob/MorphBlob, GroupItem, Dialog, …
+│   ├── components/               # Legacy-shape components now on the new tokens —
+│   │                             # Card, StatCard, BarChart, DatePicker, GradeSelector,
+│   │                             # TagInput, CustomAlert, DraggableList, FadeSlideIn
 │   └── screens/                  # One file per screen — see Architecture table above
 └── images/                       # UI screenshots used in this README
 ```
