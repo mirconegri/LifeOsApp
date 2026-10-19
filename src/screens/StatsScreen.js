@@ -2,6 +2,7 @@
 import React, { useMemo } from 'react';
 import { View, Text, ScrollView, StyleSheet } from 'react-native';
 import { COLORS } from '../config/colors';
+import { AppScrollView } from '../ui/AppScrollView';
 import { TYPE, SPACING } from '../config/designSystem';
 import { Card } from '../components/Card';
 import { Icon } from '../components/Icon';
@@ -91,7 +92,7 @@ export default function StatsScreen({ exams, journal, heatmap, finances = [], mo
   }, [habits]);
 
   return (
-    <ScrollView style={styles.scroll} contentContainerStyle={styles.content}>
+    <AppScrollView style={styles.scroll} contentContainerStyle={styles.content}>
 
       {/* ─── General Overview ─── */}
       <Text style={styles.sectionTitle}>General Overview</Text>
@@ -206,7 +207,7 @@ export default function StatsScreen({ exams, journal, heatmap, finances = [], mo
         </>
       )}
 
-    </ScrollView>
+    </AppScrollView>
   );
 }
 

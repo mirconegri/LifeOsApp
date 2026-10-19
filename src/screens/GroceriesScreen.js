@@ -5,6 +5,7 @@ import {
   TouchableOpacity, Modal, KeyboardAvoidingView, Platform,
 } from 'react-native';
 import { COLORS } from '../config/colors';
+import { AppScrollView } from '../ui/AppScrollView';
 import { Card } from '../components/Card';
 import { Pill } from '../components/Pill';
 import { CustomAlert } from '../components/CustomAlert';
@@ -79,7 +80,7 @@ export default function GroceriesScreen({ groceries, setGroceries }) {
 
   return (
     <View style={styles.root}>
-      <ScrollView style={styles.scroll} contentContainerStyle={styles.content}>
+      <AppScrollView style={styles.scroll} contentContainerStyle={styles.content}>
         <View style={styles.header}>
           <View style={{ flexDirection: 'row', alignItems: 'center' }}><Icon name="shopping-cart" size={24} color={COLORS.text} /><Text style={styles.title}> Groceries</Text></View>
           <TouchableOpacity onPress={() => setModalVisible(true)} style={styles.addFab}>
@@ -137,7 +138,7 @@ export default function GroceriesScreen({ groceries, setGroceries }) {
             </Card>
           ))
         )}
-      </ScrollView>
+      </AppScrollView>
 
       {/* ── Modal ── */}
       {/* Edge-to-edge: without these the modal's own window stops at the
@@ -158,7 +159,7 @@ export default function GroceriesScreen({ groceries, setGroceries }) {
             <View style={styles.modalHeaderRight} />
           </View>
 
-          <ScrollView contentContainerStyle={styles.modalScrollContent} keyboardShouldPersistTaps="handled">
+          <ScrollView contentContainerStyle={styles.modalScrollContent} keyboardShouldPersistTaps="always">
             <TextInput
               style={styles.input}
               placeholder="What do you need to buy?"

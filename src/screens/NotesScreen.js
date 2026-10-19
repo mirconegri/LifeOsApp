@@ -4,6 +4,7 @@ import {
   TouchableOpacity, Modal, KeyboardAvoidingView, Platform,
 } from 'react-native';
 import { COLORS } from '../config/colors';
+import { AppScrollView } from '../ui/AppScrollView';
 import { Card } from '../components/Card';
 import { Pill } from '../components/Pill';
 import { CustomAlert } from '../components/CustomAlert';
@@ -108,10 +109,9 @@ export default function NotesScreen({ notes, setNotes }) {
 
   return (
     <View style={styles.root}>
-      <ScrollView
+      <AppScrollView
         ref={scrollRef}
         onScroll={(e) => { scrollYRef.current = e.nativeEvent.contentOffset.y; }}
-        scrollEventThrottle={16}
         contentContainerStyle={styles.content}
       >
         <View style={styles.header}>
@@ -167,7 +167,7 @@ export default function NotesScreen({ notes, setNotes }) {
             />
           </>
         )}
-      </ScrollView>
+      </AppScrollView>
 
       {/* Add / Edit Modal */}
       {/* Edge-to-edge: without these the modal's own window stops at the
@@ -188,7 +188,7 @@ export default function NotesScreen({ notes, setNotes }) {
             <View style={styles.modalHeaderRight} />
           </View>
 
-          <ScrollView contentContainerStyle={styles.modalScrollContent} keyboardShouldPersistTaps="handled">
+          <ScrollView contentContainerStyle={styles.modalScrollContent} keyboardShouldPersistTaps="always">
             <TextInput
               style={[styles.input, styles.titleInput]}
               placeholder="Title..."

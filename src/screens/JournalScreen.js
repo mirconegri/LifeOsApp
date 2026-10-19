@@ -41,6 +41,7 @@ import {
 import { Card } from '../components/Card';
 import { Pill } from '../components/Pill';
 import { COLORS } from '../config/colors';
+import { AppScrollView } from '../ui/AppScrollView';
 import { CustomAlert } from '../components/CustomAlert';
 import { DatePicker } from '../components/DatePicker';
 import { DraggableList } from '../components/DraggableList';
@@ -247,13 +248,11 @@ export default function JournalScreen({ journal, setJournal }) {
       style={styles.root}
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
     >
-      <ScrollView
+      <AppScrollView
         ref={scrollRef}
         onScroll={(e) => { scrollYRef.current = e.nativeEvent.contentOffset.y; }}
-        scrollEventThrottle={16}
         style={styles.scroll}
         contentContainerStyle={styles.content}
-        keyboardShouldPersistTaps="always"
       >
         <View style={styles.header}>
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
@@ -365,7 +364,7 @@ export default function JournalScreen({ journal, setJournal }) {
           <Card><Text style={styles.emptyText}>No tasks yet. Add one below.</Text></Card>
         )}
 
-        </ScrollView>
+        </AppScrollView>
 
       {/* ── Fixed bottom composer — Microsoft To Do / Google Tasks style.
           Always visible, not a modal you open: type and hit the arrow (or
@@ -374,7 +373,7 @@ export default function JournalScreen({ journal, setJournal }) {
           Now a direct sibling of the ScrollView inside the SAME
           KeyboardAvoidingView (see file header), so it gets pushed up
           above the keyboard instead of staying pinned underneath it. ── */}
-      <View style={styles.composer}>
+      <View style={[styles.composer, { paddingBottom: insets.bottom + 14 + 64 + 12 + 8 }]}>
         <View style={styles.composerInputRow}>
           <View style={styles.composerCircle} />
           <TextInput
@@ -446,7 +445,7 @@ export default function JournalScreen({ journal, setJournal }) {
             <View style={styles.modalHeaderRight} />
           </View>
 
-          <ScrollView contentContainerStyle={styles.modalScrollContent} keyboardShouldPersistTaps="handled">
+          <ScrollView contentContainerStyle={styles.modalScrollContent} keyboardShouldPersistTaps="always">
             {formRecurring && (
               <View style={styles.formRow}>
                 <TextInput

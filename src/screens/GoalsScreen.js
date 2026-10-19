@@ -7,6 +7,7 @@ import {
 import { Card } from '../components/Card';
 import { Pill } from '../components/Pill';
 import { COLORS } from '../config/colors';
+import { AppScrollView } from '../ui/AppScrollView';
 import { CustomAlert } from '../components/CustomAlert';
 import { DatePicker } from '../components/DatePicker';
 import { Icon } from '../components/Icon';
@@ -155,7 +156,7 @@ export default function GoalsScreen({ goals, setGoals }) {
   const completedCount = goals.filter(o => o.completed).length;
 
   return (
-    <ScrollView style={styles.container} contentContainerStyle={styles.content}>
+    <AppScrollView style={styles.container} contentContainerStyle={styles.content}>
       <View style={styles.header}>
         <View style={styles.titleRow}><Icon name="target" size={24} color={COLORS.text} /><Text style={styles.title}> Goals</Text></View>
         <TouchableOpacity onPress={openAddModal} style={styles.addFab}>
@@ -288,7 +289,7 @@ export default function GoalsScreen({ goals, setGoals }) {
             <View style={styles.modalHeaderRight} />
           </View>
 
-          <ScrollView contentContainerStyle={styles.modalScrollContent} keyboardShouldPersistTaps="handled">
+          <ScrollView contentContainerStyle={styles.modalScrollContent} keyboardShouldPersistTaps="always">
             <Text style={styles.fieldLabel}>Title</Text>
             <TextInput style={styles.input} placeholder="e.g. Run a half marathon"
               placeholderTextColor={COLORS.textSub} value={title} onChangeText={setTitle} />
@@ -364,7 +365,7 @@ export default function GoalsScreen({ goals, setGoals }) {
       </Modal>
 
       <CustomAlert config={alertConfig} />
-    </ScrollView>
+    </AppScrollView>
   );
 }
 

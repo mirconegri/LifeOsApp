@@ -4,6 +4,7 @@ import {
   TouchableOpacity, Linking, Modal, KeyboardAvoidingView, Platform,
 } from 'react-native';
 import { COLORS } from '../config/colors';
+import { AppScrollView } from '../ui/AppScrollView';
 import { Card } from '../components/Card';
 import { CustomAlert } from '../components/CustomAlert';
 import { DraggableList } from '../components/DraggableList';
@@ -117,10 +118,9 @@ export default function LinksScreen({ links, setLinks }) {
 
   return (
     <View style={styles.root}>
-      <ScrollView
+      <AppScrollView
         ref={scrollRef}
         onScroll={(e) => { scrollYRef.current = e.nativeEvent.contentOffset.y; }}
-        scrollEventThrottle={16}
         contentContainerStyle={styles.content}
       >
         <View style={styles.header}>
@@ -183,7 +183,7 @@ export default function LinksScreen({ links, setLinks }) {
             />
           </>
         )}
-      </ScrollView>
+      </AppScrollView>
 
       {/* Add / Edit Modal */}
       {/* Edge-to-edge: without these the modal's own window stops at the
@@ -204,7 +204,7 @@ export default function LinksScreen({ links, setLinks }) {
             <View style={styles.modalHeaderRight} />
           </View>
 
-          <ScrollView contentContainerStyle={styles.modalScrollContent} keyboardShouldPersistTaps="handled">
+          <ScrollView contentContainerStyle={styles.modalScrollContent} keyboardShouldPersistTaps="always">
             <View style={styles.formRow}>
               <TextInput
                 style={[styles.input, styles.iconInput]}

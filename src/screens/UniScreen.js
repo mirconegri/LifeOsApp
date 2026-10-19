@@ -5,6 +5,7 @@ import {
   TouchableOpacity, KeyboardAvoidingView, Platform, Modal,
 } from 'react-native';
 import { COLORS } from '../config/colors';
+import { AppScrollView } from '../ui/AppScrollView';
 import { Card } from '../components/Card';
 import { Pill } from '../components/Pill';
 import { ProgressBar } from '../components/ProgressBar';
@@ -252,13 +253,10 @@ export default function UniScreen({ exams, setExams, totalCredits }) {
     <View style={styles.container}>
       <CustomAlert config={alertConfig} />
 
-      {/* keyboardShouldPersistTaps="always": without it, the first tap on
-          anything in this scroll view (GradeSelector's dropdown rows
-          included) while the keyboard is open just dismisses the
-          keyboard instead of registering — every other screen's modal
-          form already sets this; this top-level scroll view never had
-          it. */}
-      <ScrollView contentContainerStyle={styles.scrollContent} keyboardShouldPersistTaps="always">
+      {/* Screen-level scroll: AppScrollView reserves the status bar and the
+          floating nav, and keeps keyboardShouldPersistTaps="always" so the
+          first tap on GradeSelector's dropdown registers. */}
+      <AppScrollView contentContainerStyle={styles.scrollContent}>
 
         {/* ─── Stat Grid ─── */}
         <View style={{flexDirection:'row', alignItems:'center', gap:6, marginTop:10, marginBottom:10}}><Icon name="bar-chart-3" size={14} color={COLORS.textMuted} /><Text style={styles.sectionTitle}> Overview</Text></View>
@@ -428,7 +426,7 @@ export default function UniScreen({ exams, setExams, totalCredits }) {
               </TouchableOpacity>
             ))
         )}
-      </ScrollView>
+      </AppScrollView>
 
       {/* ─── Add / Edit Modal — full screen, opaque ───
           statusBar/navigationBarTranslucent keep the modal's own window
@@ -463,7 +461,7 @@ export default function UniScreen({ exams, setExams, totalCredits }) {
           {/* Form */}
           <ScrollView
             contentContainerStyle={styles.modalScrollContent}
-            keyboardShouldPersistTaps="handled"
+            keyboardShouldPersistTaps="always"
             showsVerticalScrollIndicator={false}
           >
             {/* Name */}

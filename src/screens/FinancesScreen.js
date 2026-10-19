@@ -6,6 +6,7 @@ import {
   TouchableOpacity, Modal, KeyboardAvoidingView, Platform,
 } from 'react-native';
 import { COLORS } from '../config/colors';
+import { AppScrollView } from '../ui/AppScrollView';
 import { TYPE, SPACING } from '../config/designSystem';
 import { Card } from '../components/Card';
 import { StatCard } from '../components/StatCard';
@@ -170,7 +171,7 @@ export default function FinancesScreen({ finances, setFinances }) {
 
   return (
     <View style={styles.root}>
-      <ScrollView style={styles.scroll} contentContainerStyle={styles.content}>
+      <AppScrollView style={styles.scroll} contentContainerStyle={styles.content}>
 
         {/* Stats */}
         <View style={styles.sectionTitleRow}><Icon name="wallet" size={14} color={COLORS.textMuted} /><Text style={styles.sectionTitle}> Overview</Text></View>
@@ -239,7 +240,7 @@ export default function FinancesScreen({ finances, setFinances }) {
             </View>
           </Card>
         ))}
-      </ScrollView>
+      </AppScrollView>
 
       {/* Add / Edit Modal */}
       {/* Edge-to-edge: without these the modal's own window stops at the
@@ -262,7 +263,7 @@ export default function FinancesScreen({ finances, setFinances }) {
             <View style={styles.modalHeaderRight} />
           </View>
 
-          <ScrollView contentContainerStyle={styles.modalScrollContent} keyboardShouldPersistTaps="handled">
+          <ScrollView contentContainerStyle={styles.modalScrollContent} keyboardShouldPersistTaps="always">
             <TextInput
               style={styles.input}
               placeholder="Description *"
