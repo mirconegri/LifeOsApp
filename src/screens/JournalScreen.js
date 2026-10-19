@@ -35,19 +35,27 @@
 // is the one already-correct way to turn a Date into a 'YYYY-MM-DD' key.
 import React, { useState, useMemo, useRef } from 'react';
 import {
-  View, Text, StyleSheet, ScrollView, TouchableOpacity, Modal,
+  View, Text, StyleSheet, ScrollView, Modal,
   TextInput, KeyboardAvoidingView, Platform,
 } from 'react-native';
-import { Card } from '../components/Card';
-import { Pill } from '../components/Pill';
-import { COLORS } from '../config/colors';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+
+import { M3, MODULE_TONES } from '../config/colors';
+import { SHAPE, SPACING } from '../config/designSystem';
+import { TEXT } from '../ui/type';
 import { AppScrollView } from '../ui/AppScrollView';
+import { ScreenHeader } from '../ui/ScreenHeader';
+import { Chip } from '../ui/Chip';
+import { CtaButton } from '../ui/CtaButton';
+import { IconButton } from '../ui/IconButton';
+import { SpringPressable } from '../ui/SpringPressable';
+import { EmptyState } from '../ui/EmptyState';
+import { Pill } from '../components/Pill';
 import { CustomAlert } from '../components/CustomAlert';
 import { DatePicker } from '../components/DatePicker';
 import { DraggableList } from '../components/DraggableList';
 import { Icon } from '../components/Icon';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { todayKey, localDateKey, diffDays, last7Days } from '../data/helpers';
+import { todayKey, localDateKey, last7Days } from '../data/helpers';
 
 const SECTIONS = ['Today', 'Upcoming', 'Habits', 'No Date'];
 const CHECK_HIT_SLOP = { top: 10, bottom: 10, left: 10, right: 10 };
@@ -254,22 +262,22 @@ export default function JournalScreen({ journal, setJournal }) {
         style={styles.scroll}
         contentContainerStyle={styles.content}
       >
-        <View style={styles.header}>
-          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-            <Icon name="check-square" size={24} color={COLORS.text} />
-            <Text style={styles.title}>Tasks</Text>
-          </View>
-          <View style={styles.headerRight}>
-            {totalToday > 0 && (
-              <Text style={styles.progressText}>{doneToday}/{totalToday} today</Text>
-            )}
-            {journal.length > 0 && (
-              <TouchableOpacity onPress={confirmClearAll}>
-                <Text style={styles.clearAllText}>Clear All</Text>
-              </TouchableOpacity>
-            )}
-          </View>
-        </View>
+        <ScreenHeader
+          title="Tasks"
+          subtitle={totalToday > 0 ? `${doneToday}/${totalToday} done today` : 'Nothing scheduled today'}
+          style={styles.headerFlush}
+          right={journal.length > 0 ? (
+            <SpringPressable
+              onPress={confirmClearAll}
+              haptic="selection"
+              accessibilityLabel="Clear all tasks"
+              style={styles.clearAll}
+              contentStyle={styles.clearAllContent}
+            >
+              <Text style={[TEXT.labelLarge, styles.clearAllText]}>Clear all</Text>
+            </SpringPressable>
+          ) : null}
+        />
 
         {SECTIONS.map(section => {
           const items = grouped[section];
@@ -279,80 +287,122 @@ export default function JournalScreen({ journal, setJournal }) {
           return (
             <View key={section} style={styles.sectionBlock}>
               <View style={styles.sectionHeaderRow}>
-                <Text style={styles.sectionTitle}>{section}</Text>
-                {isHabitSection && (
-                  <TouchableOpacity onPress={openAddHabitModal}>
-                    <Text style={styles.addHabitLink}>+ Add habit</Text>
-                  </TouchableOpacity>
-                )}
+                <Text style={[TEXT.titleLargeEmphasized, styles.sectionTitle]}>{section}</Text>
+                {isHabitSection ? (
+                  <SpringPressable
+                    onPress={openAddHabitModal}
+                    haptic="selection"
+                    accessibilityLabel="Add habit"
+                    style={styles.addHabit}
+                    contentStyle={styles.addHabitContent}
+                  >
+                    <Text style={[TEXT.labelLarge, styles.addHabitLink]}>+ Add habit</Text>
+                  </SpringPressable>
+                ) : null}
               </View>
-              {items.length > 1 && (
-                <Text style={styles.reorderHint}>Hold and drag to reorder</Text>
-              )}
+              {items.length > 1 ? (
+                <Text style={[TEXT.labelSmall, styles.reorderHint]}>Hold and drag to reorder</Text>
+              ) : null}
 
               <DraggableList
                 items={items}
                 keyExtractor={(t) => String(t.id)}
                 onReorder={(reordered) => handleReorderSection(items, reordered)}
-                itemHeight={isHabitSection ? 96 : 60}
+                itemHeight={isHabitSection ? 108 : 64}
                 scrollRef={scrollRef}
                 scrollYRef={scrollYRef}
                 renderItem={(t) => {
                   if (t.recurring) {
-                    const doneTodayFlag = !!(t.history && t.history[today]);
                     return (
-                      <Card style={styles.habitCard}>
-                        <TouchableOpacity onPress={() => openEditModal(t)} style={styles.habitTopRow}>
-                          <Text style={styles.habitIcon}>{t.icon || '🌟'}</Text>
-                          <Text style={styles.habitName}>{t.text}</Text>
-                          <View style={styles.streakBadge}>
-                            <Icon name="flame" size={12} color={COLORS.amber} />
-                            <Text style={styles.streakText}> {t.streak || 0}</Text>
+                      <View style={styles.habitCard}>
+                        <SpringPressable
+                          onPress={() => openEditModal(t)}
+                          haptic="selection"
+                          accessibilityLabel={`Edit habit ${t.text}`}
+                          style={styles.habitTopRow}
+                          contentStyle={styles.habitTopContent}
+                        >
+                          <View style={styles.habitIconTile}>
+                            <Text style={styles.habitIcon}>{t.icon || '🌟'}</Text>
                           </View>
-                        </TouchableOpacity>
+                          <Text style={[TEXT.titleMedium, styles.habitName]} numberOfLines={1}>{t.text}</Text>
+                          <View style={styles.streakBadge}>
+                            <Icon name="flame" size={12} color={MODULE_TONES.finances.on} />
+                            <Text style={[TEXT.labelSmall, styles.streakText]}>{t.streak || 0}</Text>
+                          </View>
+                        </SpringPressable>
                         <View style={styles.daysRow}>
                           {pastWeek.map(day => {
                             const done = !!(t.history && t.history[day]);
                             const isToday = day === today;
                             return (
-                              <TouchableOpacity
+                              <SpringPressable
                                 key={day}
                                 disabled={!isToday}
                                 onPress={() => toggleEntry(t.id)}
+                                haptic="selection"
                                 style={styles.dayCol}
+                                contentStyle={styles.dayColContent}
                                 hitSlop={DAY_HIT_SLOP}
+                                accessibilityRole="button"
+                                accessibilityState={{ selected: done }}
+                                accessibilityLabel={`Toggle habit for ${day}`}
                               >
                                 <View style={[styles.dayCircle, done && styles.dayCircleDone, isToday && styles.dayCircleToday]} />
-                              </TouchableOpacity>
+                              </SpringPressable>
                             );
                           })}
                         </View>
-                      </Card>
+                      </View>
                     );
                   }
 
                   return (
-                    <Card style={t.done ? styles.cardDone : styles.cardActive}>
+                    <View style={[styles.taskCard, t.done && styles.taskCardDone]}>
                       <View style={styles.taskRow}>
-                        <TouchableOpacity
+                        <SpringPressable
                           onPress={() => toggleEntry(t.id)}
-                          style={styles.checkWrap}
+                          haptic="selection"
                           hitSlop={CHECK_HIT_SLOP}
+                          accessibilityRole="checkbox"
+                          accessibilityState={{ checked: t.done }}
+                          accessibilityLabel={t.done ? `Mark ${t.text} not done` : `Mark ${t.text} done`}
+                          style={[styles.checkbox, t.done && styles.checkboxChecked]}
+                          contentStyle={styles.checkboxContent}
                         >
-                          <View style={[styles.checkbox, t.done && styles.checkboxChecked]}>
-                            {t.done && <Text style={styles.checkText}>✓</Text>}
-                          </View>
-                        </TouchableOpacity>
-                        <TouchableOpacity onPress={() => openEditModal(t)} style={styles.taskInfo}>
-                          <Text style={[styles.taskText, t.done && styles.taskTextStriked]}>{t.text}</Text>
-                          {t.subject ? <Text style={styles.taskSubject}>{t.subject}</Text> : null}
-                        </TouchableOpacity>
+                          {t.done ? (
+                            <Icon name="check" size={15} color={MODULE_TONES.journal.container} />
+                          ) : null}
+                        </SpringPressable>
+                        <SpringPressable
+                          onPress={() => openEditModal(t)}
+                          haptic="selection"
+                          style={styles.taskInfo}
+                          contentStyle={styles.taskInfoContent}
+                          accessibilityLabel={`Edit ${t.text}`}
+                        >
+                          <Text style={[TEXT.titleMedium, t.done && styles.taskTextStriked]} numberOfLines={1}>
+                            {t.text}
+                          </Text>
+                          {t.subject ? (
+                            <Text style={[TEXT.labelMedium, styles.taskSubject]} numberOfLines={1}>
+                              {t.subject}
+                            </Text>
+                          ) : null}
+                        </SpringPressable>
                         <Pill color={priorityColor(t.priority)}>{t.priority}</Pill>
-                        <TouchableOpacity onPress={() => deleteEntry(t.id)} style={styles.trashBtn}>
-                          <Text style={styles.trashIcon}>✕</Text>
-                        </TouchableOpacity>
+                        <SpringPressable
+                          onPress={() => deleteEntry(t.id)}
+                          haptic="selection"
+                          hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                          style={styles.trashBtn}
+                          contentStyle={styles.trashBtnContent}
+                          accessibilityLabel={`Delete ${t.text}`}
+                        >
+                          <Icon name="trash-2" size={16} color={M3.outline} />
+                        </SpringPressable>
                       </View>
-                    </Card>
+                    </View>
                   );
                 }}
               />
@@ -360,9 +410,14 @@ export default function JournalScreen({ journal, setJournal }) {
           );
         })}
 
-        {journal.length === 0 && (
-          <Card><Text style={styles.emptyText}>No tasks yet. Add one below.</Text></Card>
-        )}
+        {journal.length === 0 ? (
+          <EmptyState
+            icon="check-square"
+            title="No tasks yet"
+            body="Type below to add your first task. Habits live here too."
+            tone={MODULE_TONES.journal}
+          />
+        ) : null}
 
         </AppScrollView>
 
@@ -378,37 +433,66 @@ export default function JournalScreen({ journal, setJournal }) {
           <View style={styles.composerCircle} />
           <TextInput
             ref={composerInputRef}
-            style={styles.composerInput}
+            style={[styles.composerInput, TEXT.bodyLarge]}
             placeholder="Add a task..."
-            placeholderTextColor={COLORS.textSub}
+            placeholderTextColor={M3.outline}
             value={composerText}
             onChangeText={setComposerText}
             onSubmitEditing={submitComposer}
             returnKeyType="done"
           />
-          <TouchableOpacity onPress={submitComposer} style={styles.composerSendBtn}>
-            <Text style={styles.composerSendIcon}>↑</Text>
-          </TouchableOpacity>
+          <SpringPressable
+            onPress={submitComposer}
+            haptic="medium"
+            accessibilityLabel="Add task"
+            style={styles.composerSendBtn}
+            contentStyle={styles.composerSendContent}
+          >
+            <Icon name="arrow-up" size={18} color={MODULE_TONES.journal.container} />
+          </SpringPressable>
         </View>
         <View style={styles.composerQuickRow}>
-          <TouchableOpacity onPress={() => setShowDatePicker(true)} style={styles.composerChip}>
-            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
-              <Icon name="calendar" size={12} color={COLORS.textMuted} />
-              <Text style={styles.composerChipText}>{composerDate === today ? 'Today' : composerDate}</Text>
-            </View>
-          </TouchableOpacity>
-          <TouchableOpacity onPress={() => setShowPriorityPicker(v => !v)} style={styles.composerChip}>
-            <Text style={styles.composerChipText}>
-              {composerPriority ? `${composerPriority === 'high' ? '🔴' : composerPriority === 'medium' ? '🟡' : '🟢'} ${composerPriority}` : '⚪ Priority'}
+          <SpringPressable
+            onPress={() => setShowDatePicker(true)}
+            haptic="selection"
+            accessibilityLabel="Choose date"
+            style={styles.composerChip}
+            contentStyle={styles.composerChipContent}
+          >
+            <Icon name="calendar" size={13} color={M3.onSurfaceVariant} />
+            <Text style={[TEXT.labelMedium, styles.composerChipText]}>
+              {composerDate === today ? 'Today' : composerDate}
             </Text>
-          </TouchableOpacity>
+          </SpringPressable>
+          <SpringPressable
+            onPress={() => setShowPriorityPicker(v => !v)}
+            haptic="selection"
+            accessibilityLabel="Choose priority"
+            style={styles.composerChip}
+            contentStyle={styles.composerChipContent}
+          >
+            <Text style={[TEXT.labelMedium, styles.composerChipText]}>
+              {composerPriority
+                ? `${composerPriority === 'high' ? '🔴' : composerPriority === 'medium' ? '🟡' : '🟢'} ${composerPriority}`
+                : 'Priority'}
+            </Text>
+          </SpringPressable>
         </View>
         {showPriorityPicker && (
           <View style={styles.priorityPopRow}>
             {['low', 'medium', 'high'].map(p => (
-              <TouchableOpacity key={p} onPress={() => { setComposerPriority(p); setShowPriorityPicker(false); }} style={styles.priorityPopChip}>
-                <Text style={styles.priorityPopText}>{p === 'high' ? '🔴' : p === 'medium' ? '🟡' : '🟢'} {p}</Text>
-              </TouchableOpacity>
+              <SpringPressable
+                key={p}
+                onPress={() => { setComposerPriority(p); setShowPriorityPicker(false); }}
+                haptic="selection"
+                style={styles.priorityPopChip}
+                contentStyle={styles.priorityPopChipContent}
+                accessibilityLabel={`Set priority ${p}`}
+              >
+                <Text style={[TEXT.labelMedium, styles.priorityPopText]}>
+                  {p === 'high' ? '🔴' : p === 'medium' ? '🟡' : '🟢'} {p}
+                </Text>
+              </SpringPressable>
             ))}
           </View>
         )}
@@ -439,59 +523,74 @@ export default function JournalScreen({ journal, setJournal }) {
         onRequestClose={closeEditModal}
       >
         <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={styles.modalRoot} keyboardVerticalOffset={0} enabled={true}>
-          <View style={[styles.modalHeader, { paddingTop: insets.top + 16 }]}>
-            <TouchableOpacity onPress={closeEditModal}><Text style={styles.modalCancelText}>Cancel</Text></TouchableOpacity>
-            <Text style={styles.modalTitle}>{editingId ? (formRecurring ? 'Edit Habit' : 'Edit Task') : 'New Habit'}</Text>
+          <View style={[styles.modalHeader, { paddingTop: insets.top + 12 }]}>
+            <IconButton
+              icon="x"
+              onPress={closeEditModal}
+              accessibilityLabel="Close task form"
+            />
+            <Text style={[TEXT.titleLargeEmphasized, styles.modalTitle]}>
+              {editingId ? (formRecurring ? 'Edit habit' : 'Edit task') : 'New habit'}
+            </Text>
             <View style={styles.modalHeaderRight} />
           </View>
 
           <ScrollView contentContainerStyle={styles.modalScrollContent} keyboardShouldPersistTaps="always">
-            {formRecurring && (
-              <View style={styles.formRow}>
+            {formRecurring ? (
+              <>
+                <Text style={styles.fieldLabel}>Habit icon</Text>
                 <TextInput
-                  style={[styles.input, styles.iconInput]}
+                  style={[styles.input, styles.iconInput, TEXT.bodyLarge]}
                   value={formIcon}
                   onChangeText={setFormIcon}
                   maxLength={2}
-                  placeholder="Icon"
+                  placeholder="🌟"
+                  placeholderTextColor={M3.outline}
+                  textAlign="center"
                 />
+                <Text style={styles.fieldLabel}>Habit name *</Text>
                 <TextInput
-                  style={[styles.input, { flex: 1 }]}
-                  placeholder="Habit name..."
-                  placeholderTextColor={COLORS.textSub}
+                  style={[styles.input, TEXT.bodyLarge]}
+                  placeholder="e.g. Read 20 pages"
+                  placeholderTextColor={M3.outline}
                   value={formText}
                   onChangeText={setFormText}
                   autoFocus
                 />
-              </View>
-            )}
-            {!formRecurring && (
+              </>
+            ) : (
               <>
+                <Text style={styles.fieldLabel}>Task *</Text>
                 <TextInput
-                  style={styles.input}
+                  style={[styles.input, TEXT.bodyLarge]}
                   placeholder="What do you need to do?"
-                  placeholderTextColor={COLORS.textSub}
+                  placeholderTextColor={M3.outline}
                   value={formText}
                   onChangeText={setFormText}
                   autoFocus
                 />
+                <Text style={styles.fieldLabel}>Subject or category</Text>
                 <TextInput
-                  style={styles.input}
-                  placeholder="Subject or Category (optional)"
-                  placeholderTextColor={COLORS.textSub}
+                  style={[styles.input, TEXT.bodyLarge]}
+                  placeholder="Optional"
+                  placeholderTextColor={M3.outline}
                   value={formSubject}
                   onChangeText={setFormSubject}
                 />
 
-                <Text style={styles.fieldLabel}>Date:</Text>
+                <Text style={styles.fieldLabel}>Date</Text>
                 <DatePicker value={formDate} onChange={setFormDate} mode="any" label="Select date" />
 
-                <Text style={styles.fieldLabel}>Priority:</Text>
+                <Text style={styles.fieldLabel}>Priority</Text>
                 <View style={styles.pillRow}>
-                  {['low', 'medium', 'high'].map((p, idx) => (
-                    <TouchableOpacity key={p} onPress={() => setFormPriority(p)} style={[styles.priorityBtn, formPriority === p && styles.priorityBtnActive, idx < 2 && { marginRight: 10 }]}>
-                      <Text style={[styles.priorityText, formPriority === p && {color: COLORS.accent}]}>{p.toUpperCase()}</Text>
-                    </TouchableOpacity>
+                  {['low', 'medium', 'high'].map(p => (
+                    <Chip
+                      key={p}
+                      label={p}
+                      selected={formPriority === p}
+                      onPress={() => setFormPriority(p)}
+                      accessibilityLabel={`Priority ${p}`}
+                    />
                   ))}
                 </View>
               </>
@@ -500,17 +599,25 @@ export default function JournalScreen({ journal, setJournal }) {
 
           <View style={styles.modalFooter}>
             {editingId ? (
-              <TouchableOpacity onPress={() => deleteEntry(editingId)} style={[styles.modalFooterBtn, styles.modalFooterBtnDelete]}>
-                <Text style={styles.modalFooterBtnDeleteText}>Delete</Text>
-              </TouchableOpacity>
+              <CtaButton
+                label="Delete"
+                variant="destructive"
+                onPress={() => deleteEntry(editingId)}
+                style={styles.footerBtn}
+              />
             ) : (
-              <TouchableOpacity onPress={closeEditModal} style={[styles.modalFooterBtn, styles.modalFooterBtnCancel]}>
-                <Text style={styles.modalFooterBtnCancelText}>Cancel</Text>
-              </TouchableOpacity>
+              <CtaButton
+                label="Cancel"
+                variant="tonal"
+                onPress={closeEditModal}
+                style={styles.footerBtn}
+              />
             )}
-            <TouchableOpacity onPress={saveEdit} style={[styles.modalFooterBtn, styles.modalFooterBtnSave]}>
-              <Text style={styles.modalFooterBtnSaveText}>{editingId ? 'Save Changes' : 'Create'}</Text>
-            </TouchableOpacity>
+            <CtaButton
+              label={editingId ? 'Save changes' : 'Create'}
+              onPress={saveEdit}
+              style={[styles.footerBtn, styles.footerPrimary]}
+            />
           </View>
         </KeyboardAvoidingView>
       </Modal>
@@ -521,87 +628,186 @@ export default function JournalScreen({ journal, setJournal }) {
 }
 
 const styles = StyleSheet.create({
-  root: { flex: 1, backgroundColor: COLORS.bg },
+  root: { flex: 1, backgroundColor: M3.background },
   scroll: { flex: 1 },
-  content: { padding: 16, paddingBottom: 12 },
-  header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 },
-  headerRight: { flexDirection: 'row', alignItems: 'center' },
-  title: { fontSize: 28, fontWeight: '700', color: COLORS.text },
-  progressText: { fontSize: 13, color: COLORS.textMuted, fontWeight: '600', marginRight: 14 },
-  clearAllText: { fontSize: 12, color: COLORS.red, fontWeight: '600' },
+  content: { paddingHorizontal: 16, paddingBottom: 4 },
+  headerFlush: { paddingHorizontal: 0 },
 
-  sectionBlock: { marginBottom: 18 },
-  sectionHeaderRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 },
-  sectionTitle: { fontSize: 13, fontWeight: '700', color: COLORS.textMuted, textTransform: 'uppercase', letterSpacing: 0.6 },
-  addHabitLink: { fontSize: 12, color: COLORS.accent, fontWeight: '600' },
-  reorderHint: { fontSize: 11, color: COLORS.textSub, marginBottom: 6 },
-  emptyText: { color: COLORS.textSub, textAlign: 'center', marginVertical: 20 },
+  clearAll: { borderRadius: SHAPE.full },
+  clearAllContent: { paddingHorizontal: 10, paddingVertical: 6, borderRadius: SHAPE.full },
+  clearAllText: { color: M3.error },
 
-  cardActive: { marginBottom: 8, padding: 12 },
-  cardDone: { marginBottom: 8, padding: 12, opacity: 0.45 },
-  taskRow: { flexDirection: 'row', alignItems: 'center' },
-  checkWrap: { marginRight: 12 },
-  checkbox: { width: 22, height: 22, borderRadius: 11, borderWidth: 2, borderColor: COLORS.border2, alignItems: 'center', justifyContent: 'center' },
-  checkboxChecked: { backgroundColor: COLORS.accent, borderColor: COLORS.accent },
-  checkText: { color: COLORS.onPrimary, fontSize: 12, fontWeight: 'bold' },
+  sectionBlock: { marginBottom: SPACING.lg },
+  sectionHeaderRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 8,
+  },
+  sectionTitle: { color: M3.onSurface },
+  addHabit: { borderRadius: SHAPE.full },
+  addHabitContent: { paddingHorizontal: 10, paddingVertical: 6, borderRadius: SHAPE.full },
+  addHabitLink: { color: M3.primary },
+  reorderHint: { color: M3.outline, marginBottom: 6 },
+
+  // Grouped task rows: tonal surface, 20 radius, 2 px gap between rows.
+  taskCard: {
+    backgroundColor: M3.surfaceContainerHigh,
+    borderRadius: SHAPE.xl,
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    marginBottom: 2,
+  },
+  taskCardDone: { opacity: 0.55 },
+  taskRow: { flexDirection: 'row', alignItems: 'center', gap: 10 },
+  checkbox: {
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    borderWidth: 2,
+    borderColor: M3.outline,
+  },
+  checkboxChecked: {
+    backgroundColor: MODULE_TONES.journal.on,
+    borderColor: MODULE_TONES.journal.on,
+  },
+  checkboxContent: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderRadius: 12,
+  },
   taskInfo: { flex: 1 },
-  taskText: { fontSize: 15, color: COLORS.text },
-  taskTextStriked: { textDecorationLine: 'line-through', color: COLORS.textSub },
-  taskSubject: { fontSize: 12, color: COLORS.textMuted, marginTop: 4 },
-  trashBtn: { padding: 8, marginLeft: 8 },
-  trashIcon: { color: COLORS.textSub, fontSize: 16 },
+  taskInfoContent: { paddingVertical: 2 },
+  taskTextStriked: { textDecorationLine: 'line-through', color: M3.outline },
+  taskSubject: { color: M3.onSurfaceVariant, marginTop: 1 },
+  trashBtn: { borderRadius: SHAPE.full },
+  trashBtnContent: { padding: 6, borderRadius: SHAPE.full },
 
-  // Habit card (absorbed from the old HabitsScreen)
-  habitCard: { marginBottom: 10, padding: 14 },
-  habitTopRow: { flexDirection: 'row', alignItems: 'center', marginBottom: 10 },
-  habitIcon: { fontSize: 20, marginRight: 10 },
-  habitName: { fontSize: 15, fontWeight: '700', color: COLORS.text, flex: 1 },
-  streakBadge: { backgroundColor: COLORS.amberDim, paddingHorizontal: 8, paddingVertical: 3, borderRadius: 10 },
-  streakText: { color: COLORS.amber, fontWeight: 'bold', fontSize: 11 },
-  daysRow: { flexDirection: 'row', justifyContent: 'space-between' },
-  dayCol: { alignItems: 'center', flex: 1 },
-  dayCircle: { width: 22, height: 22, borderRadius: 11, backgroundColor: COLORS.bg4 },
-  dayCircleDone: { backgroundColor: COLORS.green },
-  dayCircleToday: { borderWidth: 2, borderColor: COLORS.text },
+  // Habit card: icon tile + streak chip + week of day circles.
+  habitCard: {
+    backgroundColor: M3.surfaceContainerHigh,
+    borderRadius: SHAPE.xxl,
+    padding: 12,
+    marginBottom: 2,
+  },
+  habitTopRow: { borderRadius: SHAPE.lg },
+  habitTopContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    borderRadius: SHAPE.lg,
+  },
+  habitIconTile: {
+    width: 40,
+    height: 40,
+    borderRadius: SHAPE.md,
+    backgroundColor: MODULE_TONES.finances.container,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  habitIcon: { fontSize: 20 },
+  habitName: { flex: 1, color: M3.onSurface },
+  streakBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    backgroundColor: MODULE_TONES.finances.container,
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: SHAPE.full,
+  },
+  streakText: { color: MODULE_TONES.finances.on },
+  daysRow: { flexDirection: 'row', justifyContent: 'space-between', marginTop: 10 },
+  dayCol: { flex: 1, alignItems: 'center', borderRadius: SHAPE.full },
+  dayColContent: { alignItems: 'center', paddingVertical: 4, borderRadius: SHAPE.full },
+  dayCircle: { width: 22, height: 22, borderRadius: 11, backgroundColor: M3.surfaceContainerHighest },
+  dayCircleDone: { backgroundColor: MODULE_TONES.journal.on },
+  dayCircleToday: { borderWidth: 2, borderColor: M3.onSurface },
 
-  // Fixed bottom composer
+  // Fixed bottom composer — lifted above the floating nav, no border.
   composer: {
-    backgroundColor: COLORS.bg2, borderTopWidth: 1, borderTopColor: COLORS.border,
-    paddingHorizontal: 16, paddingTop: 10, paddingBottom: Platform.OS === 'ios' ? 24 : 14,
+    backgroundColor: M3.surfaceContainerLow,
+    paddingHorizontal: 16,
+    paddingTop: 10,
   },
   composerInputRow: { flexDirection: 'row', alignItems: 'center' },
-  composerCircle: { width: 22, height: 22, borderRadius: 11, borderWidth: 2, borderColor: COLORS.border2, marginRight: 10 },
-  composerInput: { flex: 1, color: COLORS.text, fontSize: 15, paddingVertical: 6 },
-  composerSendBtn: { width: 32, height: 32, borderRadius: 16, backgroundColor: COLORS.accent, alignItems: 'center', justifyContent: 'center', marginLeft: 8 },
-  composerSendIcon: { color: COLORS.onPrimary, fontSize: 16, fontWeight: '700' },
+  composerCircle: {
+    width: 22,
+    height: 22,
+    borderRadius: 11,
+    borderWidth: 2,
+    borderColor: M3.outline,
+    marginRight: 10,
+  },
+  composerInput: { flex: 1, color: M3.onSurface, paddingVertical: 6 },
+  composerSendBtn: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: MODULE_TONES.journal.on,
+    marginLeft: 8,
+  },
+  composerSendContent: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderRadius: 18,
+  },
   composerQuickRow: { flexDirection: 'row', marginTop: 8 },
-  composerChip: { backgroundColor: COLORS.bg3, borderRadius: 12, paddingHorizontal: 12, paddingVertical: 6, marginRight: 8 },
-  composerChipText: { color: COLORS.textMuted, fontSize: 12, fontWeight: '600' },
+  composerChip: {
+    backgroundColor: M3.surfaceContainerHigh,
+    borderRadius: SHAPE.full,
+    marginRight: 8,
+  },
+  composerChipContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: SHAPE.full,
+  },
+  composerChipText: { color: M3.onSurfaceVariant },
   priorityPopRow: { flexDirection: 'row', marginTop: 8 },
-  priorityPopChip: { backgroundColor: COLORS.bg3, borderRadius: 12, paddingHorizontal: 12, paddingVertical: 6, marginRight: 8 },
-  priorityPopText: { color: COLORS.text, fontSize: 12, fontWeight: '600' },
+  priorityPopChip: {
+    backgroundColor: M3.surfaceContainerHigh,
+    borderRadius: SHAPE.full,
+    marginRight: 8,
+  },
+  priorityPopChipContent: { paddingHorizontal: 12, paddingVertical: 6, borderRadius: SHAPE.full },
+  priorityPopText: { color: M3.onSurface },
 
-  // Modal
-  modalRoot: { flex: 1, backgroundColor: COLORS.bg },
-  modalHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 16, borderBottomWidth: 1, borderBottomColor: COLORS.border },
-  modalCancelText: { color: COLORS.accent, fontSize: 16 },
-  modalHeaderRight: { width: 50 },
-  modalTitle: { fontSize: 18, fontWeight: '700', color: COLORS.text, textAlign: 'center' },
-  modalScrollContent: { padding: 16, paddingBottom: 32 },
-  modalFooter: { flexDirection: 'row', alignItems: 'center', justifyContent: 'flex-end', padding: 16, gap: 12, borderTopWidth: 1, borderTopColor: COLORS.border },
-  modalFooterBtn: { paddingVertical: 14, paddingHorizontal: 20, borderRadius: 10, alignItems: 'center' },
-  modalFooterBtnSave: { backgroundColor: COLORS.accent, flex: 1 },
-  modalFooterBtnSaveText: { color: COLORS.onPrimary, fontWeight: '700', fontSize: 15 },
-  modalFooterBtnCancel: { backgroundColor: COLORS.bg4, marginRight: 10 },
-  modalFooterBtnCancelText: { color: COLORS.textMuted, fontWeight: '600' },
-  modalFooterBtnDelete: { backgroundColor: COLORS.redDim, borderWidth: 1, borderColor: COLORS.red, marginRight: 10 },
-  modalFooterBtnDeleteText: { color: COLORS.red, fontWeight: '600' },
-  input: { backgroundColor: COLORS.bg3, borderWidth: 1, borderColor: COLORS.border, borderRadius: 10, padding: 12, color: COLORS.text, fontSize: 15, marginBottom: 12 },
-  formRow: { flexDirection: 'row', marginBottom: 4 },
-  iconInput: { width: 60, marginRight: 10, textAlign: 'center' },
-  fieldLabel: { color: COLORS.textSub, fontSize: 13, marginBottom: 8 },
-  pillRow: { flexDirection: 'row', marginBottom: 20 },
-  priorityBtn: { flex: 1, paddingVertical: 10, borderRadius: 10, backgroundColor: COLORS.bg3, alignItems: 'center', borderWidth: 1, borderColor: COLORS.border },
-  priorityBtnActive: { backgroundColor: COLORS.accentGlow, borderColor: COLORS.accent },
-  priorityText: { fontSize: 12, color: COLORS.textSub, fontWeight: '600' },
+  // Modal — full screen, opaque, own insets.
+  modalRoot: { flex: 1, backgroundColor: M3.background },
+  modalHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 16,
+    paddingBottom: 12,
+  },
+  modalHeaderRight: { width: 40 },
+  modalTitle: { color: M3.onSurface },
+  modalScrollContent: { paddingHorizontal: 20, paddingTop: 8, paddingBottom: 40 },
+  modalFooter: {
+    flexDirection: 'row',
+    gap: 12,
+    paddingHorizontal: 20,
+    paddingVertical: 12,
+  },
+  footerBtn: { flex: 1 },
+  footerPrimary: { flex: 1.4 },
+  input: {
+    backgroundColor: M3.surfaceContainerHigh,
+    borderRadius: SHAPE.lg,
+    minHeight: 56,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    color: M3.onSurface,
+    marginBottom: 12,
+  },
+  iconInput: { width: 72, textAlign: 'center' },
+  fieldLabel: { color: M3.onSurfaceVariant, marginBottom: 6, marginTop: 4 },
+  pillRow: { flexDirection: 'row', gap: 8, marginBottom: 20 },
 });

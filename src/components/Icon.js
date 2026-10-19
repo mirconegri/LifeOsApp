@@ -53,6 +53,7 @@ const nameToPascal = {
   'info': 'Info',
   'arrow-right': 'ArrowRight',
   'arrow-left': 'ArrowLeft',
+  'arrow-up': 'ArrowUp',
   'refresh-cw': 'RefreshCw',
   'sun': 'Sun',
   'moon': 'Moon',
