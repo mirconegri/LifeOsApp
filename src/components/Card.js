@@ -1,20 +1,28 @@
-
+// src/components/Card.js
+//
+// Legacy surface container, restyled on the M3 tokens.
+// Depth now comes from tonal layering, not from borders or shadows; the
+// public props are unchanged so unmigrated screens inherit the new look.
+//
+// elevation: 'flat' | 'raised' (default) | 'prominent'
+//   flat      — lowest tonal layer, for dense repeated blocks
+//   raised    — standard container surface (default)
+//   prominent — highest tonal layer, for hero/target content
+//
+// `borderColor` is accepted for API compatibility and deliberately ignored:
+// there are no hairline borders on cards anymore.
 import React from 'react';
 import { View, StyleSheet } from 'react-native';
-import { COLORS } from '../config/colors';
-import { RADIUS } from '../config/designSystem';
+import { M3 } from '../config/colors';
+import { SHAPE } from '../config/designSystem';
 
-// elevation: 'flat' | 'raised' (default) | 'prominent'
-//   flat      — flush with bg, no border → for chronologically dense lists
-//   raised    — standard card surface    → default
-//   prominent — accent-tinted border, for hero/target content
 export function Card({ children, style, borderColor, elevation = 'raised' }) {
   const base =
-    elevation === 'flat'      ? styles.cardFlat :
-    elevation === 'prominent' ? styles.cardProminent :
+    elevation === 'flat'      ? styles.flat :
+    elevation === 'prominent' ? styles.prominent :
     styles.card;
   return (
-    <View style={[base, borderColor && { borderColor }, style]}>
+    <View style={[base, style]}>
       {children}
     </View>
   );
@@ -22,34 +30,18 @@ export function Card({ children, style, borderColor, elevation = 'raised' }) {
 
 const styles = StyleSheet.create({
   card: {
-    backgroundColor: COLORS.bgElevated,
-    borderWidth: 1,
-    borderColor: COLORS.hairline,
-    borderRadius: RADIUS.card,
+    backgroundColor: M3.surfaceContainer,
+    borderRadius: SHAPE.xxxl,
     padding: 16,
-    // Elevazione percettibile
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.15,
-    shadowRadius: 8,
-    elevation: 4,
   },
-  cardFlat: {
-    backgroundColor: COLORS.bg3,
-    borderWidth: 0,
-    borderRadius: 14,
+  flat: {
+    backgroundColor: M3.surfaceContainerLow,
+    borderRadius: SHAPE.xxl,
     padding: 14,
   },
-  cardProminent: {
-    backgroundColor: COLORS.bgElevated,
-    borderWidth: 1,
-    borderColor: COLORS.accent,
-    borderRadius: RADIUS.card + 2,
+  prominent: {
+    backgroundColor: M3.surfaceContainerHigh,
+    borderRadius: SHAPE.xxxl,
     padding: 16,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.2,
-    shadowRadius: 10,
-    elevation: 6,
   },
 });

@@ -1,62 +1,65 @@
-
+// src/components/Pill.js
+//
+// Legacy pill/chip, restyled on M3 tonal pairs.
+// Public API unchanged:
+// 1. static display:  <Pill color="green">Done</Pill>
+// 2. filter chip:     <Pill label="Active" selected onPress={...} />
+// 3. outline:         <Pill outline color="accent">Label</Pill>
+// Tap feedback now goes through SpringPressable (squash + tick).
 import React from 'react';
-import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
-import { COLORS } from '../config/colors';
-import { RADIUS } from '../config/designSystem';
+import { View, Text, StyleSheet } from 'react-native';
+import { M3, MODULE_TONES } from '../config/colors';
+import { SHAPE } from '../config/designSystem';
+import { TEXT } from '../ui/type';
+import { SpringPressable } from '../ui/SpringPressable';
 
 const PILL_COLORS = {
-  green:  { bg: COLORS.greenDim,   fg: COLORS.green  },
-  amber:  { bg: COLORS.amberDim,   fg: COLORS.amber  },
-  red:    { bg: COLORS.redDim,     fg: COLORS.red    },
-  accent: { bg: COLORS.accentGlow, fg: COLORS.accent },
-  muted:  { bg: COLORS.bg4,        fg: COLORS.textMuted },
+  green:  MODULE_TONES.journal,
+  amber:  MODULE_TONES.finances,
+  red:    { container: M3.errorContainer, on: M3.error },
+  accent: { container: M3.primaryContainer, on: M3.primary },
+  muted:  { container: M3.surfaceContainerHigh, on: M3.onSurfaceVariant },
 };
 
-// Pill supports three modes:
-// 1. Static display: <Pill color="green">Done</Pill>
-// 2. Interactive filter chip: <Pill label="Active" selected={..} onPress={..} />
-// 3. Outline: <Pill outline color="accent">Label</Pill> — transparent bg,
-//    colored border + text. Good for secondary filter rows.
 export function Pill({ children, color = 'muted', label, selected, onPress, outline }) {
-  const { fg } = PILL_COLORS[color] || PILL_COLORS.muted;
+  const tone = PILL_COLORS[color] || PILL_COLORS.muted;
 
   if (outline) {
     return (
-      <View style={[styles.pillOutline, { borderColor: fg }]}>
-        <Text style={[styles.text, { color: fg }]}>{label ?? children}</Text>
+      <View style={[styles.pillOutline, { borderColor: tone.on }]}>
+        <Text style={[TEXT.labelMedium, { color: tone.on }]}>{label ?? children}</Text>
       </View>
     );
   }
 
   if (onPress) {
-    const { bg } = PILL_COLORS[color] || PILL_COLORS.muted;
     return (
-      <TouchableOpacity
+      <SpringPressable
         onPress={onPress}
+        haptic="selection"
+        accessibilityLabel={typeof (label ?? children) === 'string' ? (label ?? children) : undefined}
         style={[
           styles.pill,
-          { backgroundColor: selected ? bg : COLORS.bg4 },
-          selected && styles.pillSelected,
+          selected
+            ? { backgroundColor: tone.on }
+            : { backgroundColor: M3.surfaceContainerHigh },
         ]}
       >
-        <Text style={[styles.text, { color: selected ? fg : COLORS.textMuted }]}>
+        <Text style={[TEXT.labelMedium, { color: selected ? tone.container : M3.onSurfaceVariant }]}>
           {label ?? children}
         </Text>
-      </TouchableOpacity>
+      </SpringPressable>
     );
   }
 
-  const { bg, fg: fgColor } = PILL_COLORS[color] || PILL_COLORS.muted;
   return (
-    <View style={[styles.pill, { backgroundColor: bg }]}>
-      <Text style={[styles.text, { color: fgColor }]}>{children}</Text>
+    <View style={[styles.pill, { backgroundColor: tone.container }]}>
+      <Text style={[TEXT.labelMedium, { color: tone.on }]}>{children}</Text>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  pill:         { paddingHorizontal: 12, paddingVertical: 6, borderRadius: RADIUS.pill },
-  pillSelected: { borderWidth: 1, borderColor: COLORS.accent },
-  pillOutline:  { paddingHorizontal: 12, paddingVertical: 6, borderRadius: RADIUS.pill, borderWidth: 1, backgroundColor: 'transparent' },
-  text:         { fontSize: 12, fontWeight: '600' },
+  pill:         { paddingHorizontal: 12, paddingVertical: 6, borderRadius: SHAPE.full },
+  pillOutline:  { paddingHorizontal: 12, paddingVertical: 6, borderRadius: SHAPE.full, borderWidth: 1, backgroundColor: 'transparent' },
 });

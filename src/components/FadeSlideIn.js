@@ -1,18 +1,15 @@
 // src/components/FadeSlideIn.js
 //
-// Generic "this just appeared" animation: fades in while sliding up a few
-// pixels. Used by App.js to animate screen switches (mount a new instance
-// keyed by screen id) and available to any screen/section that wants the
-// same entrance motion without hand-rolling its own Animated.Value pair.
+// Generic "this just appeared" entrance: fades in while sliding up a few
+// pixels, on the UI thread via Reanimated.
 //
-// Deliberately a MOUNT animation, not a continuous transition: the calling
-// code is expected to force a remount when it wants the effect to replay
-// (e.g. <FadeSlideIn key={screen}>...), rather than this component trying
-// to detect prop changes itself. That keeps the animation timing fully
-// predictable and keeps this component free of edge cases around
-// re-triggering mid-animation.
-import React, { useEffect, useRef } from 'react';
-import { Animated, Easing } from 'react-native';
+// Mount animation, not a continuous transition: the caller remounts when
+// the effect should replay (e.g. <FadeSlideIn key={screen}>). Public API
+// unchanged: children, style, duration, distance, delay.
+import React from 'react';
+import Animated, {
+  useSharedValue, useAnimatedStyle, withTiming, withDelay, Easing, useReducedMotion,
+} from 'react-native-reanimated';
 import { MOTION } from '../config/designSystem';
 
 export function FadeSlideIn({
@@ -22,35 +19,27 @@ export function FadeSlideIn({
   distance = 14,
   delay = 0,
 }) {
-  const opacity = useRef(new Animated.Value(0)).current;
-  const translateY = useRef(new Animated.Value(distance)).current;
+  const reduce = useReducedMotion();
+  const progress = useSharedValue(0);
 
-  useEffect(() => {
-    const anim = Animated.parallel([
-      Animated.timing(opacity, {
-        toValue: 1,
-        duration,
-        delay,
-        easing: Easing.out(Easing.cubic),
-        useNativeDriver: true,
-      }),
-      Animated.timing(translateY, {
-        toValue: 0,
-        duration,
-        delay,
-        easing: Easing.out(Easing.cubic),
-        useNativeDriver: true,
-      }),
-    ]);
-    anim.start();
-    return () => anim.stop();
-    // Intentionally empty deps — this is a mount-only animation; replaying
-    // it is the caller's job via remounting (see file header comment).
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  React.useEffect(() => {
+    if (reduce) {
+      progress.value = 1;
+      return;
+    }
+    progress.value = withDelay(
+      delay,
+      withTiming(1, { duration, easing: Easing.out(Easing.cubic) }),
+    );
+  }, [reduce, duration, delay, progress]);
+
+  const animatedStyle = useAnimatedStyle(() => ({
+    opacity: progress.value,
+    transform: [{ translateY: (1 - progress.value) * distance }],
+  }));
 
   return (
-    <Animated.View style={[{ opacity, transform: [{ translateY }] }, style]}>
+    <Animated.View style={[animatedStyle, style]}>
       {children}
     </Animated.View>
   );

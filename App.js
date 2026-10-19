@@ -1,7 +1,7 @@
 // App.js — LifeOS root component
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import {
-  View, Text, TouchableOpacity,
+  View, Text, TouchableOpacity, Pressable,
   ScrollView, StatusBar, Modal, StyleSheet, Platform,
   Animated, Easing, BackHandler,
 } from 'react-native';
@@ -24,6 +24,7 @@ import { MODULES, DEFAULT_MODULES, normalizeModules } from './src/config/modules
 import { todayKey } from './src/data/helpers';
 import { loadJSON, saveJSON } from './src/data/storage';
 import { FadeSlideIn } from './src/components/FadeSlideIn';
+import { DevKit } from './src/ui/DevKit';
 import {
   INIT_EXAMS, INIT_FINANCES,
   INIT_GROCERIES, INIT_GOALS, INIT_NOTES, INIT_LINKS, INIT_JOURNAL,
@@ -118,6 +119,9 @@ function AppContent() {
   // Settings is a modal, not a route: it is a leaf reachable from the
   // drawer and is never a navigation destination of its own.
   const [settingsVisible, setSettingsVisible] = useState(false);
+  // Dev-only primitive gallery. Long-press the wordmark (the trigger moves to
+  // the search-pill brand mark when the shell lands in Phase 2).
+  const [devKitVisible, setDevKitVisible] = useState(false);
   // One switch per optional section. Home and Stats are not in here: they
   // are the frame, and they stay reachable whatever the user turns off.
   const [modules, setModules] = useState(DEFAULT_MODULES);
@@ -392,9 +396,15 @@ function AppContent() {
         <TouchableOpacity onPress={openDrawer} style={styles.menuBtn}>
           <Icon name="menu" size={20} color={COLORS.textMuted} />
         </TouchableOpacity>
-        <Text style={styles.logo}>
-          <Text style={{ color: COLORS.accent }}>Life</Text>OS
-        </Text>
+        <Pressable
+          onLongPress={__DEV__ ? () => setDevKitVisible(true) : undefined}
+          delayLongPress={400}
+          accessibilityLabel="LifeOS"
+        >
+          <Text style={styles.logo}>
+            <Text style={{ color: COLORS.accent }}>Life</Text>OS
+          </Text>
+        </Pressable>
         <Text style={styles.screenLabel}>
           <Icon name={currentNav?.icon} size={16} color={COLORS.textMuted} /> {currentNav?.label}
         </Text>
@@ -484,6 +494,11 @@ function AppContent() {
         moduleCounts={moduleCounts}
         onToggleModule={toggleModule}
         onDataChanged={loadAllData}
+      />
+
+      <DevKit
+        visible={devKitVisible}
+        onClose={() => setDevKitVisible(false)}
       />
     </View>
   );

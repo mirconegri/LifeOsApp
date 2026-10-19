@@ -1,35 +1,41 @@
-
+// src/components/StatCard.js
+//
+// Legacy 2x2 stat tile, restyled on M3 tonal surfaces.
+// Public props unchanged: label, value, sub, color, trend, icon.
+//   trend: 'up' | 'down' | 'flat'
+//   icon:  optional small inline node (kept as-is for compatibility)
 import React from 'react';
 import { View, Text, StyleSheet } from 'react-native';
-import { Card } from './Card';
-import { COLORS } from '../config/colors';
-import { TYPE } from '../config/designSystem';
+import { M3, MODULE_TONES } from '../config/colors';
+import { SHAPE } from '../config/designSystem';
+import { TEXT } from '../ui/type';
 
-// trend: 'up' | 'down' | 'flat' — optional micro-arrow indicator
-// icon: optional small inline emoji/icon label
-export function StatCard({ label, value, sub, color = COLORS.accent, trend, icon }) {
+export function StatCard({ label, value, sub, color = M3.primary, trend, icon }) {
   return (
-    <Card elevation="flat" style={styles.card}>
+    <View style={styles.card}>
       <View style={styles.labelRow}>
-        {icon && <Text style={styles.icon}>{icon}</Text>}
-        <Text style={styles.label}>{label}</Text>
-        {trend === 'up' && <Text style={styles.trendUp}>↑</Text>}
-        {trend === 'down' && <Text style={styles.trendDown}>↓</Text>}
+        {icon ? <Text style={styles.icon}>{icon}</Text> : null}
+        <Text style={TEXT.labelMedium} numberOfLines={1}>{label}</Text>
       </View>
-      <Text style={[styles.value, { color }]}>{value}</Text>
-      {sub && <Text style={styles.sub}>{sub}</Text>}
-    </Card>
+      <Text style={[TEXT.headlineSmall, { color }]}>{value}</Text>
+      {sub ? <Text style={[TEXT.bodySmall, styles.sub]}>{sub}</Text> : null}
+      {trend === 'up' || trend === 'down' ? (
+        <Text style={[TEXT.labelSmall, { color: trend === 'up' ? MODULE_TONES.journal.on : M3.error }]}>
+          {trend === 'up' ? '↑' : '↓'}
+        </Text>
+      ) : null}
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
-  card:  { flex: 1 },
-  labelRow: { flexDirection: 'row', alignItems: 'center', marginBottom: 5 },
-  icon:  { fontSize: TYPE.caption, marginRight: 4 },
-  label: { fontSize: TYPE.caption, color: COLORS.textMuted, textTransform: 'uppercase', letterSpacing: 0.6, fontWeight: '600' },
-  value: { fontSize: TYPE.heading, fontWeight: '700' },
-  sub:   { fontSize: TYPE.meta, color: COLORS.textSub, marginTop: 2 },
-  trendUp:   { fontSize: TYPE.micro, color: COLORS.green, marginLeft: 4 },
-  trendDown: { fontSize: TYPE.micro, color: COLORS.red, marginLeft: 4 },
-  trendFlat: { fontSize: TYPE.micro, color: COLORS.textSub, marginLeft: 4 },
+  card: {
+    backgroundColor: M3.surfaceContainerHigh,
+    borderRadius: SHAPE.xl,
+    padding: 16,
+    flex: 1,
+  },
+  labelRow: { flexDirection: 'row', alignItems: 'center', marginBottom: 6 },
+  icon: { fontSize: 12, marginRight: 4, color: M3.onSurfaceVariant },
+  sub: { color: M3.outline, marginTop: 2 },
 });
