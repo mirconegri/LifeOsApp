@@ -1,28 +1,37 @@
 // src/screens/SettingsScreen.js
 //
-// Full-screen modal reachable from the drawer. Two things live here:
+// Full-screen modal reachable from the Home avatar and the Modules screen.
+// Two things live here:
 //
-//   1. The module switches — each one hides its tab (and drawer entry)
-//      without touching any stored data.
-//   2. The app version, read from app.config.js at runtime via
-//      expo-constants. It used to be hardcoded/absent, which is what
-//      issue #1a was about: what the app reports must be the version that
-//      actually shipped, not a constant someone forgot to bump.
+//   1. The module switches — each one hides its screen (and its entry in the
+//      Modules grid) without touching any stored data.
+//   2. Backup export/import and delete-all, plus the app version read from
+//      app.config.js at runtime via expo-constants. It used to be
+//      hardcoded/absent, which is what issue #1a was about: what the app
+//      reports must be the version that actually shipped, not a constant
+//      someone forgot to bump.
 //
-// Presentation follows the other modals in the app: opaque root view so
-// nothing shows through during the slide-in.
+// Presentation follows the other M3 modals in the app: opaque root view with
+// its own insets so nothing shows through during the slide-in. Depth comes
+// from the grouped rows (20 outer / 4 inner corners, 2 px gaps) — no borders.
 import React, { useState } from 'react';
 import {
-  View, Text, TouchableOpacity, Switch, ScrollView,
-  Modal, StyleSheet, StatusBar,
+  View, Text, Switch, ScrollView, Modal, StyleSheet, StatusBar,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Constants from 'expo-constants';
+
+import { M3, MODULE_TONES } from '../config/colors';
+import { SPACING } from '../config/designSystem';
+import { MODULES } from '../config/modules';
+import { NAV } from '../config/nav';
+import { TEXT } from '../ui/type';
+import { rowShape } from '../ui/GroupItem';
+import { IconButton } from '../ui/IconButton';
+import { SpringPressable } from '../ui/SpringPressable';
+import { TonalIcon } from '../ui/TonalIcon';
 import { Icon } from '../components/Icon';
 import { CustomAlert } from '../components/CustomAlert';
-import { COLORS } from '../config/colors';
-import { TYPE } from '../config/designSystem';
-import { MODULES } from '../config/modules';
 import {
   exportToFile, pickBackupFile, applyBackup, clearAllData, summarize,
 } from '../data/backup';
@@ -30,6 +39,71 @@ import {
 // Never hardcode a version here again — this reads the value Expo was
 // built with, so package.json and app.config.js stay the only sources.
 const APP_VERSION = Constants.expoConfig?.version ?? '0.0.0';
+
+// Icons come from the same NAV table the rest of the shell uses.
+const MODULE_ICONS = MODULES.reduce((acc, m) => {
+  acc[m.id] = NAV.find((n) => n.id === m.id)?.icon || 'grid';
+  return acc;
+}, {});
+
+const DELETE_TONE = { container: M3.errorContainer, on: M3.onErrorContainer };
+
+// Grouped row for this screen. GroupItem's secondary is single-line, and the
+// module/data descriptions here are too long for that at body width, so this
+// row lets the description wrap to two lines. The group shape still comes from
+// GroupItem's rowShape (20 outer / 4 inner corners) and the press from
+// SpringPressable, so it behaves like every other grouped row in the app.
+function SettingsRow({
+  icon,
+  tone,
+  title,
+  secondary,
+  trailing,
+  onPress,
+  destructive = false,
+  index = 0,
+  count = 1,
+}) {
+  const shape = rowShape(index, count);
+
+  const body = (
+    <>
+      <TonalIcon icon={icon} size={44} tone={tone} />
+      <View style={styles.rowText}>
+        <Text
+          style={[TEXT.titleMedium, styles.rowTitle, destructive && styles.rowTitleDestructive]}
+          numberOfLines={1}
+        >
+          {title}
+        </Text>
+        {secondary ? (
+          <Text style={[TEXT.labelMedium, styles.rowSecondary]} numberOfLines={2}>
+            {secondary}
+          </Text>
+        ) : null}
+      </View>
+      {trailing ? <View style={styles.rowTrailing}>{trailing}</View> : null}
+    </>
+  );
+
+  if (!onPress) {
+    return (
+      <View style={[styles.rowShell, shape, styles.rowContent]}>{body}</View>
+    );
+  }
+
+  return (
+    <SpringPressable
+      onPress={onPress}
+      haptic="selection"
+      accessibilityLabel={title}
+      style={[styles.rowShell, shape]}
+      contentStyle={styles.rowContent}
+    >
+      {body}
+    </SpringPressable>
+  );
+}
 
 export default function SettingsScreen({
   visible,
@@ -167,6 +241,9 @@ export default function SettingsScreen({
     });
   };
 
+  const chevron = <Icon name="chevron-right" size={20} color={M3.onSurfaceVariant} />;
+  const destructiveChevron = <Icon name="chevron-right" size={20} color={M3.error} />;
+
   return (
     <Modal
       visible={visible}
@@ -177,102 +254,103 @@ export default function SettingsScreen({
       onRequestClose={onClose}
     >
       <View style={[styles.root, { paddingTop: insets.top }]}>
-        <StatusBar barStyle="light-content" backgroundColor={COLORS.bg2} />
+        <StatusBar barStyle="light-content" backgroundColor={M3.background} />
 
         <View style={styles.header}>
-          <Text style={styles.headerTitle}>Settings</Text>
-          <TouchableOpacity onPress={onClose} style={styles.closeBtn} accessibilityLabel="Close settings">
-            <Icon name="x" size={20} color={COLORS.textMuted} />
-          </TouchableOpacity>
+          <IconButton
+            icon="x"
+            onPress={onClose}
+            accessibilityLabel="Close settings"
+          />
+          <Text style={[TEXT.titleLargeEmphasized, styles.headerTitle]}>Settings</Text>
+          <View style={styles.headerSpacer} />
         </View>
 
-        <ScrollView contentContainerStyle={styles.content}>
-          <Text style={styles.sectionLabel}>Modules</Text>
+        <ScrollView
+          contentContainerStyle={[styles.content, { paddingBottom: insets.bottom + SPACING.xl }]}
+        >
+          <Text style={[TEXT.titleMedium, styles.sectionLabel]}>Modules</Text>
 
-          <View style={styles.moduleList}>
+          <View style={styles.group}>
             {MODULES.map((m, i) => {
               const on = modules[m.id] !== false;
               return (
-                <View key={m.id} style={[styles.moduleRow, i < MODULES.length - 1 && styles.moduleRowDivider]}>
-                  <View style={styles.rowText}>
-                    <Text style={styles.rowTitle}>{m.label}</Text>
-                    <Text style={styles.rowDesc}>{m.desc}</Text>
-                  </View>
-                  <Switch
-                    value={on}
-                    onValueChange={(v) => requestToggle(m.id, v)}
-                    trackColor={{ false: COLORS.bg4, true: COLORS.accentDim }}
-                    thumbColor={on ? COLORS.accent : COLORS.textSub}
-                  />
-                </View>
+                <SettingsRow
+                  key={m.id}
+                  index={i}
+                  count={MODULES.length}
+                  icon={MODULE_ICONS[m.id]}
+                  tone={MODULE_TONES[m.id] || MODULE_TONES.home}
+                  title={m.label}
+                  secondary={m.desc}
+                  trailing={(
+                    <Switch
+                      value={on}
+                      onValueChange={(v) => requestToggle(m.id, v)}
+                      trackColor={{ false: M3.surfaceContainerHighest, true: M3.primary }}
+                      thumbColor={on ? M3.onPrimary : M3.outline}
+                      ios_backgroundColor={M3.surfaceContainerHighest}
+                      accessibilityLabel={`${m.label} visible`}
+                    />
+                  )}
+                />
               );
             })}
           </View>
 
           {/* Data is never deleted when a module is switched off — it stays
-              in AsyncStorage and comes back with the tab. */}
-          <Text style={styles.hint}>
+              in AsyncStorage and comes back with the screen. */}
+          <Text style={[TEXT.bodySmall, styles.hint]}>
             Switching a section off only hides it. Nothing is deleted — switch it
             back on and everything is exactly where you left it.
           </Text>
 
-          <Text style={styles.sectionLabel}>Data</Text>
+          <Text style={[TEXT.titleMedium, styles.sectionLabel]}>Data</Text>
 
-          <View style={styles.dataList}>
-            <TouchableOpacity
-              style={[styles.dataRow, styles.dataRowDivider]}
-              onPress={handleExport}
-              disabled={busy}
-              accessibilityLabel="Export data to a file"
-            >
-              <View style={styles.rowText}>
-                <Text style={styles.rowTitle}>Export data</Text>
-                <Text style={styles.rowDesc}>Save everything as a readable JSON file</Text>
-              </View>
-              <Icon name="download" size={18} color={COLORS.textMuted} />
-            </TouchableOpacity>
+          <View style={styles.group}>
+            <SettingsRow
+              index={0}
+              count={3}
+              icon="download"
+              tone={MODULE_TONES.home}
+              title="Export data"
+              secondary="Save everything as a readable JSON file"
+              onPress={busy ? undefined : handleExport}
+              trailing={chevron}
+            />
 
-            <TouchableOpacity
-              style={[styles.dataRow, styles.dataRowDivider]}
-              onPress={handleImport}
-              disabled={busy}
-              accessibilityLabel="Import data from a file"
-            >
-              <View style={styles.rowText}>
-                <Text style={styles.rowTitle}>Import data</Text>
-                <Text style={styles.rowDesc}>Restore from a backup, merging or replacing</Text>
-              </View>
-              <Icon name="upload" size={18} color={COLORS.textMuted} />
-            </TouchableOpacity>
+            <SettingsRow
+              index={1}
+              count={3}
+              icon="upload"
+              tone={MODULE_TONES.stats}
+              title="Import data"
+              secondary="Restore from a backup, merging or replacing"
+              onPress={busy ? undefined : handleImport}
+              trailing={chevron}
+            />
 
-            <TouchableOpacity
-              style={styles.dataRow}
-              onPress={handleDeleteAll}
-              disabled={busy}
-              accessibilityLabel="Delete all data on this device"
-            >
-              <View style={styles.rowText}>
-                <Text style={[styles.rowTitle, { color: COLORS.red }]}>Delete all data</Text>
-                <Text style={styles.rowDesc}>Erase everything stored on this device</Text>
-              </View>
-              <Icon name="trash-2" size={18} color={COLORS.red} />
-            </TouchableOpacity>
+            <SettingsRow
+              index={2}
+              count={3}
+              icon="trash-2"
+              tone={DELETE_TONE}
+              destructive
+              title="Delete all data"
+              secondary="Erase everything stored on this device"
+              onPress={busy ? undefined : handleDeleteAll}
+              trailing={destructiveChevron}
+            />
           </View>
 
-          <Text style={styles.sectionLabel}>About</Text>
-
-          <Text style={styles.hint}>
+          <Text style={[TEXT.bodySmall, styles.hint, styles.aboutHint]}>
             No account, no server. Every task, exam and note lives in this phone's
             storage, and nothing is sent anywhere unless you share a backup yourself.
           </Text>
 
-          <View style={[styles.row, { marginTop: 10 }]}>
-            <View style={styles.rowText}>
-              <Text style={styles.rowTitle}>Version</Text>
-              <Text style={styles.rowDesc}>Read from the app configuration</Text>
-            </View>
-            <Text style={styles.versionValue}>{APP_VERSION}</Text>
-          </View>
+          <Text style={[TEXT.bodySmall, styles.version]}>
+            Version {APP_VERSION} · read from the app configuration
+          </Text>
         </ScrollView>
 
         <CustomAlert config={alert} />
@@ -284,62 +362,76 @@ export default function SettingsScreen({
 const styles = StyleSheet.create({
   root: {
     flex: 1,
-    backgroundColor: COLORS.bg,
+    backgroundColor: M3.background,
   },
   header: {
-    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
-    paddingHorizontal: 16, height: 52,
-    borderBottomWidth: 1, borderBottomColor: COLORS.border,
-    backgroundColor: COLORS.bg2,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: SPACING.md,
+    paddingTop: SPACING.xs,
+    paddingBottom: SPACING.sm,
   },
-  headerTitle: { fontSize: 17, fontWeight: '700', color: COLORS.text },
-  closeBtn: { padding: 8 },
-
-  content: { padding: 16, paddingBottom: 40 },
-
+  headerTitle: {
+    color: M3.onSurface,
+  },
+  headerSpacer: {
+    width: 40,
+  },
+  content: {
+    paddingHorizontal: 20,
+    paddingTop: SPACING.xs,
+  },
   sectionLabel: {
-    fontSize: TYPE.meta, color: COLORS.textSub,
-    textTransform: 'uppercase', letterSpacing: 0.6,
-    marginTop: 18, marginBottom: 10,
+    color: M3.onSurface,
+    marginTop: SPACING.lg,
+    marginBottom: 8,
   },
-
-  row: {
-    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
-    backgroundColor: COLORS.bg2,
-    borderWidth: 1, borderColor: COLORS.border, borderRadius: 14,
-    paddingHorizontal: 16, paddingVertical: 14,
+  group: {
+    gap: 2,
   },
-
-  // Same card treatment as the module list: one block, hairline dividers.
-  dataList: {
-    backgroundColor: COLORS.bg2,
-    borderWidth: 1, borderColor: COLORS.border, borderRadius: 14,
-    paddingHorizontal: 16,
+  // Grouped row internals (shape comes from rowShape at render time).
+  rowShell: {
+    backgroundColor: M3.surfaceContainerHigh,
+    overflow: 'hidden',
   },
-  dataRow: {
-    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
-    paddingVertical: 14,
+  rowContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    minHeight: 64,
+    paddingHorizontal: SPACING.md,
+    paddingVertical: SPACING.sm,
   },
-  dataRowDivider: { borderBottomWidth: 1, borderBottomColor: COLORS.hairline },
-
-  // One card holding every switch, so the list reads as a single control.
-  moduleList: {
-    backgroundColor: COLORS.bg2,
-    borderWidth: 1, borderColor: COLORS.border, borderRadius: 14,
-    paddingHorizontal: 16,
+  rowText: {
+    flex: 1,
+    marginLeft: 12,
   },
-  moduleRow: {
-    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
-    paddingVertical: 12,
+  rowTitle: {
+    color: M3.onSurface,
   },
-  moduleRowDivider: { borderBottomWidth: 1, borderBottomColor: COLORS.hairline },
-  rowText: { flex: 1, paddingRight: 12 },
-  rowTitle: { fontSize: 15, color: COLORS.text, fontWeight: '600' },
-  rowDesc: { fontSize: TYPE.meta, color: COLORS.textMuted, marginTop: 3 },
-  versionValue: { fontSize: 15, color: COLORS.textMuted, fontWeight: '600' },
-
+  rowTitleDestructive: {
+    color: M3.error,
+  },
+  rowSecondary: {
+    color: M3.onSurfaceVariant,
+    marginTop: 2,
+  },
+  rowTrailing: {
+    marginLeft: 10,
+    alignItems: 'flex-end',
+  },
   hint: {
-    fontSize: TYPE.meta, color: COLORS.textSub,
-    lineHeight: 18, marginTop: 10, paddingHorizontal: 4,
+    color: M3.outline,
+    marginTop: SPACING.sm,
+    paddingHorizontal: 4,
+  },
+  aboutHint: {
+    marginTop: SPACING.lg,
+  },
+  version: {
+    color: M3.outline,
+    textAlign: 'center',
+    marginTop: SPACING.xl,
+    paddingHorizontal: 4,
   },
 });

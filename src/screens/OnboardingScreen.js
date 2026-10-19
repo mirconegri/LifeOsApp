@@ -1,11 +1,60 @@
-import React, { useState } from 'react';
+// src/screens/OnboardingScreen.js
+//
+// First-run wizard, restyled on the M3 Expressive tokens.
+//
+// The flow is unchanged: welcome -> name -> university -> goals -> done, with
+// the same validation (`canNext`), the same `onComplete` payload and the same
+// ability to go back. Only the presentation moved: a MorphBlob hero that
+// morphs and quarter-turns per step, filled fields with labels above, Chips
+// for every choice row and a CtaButton in the footer.
+//
+// The hero lives outside the step blocks on purpose: that way it stays mounted
+// while `step` changes, so MorphBlob can actually interpolate between presets
+// instead of remounting at the target shape.
+import React, { useEffect, useState } from 'react';
 import {
-  View, Text, TextInput, TouchableOpacity, ScrollView,
-  StyleSheet, KeyboardAvoidingView, Platform, StatusBar,
+  View, Text, TextInput, ScrollView, StyleSheet,
+  KeyboardAvoidingView, Platform, StatusBar,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import Animated, {
+  useAnimatedStyle, useReducedMotion, useSharedValue, withSpring,
+} from 'react-native-reanimated';
+
+import { M3, MODULE_TONES } from '../config/colors';
+import { SHAPE, SPACING, SPRING, motionConst } from '../config/designSystem';
+import { TEXT } from '../ui/type';
+import { Blob, MorphBlob } from '../ui/Blob';
+import { Chip } from '../ui/Chip';
+import { CtaButton } from '../ui/CtaButton';
+import { SpringPressable } from '../ui/SpringPressable';
 import { Icon } from '../components/Icon';
-import { COLORS } from '../config/colors';
+
+// One preset per step (index = step), so the shape morphs and quarter-turns.
+const HERO_PRESETS = ['circle', 'cookie9', 'cookie12', 'flower', 'clover4'];
+
+// Pill step indicator: 6 wide when inactive, 22 wide when current, sprung.
+function StepDot({ active, complete }) {
+  const reduced = useReducedMotion();
+  const target = active ? motionConst.dotActive : motionConst.dotInactive;
+  const width = useSharedValue(target);
+
+  useEffect(() => {
+    width.value = reduced ? target : withSpring(target, SPRING.fastSpatial);
+  }, [reduced, target, width]);
+
+  const animatedStyle = useAnimatedStyle(() => ({ width: width.value }));
+
+  return (
+    <Animated.View
+      style={[
+        styles.dot,
+        { backgroundColor: active || complete ? M3.primary : M3.outlineVariant },
+        animatedStyle,
+      ]}
+    />
+  );
+}
 
 export default function OnboardingScreen({ onComplete }) {
   // Navigation & UI States
@@ -31,7 +80,7 @@ export default function OnboardingScreen({ onComplete }) {
     { label: 'Master (120 credits)',     value: 120 },
     { label: 'Single cycle (300 credits)', value: 300 },
   ];
-  
+
   const YEAR_OPTIONS = ['1', '2', '3', '4', '5'];
 
   const GOAL_OPTIONS = [
@@ -72,16 +121,10 @@ export default function OnboardingScreen({ onComplete }) {
   };
 
   const dots = STEPS.map((_, i) => (
-    <View
-      key={i}
-      style={[
-        styles.dot, 
-        i === step && styles.dotActive, 
-        i < step && styles.dotDone,
-        i !== STEPS.length - 1 && { marginRight: 6 }
-      ]}
-    />
+    <StepDot key={i} active={i === step} complete={i < step} />
   ));
+
+  const showHero = step > 0 && step < 4;
 
   return (
     <SafeAreaView style={styles.safeRoot}>
@@ -89,155 +132,181 @@ export default function OnboardingScreen({ onComplete }) {
         style={styles.root}
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
       >
-        <StatusBar barStyle="light-content" backgroundColor={COLORS.bg} />
+        <StatusBar barStyle="light-content" backgroundColor={M3.background} />
         <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="always">
 
-        {/* ── Welcome ── */}
-        {step === 0 && (
-          <View style={styles.centerBlock}>
-            <Text style={styles.logo}>
-              <Text style={{ color: COLORS.accent }}>Life</Text>OS
-            </Text>
-            <Text style={styles.heroTitle}>Your personal operating system</Text>
-            <Text style={styles.heroSub}>
-              Exams, finances, habits, and much more — all in one place.
-              It takes 60 seconds to set up.
-            </Text>
-            <TouchableOpacity style={styles.bigBtn} onPress={next}>
-              <Text style={styles.bigBtnText}>Get Started →</Text>
-            </TouchableOpacity>
-          </View>
-        )}
-
-        {/* ── Name ── */}
-        {step === 1 && (
-          <View style={styles.stepBlock}>
-            <Text style={styles.stepEmoji}>👋</Text>
-            <Text style={styles.stepTitle}>What is your name?</Text>
-            <Text style={styles.stepSub}>Will be used in greetings and on the dashboard.</Text>
-            <TextInput
-              style={styles.input}
-              placeholder="Your name"
-              placeholderTextColor={COLORS.textSub}
-              value={name}
-              onChangeText={setName}
-              autoFocus
-              returnKeyType="done"
-              onSubmitEditing={canNext() ? next : undefined}
-            />
-
-            <Text style={styles.localNote}>
-              Your data stays on this device. You can export it anytime from Settings.
-            </Text>
-          </View>
-        )}
-
-        {/* ── University ── */}
-        {step === 2 && (
-          <View style={styles.stepBlock}>
-            <View style={styles.stepEmoji}><Icon name="graduation-cap" size={32} color={COLORS.accent} /></View>
-            <Text style={styles.stepTitle}>Your university</Text>
-            <Text style={styles.stepSub}>This data powers the exam tracker.</Text>
-
-            <TextInput
-              style={styles.input}
-              placeholder="Degree course (e.g. Computer Science)"
-              placeholderTextColor={COLORS.textSub}
-              value={course}
-              onChangeText={setCourse}
-              autoFocus
-            />
-
-            <Text style={styles.fieldLabel}>Current year</Text>
-            <View style={styles.chipRow}>
-              {YEAR_OPTIONS.map(y => (
-                <TouchableOpacity
-                  key={y}
-                  onPress={() => setYear(y)}
-                  style={[styles.yearChip, year === y && styles.yearChipActive]}
-                >
-                  <Text style={[styles.yearChipText, year === y && styles.yearChipTextActive]}>{y}°</Text>
-                </TouchableOpacity>
-              ))}
+          {/* ── Hero: one persistent MorphBlob, morphed by the step index ── */}
+          {showHero ? (
+            <View style={styles.hero}>
+              <View style={styles.heroCircle} />
+              <View style={styles.heroBlobLayer}>
+                <Blob preset="cookie12" size={200} color={MODULE_TONES.home.container} />
+              </View>
+              <MorphBlob
+                index={step}
+                presets={HERO_PRESETS}
+                size={176}
+                color={MODULE_TONES.home.on}
+              />
             </View>
+          ) : null}
 
-            <Text style={styles.fieldLabel}>Degree type</Text>
-            <View style={{ marginBottom: 4 }}>
-              {CREDIT_OPTIONS.map(opt => (
-                <TouchableOpacity
-                  key={opt.value}
-                  onPress={() => setTotalCredits(opt.value)}
-                  style={[styles.creditOption, totalCredits === opt.value && styles.creditOptionActive]}
-                >
-                  <Text style={[styles.creditOptionText, totalCredits === opt.value && styles.creditOptionTextActive]}>
-                    {opt.label}
-                  </Text>
-                  {totalCredits === opt.value && <Text style={styles.creditCheck}>✓</Text>}
-                </TouchableOpacity>
-              ))}
+          {/* ── Welcome ── */}
+          {step === 0 && (
+            <View style={styles.centerBlock}>
+              <Text style={[TEXT.headlineLarge, styles.logo]}>
+                <Text style={styles.logoAccent}>Life</Text>OS
+              </Text>
+              <Text style={[TEXT.headlineMedium, styles.heroTitle]}>
+                Your personal operating system
+              </Text>
+              <Text style={[TEXT.bodyMedium, styles.heroSub]}>
+                Exams, finances, habits, and much more — all in one place.
+                It takes 60 seconds to set up.
+              </Text>
+              <CtaButton label="Get started" onPress={next} style={styles.primaryCta} />
             </View>
-          </View>
-        )}
+          )}
 
-        {/* ── Goals ── */}
-        {step === 3 && (
-          <View style={styles.stepBlock}>
-            <View style={styles.stepEmoji}><Icon name="target" size={32} color={COLORS.accent} /></View>
-            <Text style={styles.stepTitle}>What matters most to you?</Text>
-            <Text style={styles.stepSub}>
-              Select at least one. This will personalize initial suggestions.
-            </Text>
-            <View style={styles.goalGrid}>
-              {GOAL_OPTIONS.map(g => (
-                <TouchableOpacity
-                  key={g.id}
-                  onPress={() => toggleGoal(g.key)}
-                  style={[styles.goalChip, selectedGoals.includes(g.key) && styles.goalChipActive]}
-                >
-                  <Text style={[styles.goalText, selectedGoals.includes(g.key) && styles.goalTextActive]}>
-                    {g.label}
-                  </Text>
-                </TouchableOpacity>
-              ))}
+          {/* ── Name ── */}
+          {step === 1 && (
+            <View style={styles.stepBlock}>
+              <Text style={[TEXT.headlineSmall, styles.stepTitle]}>What is your name?</Text>
+              <Text style={[TEXT.bodyMedium, styles.stepSub]}>
+                Will be used in greetings and on the dashboard.
+              </Text>
+
+              <Text style={styles.fieldLabel}>Your name *</Text>
+              <TextInput
+                style={[styles.input, TEXT.bodyLarge]}
+                placeholder="Your name"
+                placeholderTextColor={M3.outline}
+                value={name}
+                onChangeText={setName}
+                autoFocus
+                returnKeyType="done"
+                onSubmitEditing={canNext() ? next : undefined}
+              />
+
+              <Text style={[TEXT.bodySmall, styles.localNote]}>
+                Your data stays on this device. You can export it anytime from Settings.
+              </Text>
             </View>
-          </View>
-        )}
+          )}
 
-        {/* ── Done ── */}
-        {step === 4 && (
-          <View style={styles.centerBlock}>
-            <View style={styles.doneEmoji}><Icon name="rocket" size={40} color={COLORS.accent} /></View>
-            <Text style={styles.doneTitle}>All set, {name || 'welcome'}!</Text>
-            <Text style={styles.heroSub}>
-              LifeOS is configured. You can add your exams, habits, and transactions
-              at any time.
-            </Text>
-            <TouchableOpacity style={styles.bigBtn} onPress={handleDone}>
-              <Text style={styles.bigBtnText}>Enter LifeOS →</Text>
-            </TouchableOpacity>
-          </View>
-        )}
+          {/* ── University ── */}
+          {step === 2 && (
+            <View style={styles.stepBlock}>
+              <Text style={[TEXT.headlineSmall, styles.stepTitle]}>Your university</Text>
+              <Text style={[TEXT.bodyMedium, styles.stepSub]}>
+                This data powers the exam tracker.
+              </Text>
 
-        {/* ── Footer nav ── */}
-        {step > 0 && step < 4 && (
-          <View style={styles.footer}>
-            <TouchableOpacity onPress={() => setStep(s => s - 1)} style={styles.backBtn}>
-              <Text style={styles.backBtnText}>← Back</Text>
-            </TouchableOpacity>
-            <View style={styles.dotsRow}>{dots}</View>
-            <TouchableOpacity
-              onPress={next}
-              style={[styles.nextBtn, !canNext() && styles.nextBtnDisabled]}
-              disabled={!canNext()}
-            >
-              <Text style={styles.nextBtnText}>{step === 3 ? 'Done ✓' : 'Next →'}</Text>
-            </TouchableOpacity>
-          </View>
-        )}
+              <Text style={styles.fieldLabel}>Degree course *</Text>
+              <TextInput
+                style={[styles.input, TEXT.bodyLarge]}
+                placeholder="Degree course (e.g. Computer Science)"
+                placeholderTextColor={M3.outline}
+                value={course}
+                onChangeText={setCourse}
+                autoFocus
+              />
 
-        {step === 0 && (
-          <View style={styles.dotsRowCenter}>{dots}</View>
-        )}
+              <Text style={styles.fieldLabel}>Current year</Text>
+              <View style={styles.chipRow}>
+                {YEAR_OPTIONS.map(y => (
+                  <Chip
+                    key={y}
+                    label={`${y}°`}
+                    selected={year === y}
+                    onPress={() => setYear(y)}
+                    accessibilityLabel={`Year ${y}`}
+                  />
+                ))}
+              </View>
+
+              <Text style={styles.fieldLabel}>Degree type</Text>
+              <View style={styles.chipColumn}>
+                {CREDIT_OPTIONS.map(opt => (
+                  <Chip
+                    key={opt.value}
+                    label={opt.label}
+                    selected={totalCredits === opt.value}
+                    onPress={() => setTotalCredits(opt.value)}
+                    accessibilityLabel={opt.label}
+                    style={styles.creditChip}
+                  />
+                ))}
+              </View>
+            </View>
+          )}
+
+          {/* ── Goals ── */}
+          {step === 3 && (
+            <View style={styles.stepBlock}>
+              <Text style={[TEXT.headlineSmall, styles.stepTitle]}>What matters most to you?</Text>
+              <Text style={[TEXT.bodyMedium, styles.stepSub]}>
+                Select at least one. This will personalize initial suggestions.
+              </Text>
+              <View style={styles.chipRow}>
+                {GOAL_OPTIONS.map(g => (
+                  <Chip
+                    key={g.id}
+                    label={g.label}
+                    selected={selectedGoals.includes(g.key)}
+                    onPress={() => toggleGoal(g.key)}
+                  />
+                ))}
+              </View>
+            </View>
+          )}
+
+          {/* ── Done ── */}
+          {step === 4 && (
+            <View style={styles.centerBlock}>
+              <View style={styles.doneIcon}>
+                <Icon name="rocket" size={40} color={MODULE_TONES.home.on} />
+              </View>
+              <Text style={[TEXT.headlineSmall, styles.doneTitle]}>
+                All set, {name || 'welcome'}!
+              </Text>
+              <Text style={[TEXT.bodyMedium, styles.heroSub]}>
+                LifeOS is configured. You can add your exams, habits, and transactions
+                at any time.
+              </Text>
+              <CtaButton label="Enter LifeOS" onPress={handleDone} style={styles.primaryCta} />
+            </View>
+          )}
+
+          {/* ── Footer nav ── */}
+          {step > 0 && step < 4 && (
+            <View style={styles.footer}>
+              <SpringPressable
+                onPress={() => setStep(s => s - 1)}
+                haptic="selection"
+                accessibilityLabel="Go back"
+                accessibilityRole="button"
+                style={styles.backBtn}
+                contentStyle={styles.backContent}
+              >
+                <Icon name="arrow-left" size={16} color={M3.onSurfaceVariant} />
+                <Text style={[TEXT.labelLarge, styles.backText]}>Back</Text>
+              </SpringPressable>
+
+              <View style={styles.dotsRow}>{dots}</View>
+
+              <CtaButton
+                label="Next"
+                onPress={next}
+                disabled={!canNext()}
+                style={styles.nextCta}
+              />
+            </View>
+          )}
+
+          {step === 0 && (
+            <View style={styles.dotsRowCenter}>{dots}</View>
+          )}
 
         </ScrollView>
       </KeyboardAvoidingView>
@@ -248,17 +317,38 @@ export default function OnboardingScreen({ onComplete }) {
 const styles = StyleSheet.create({
   safeRoot: {
     flex: 1,
-    backgroundColor: COLORS.bg,
+    backgroundColor: M3.background,
   },
   root: {
     flex: 1,
-    backgroundColor: COLORS.bg,
+    backgroundColor: M3.background,
   },
   content: {
     flexGrow: 1,
-    padding: 28,
-    paddingTop: 60,
-    paddingBottom: 40,
+    paddingHorizontal: SPACING.lg,
+    paddingTop: SPACING.md,
+    paddingBottom: SPACING.xl,
+  },
+
+  // Hero
+  hero: {
+    width: 224,
+    height: 224,
+    alignSelf: 'center',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginTop: SPACING.xs,
+    marginBottom: SPACING.lg,
+  },
+  heroCircle: {
+    ...StyleSheet.absoluteFillObject,
+    borderRadius: SHAPE.full,
+    backgroundColor: M3.surfaceContainer,
+  },
+  heroBlobLayer: {
+    ...StyleSheet.absoluteFillObject,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
 
   // Welcome / Done
@@ -266,136 +356,134 @@ const styles = StyleSheet.create({
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
-    paddingVertical: 40,
+    paddingVertical: SPACING.xl,
   },
   logo: {
-    fontSize: 32,
-    fontWeight: '900',
-    color: COLORS.text,
-    marginBottom: 16,
-    letterSpacing: -1,
+    color: M3.onSurface,
+    marginBottom: SPACING.sm,
+  },
+  logoAccent: {
+    color: M3.primary,
   },
   heroTitle: {
-    fontSize: 22,
-    fontWeight: '700',
-    color: COLORS.text,
+    color: M3.onSurface,
     textAlign: 'center',
-    marginBottom: 12,
+    marginBottom: SPACING.sm,
   },
   heroSub: {
-    fontSize: 15,
-    color: COLORS.textMuted,
+    color: M3.onSurfaceVariant,
     textAlign: 'center',
-    lineHeight: 22,
-    marginBottom: 36,
+    marginBottom: SPACING.xl,
   },
-  bigBtn: {
-    backgroundColor: COLORS.accent,
-    paddingVertical: 16,
-    paddingHorizontal: 40,
-    borderRadius: 16,
+  primaryCta: {
+    alignSelf: 'stretch',
+    marginTop: SPACING.sm,
   },
-  bigBtnText: {
-    color: COLORS.onPrimary,
-    fontSize: 17,
-    fontWeight: '700',
+  doneIcon: {
+    width: 96,
+    height: 96,
+    borderRadius: SHAPE.full,
+    backgroundColor: MODULE_TONES.home.container,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: SPACING.md,
   },
-  doneEmoji: { fontSize: 60, marginBottom: 16 },
-  doneTitle: { fontSize: 26, fontWeight: '800', color: COLORS.text, textAlign: 'center', marginBottom: 12 },
+  doneTitle: {
+    color: M3.onSurface,
+    textAlign: 'center',
+    marginBottom: SPACING.xs,
+  },
 
   // Steps
   stepBlock: {
     flex: 1,
-    paddingTop: 20,
   },
-  stepEmoji: { fontSize: 48, marginBottom: 16 },
-  stepTitle: { fontSize: 26, fontWeight: '800', color: COLORS.text, marginBottom: 8 },
-  stepSub:   { fontSize: 14, color: COLORS.textMuted, marginBottom: 28, lineHeight: 20 },
+  stepTitle: {
+    color: M3.onSurface,
+    marginBottom: SPACING.xs,
+  },
+  stepSub: {
+    color: M3.onSurfaceVariant,
+    marginBottom: SPACING.lg,
+  },
+
+  // Filled fields: surfaceContainerHigh, radius 16, 56 high, label above.
+  fieldLabel: {
+    color: M3.onSurfaceVariant,
+    marginTop: SPACING.xs,
+    marginBottom: 6,
+  },
   input: {
-    backgroundColor: COLORS.bg2,
-    borderWidth: 1,
-    borderColor: COLORS.border,
-    borderRadius: 14,
-    padding: 16,
-    color: COLORS.text,
-    fontSize: 16,
-    marginBottom: 14,
+    backgroundColor: M3.surfaceContainerHigh,
+    borderRadius: SHAPE.lg,
+    minHeight: 56,
+    paddingHorizontal: SPACING.md,
+    paddingVertical: SPACING.sm,
+    color: M3.onSurface,
+    marginBottom: SPACING.md,
   },
-
   localNote: {
-    color: COLORS.textSub, fontSize: 12, lineHeight: 17, marginTop: 4,
+    color: M3.outline,
+    marginTop: SPACING.xs,
   },
 
-  // Year / credit-type selectors
-  fieldLabel: { fontSize: 13, fontWeight: '600', color: COLORS.textMuted, marginBottom: 8, marginTop: 4 },
-  chipRow: { flexDirection: 'row', marginBottom: 18 },
-  yearChip: {
-    width: 44, height: 44, borderRadius: 12, marginRight: 10,
-    backgroundColor: COLORS.bg2, borderWidth: 1, borderColor: COLORS.border,
-    alignItems: 'center', justifyContent: 'center',
-  },
-  yearChipActive: { backgroundColor: COLORS.accentGlow, borderColor: COLORS.accent },
-  yearChipText: { fontSize: 15, fontWeight: '600', color: COLORS.textMuted },
-  yearChipTextActive: { color: COLORS.accent },
-  creditOption: {
-    flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
-    backgroundColor: COLORS.bg2, borderWidth: 1, borderColor: COLORS.border,
-    borderRadius: 14, paddingHorizontal: 16, paddingVertical: 14, marginBottom: 10,
-  },
-  creditOptionActive: { backgroundColor: COLORS.accentGlow, borderColor: COLORS.accent },
-  creditOptionText: { fontSize: 14, color: COLORS.textMuted, fontWeight: '500' },
-  creditOptionTextActive: { color: COLORS.accent, fontWeight: '700' },
-  creditCheck: { color: COLORS.accent, fontWeight: '700', fontSize: 14 },
-
-  // Goals
-  goalGrid: {
+  // Choice rows — Chips instead of bordered rows.
+  chipRow: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    justifyContent: 'space-between',
-    marginTop: 4,
+    gap: 8,
+    marginBottom: SPACING.md,
   },
-  goalChip: {
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    borderRadius: 14,
-    backgroundColor: COLORS.bg2,
-    borderWidth: 1,
-    borderColor: COLORS.border,
-    width: '48%',
-    marginBottom: 10,
+  chipColumn: {
+    gap: 8,
+    marginBottom: SPACING.md,
   },
-  goalChipActive: {
-    backgroundColor: COLORS.accentGlow,
-    borderColor: COLORS.accent,
+  creditChip: {
+    width: '100%',
   },
-  goalText: { fontSize: 14, color: COLORS.textMuted, fontWeight: '500' },
-  goalTextActive: { color: COLORS.accent, fontWeight: '700' },
 
   // Footer nav
   footer: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginTop: 32,
+    gap: SPACING.sm,
+    marginTop: SPACING.xl,
   },
-  backBtn: { padding: 10 },
-  backBtnText: { color: COLORS.textMuted, fontSize: 15 },
-  nextBtn: {
-    backgroundColor: COLORS.accent,
-    paddingHorizontal: 22,
-    paddingVertical: 11,
-    borderRadius: 12,
+  backBtn: {
+    borderRadius: SHAPE.full,
+    overflow: 'hidden',
   },
-  nextBtnDisabled: { opacity: 0.35 },
-  nextBtnText: { color: COLORS.onPrimary, fontSize: 15, fontWeight: '700' },
+  backContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingHorizontal: 4,
+    paddingVertical: SPACING.xs,
+  },
+  backText: {
+    color: M3.onSurfaceVariant,
+  },
+  nextCta: {
+    minWidth: 116,
+  },
 
   // Dots
-  dotsRow: { flexDirection: 'row' },
-  dotsRowCenter: { flexDirection: 'row', justifyContent: 'center', marginTop: 24 },
-  dot: {
-    width: 6, height: 6, borderRadius: 3,
-    backgroundColor: COLORS.bg4,
+  dotsRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
   },
-  dotActive: { backgroundColor: COLORS.accent, width: 18 },
-  dotDone:   { backgroundColor: COLORS.accentDim },
+  dotsRowCenter: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    alignItems: 'center',
+    gap: 6,
+    marginTop: SPACING.lg,
+  },
+  dot: {
+    width: motionConst.dotInactive,
+    height: motionConst.dotInactive,
+    borderRadius: SHAPE.full,
+  },
 });

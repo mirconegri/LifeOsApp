@@ -645,7 +645,7 @@ const styles = StyleSheet.create({
   simResultItem: { alignItems: 'center', flex: 1, minWidth: 90 },
   simResultLabel: { color: M3.onSurfaceVariant, marginBottom: 4, textAlign: 'center' },
   simResultVal: { textAlign: 'center' },
-  simDelta: { color: M3.outline, fontWeight: '400' },
+  simDelta: { color: M3.outline },
   simHint: { color: M3.outline, textAlign: 'center', paddingVertical: 8 },
 
   // Filled form fields: surfaceContainerHigh, radius 16, no border, label above.

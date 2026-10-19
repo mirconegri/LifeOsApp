@@ -1,17 +1,28 @@
+// src/screens/NotesScreen.js
+//
+// M3 Expressive Notes: tonal note cards inside the reorderable list, notes
+// tone empty state, and a full-screen add/edit form with labelled filled
+// fields and a sticky CtaButton footer. Handlers, storage shape, ids,
+// validation and the DraggableList wiring are unchanged.
 import React, { useState, useMemo, useRef } from 'react';
 import {
   View, Text, ScrollView, StyleSheet, TextInput,
-  TouchableOpacity, Modal, KeyboardAvoidingView, Platform,
+  Modal, KeyboardAvoidingView, Platform,
 } from 'react-native';
-import { COLORS } from '../config/colors';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+
+import { M3, MODULE_TONES } from '../config/colors';
+import { SHAPE, SPACING } from '../config/designSystem';
+import { TEXT } from '../ui/type';
 import { AppScrollView } from '../ui/AppScrollView';
-import { Card } from '../components/Card';
-import { Pill } from '../components/Pill';
+import { ScreenHeader } from '../ui/ScreenHeader';
+import { SpringPressable } from '../ui/SpringPressable';
+import { IconButton } from '../ui/IconButton';
+import { CtaButton } from '../ui/CtaButton';
+import { EmptyState } from '../ui/EmptyState';
 import { CustomAlert } from '../components/CustomAlert';
 import { TagInput } from '../components/TagInput';
 import { DraggableList } from '../components/DraggableList';
-import { Icon } from '../components/Icon';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { todayKey } from '../data/helpers';
 
 export default function NotesScreen({ notes, setNotes }) {
@@ -40,8 +51,8 @@ export default function NotesScreen({ notes, setNotes }) {
     setModalVisible(true);
   };
 
-  // New: tapping a note now opens it here pre-filled, instead of notes
-  // being create-only with no way back in to change anything.
+  // Tapping a note opens it here pre-filled, so notes are editable instead
+  // of create-only.
   const openEditModal = (note) => {
     setEditingId(note.id);
     setFormTitle(note.title || '');
@@ -112,64 +123,103 @@ export default function NotesScreen({ notes, setNotes }) {
       <AppScrollView
         ref={scrollRef}
         onScroll={(e) => { scrollYRef.current = e.nativeEvent.contentOffset.y; }}
+        style={styles.scroll}
         contentContainerStyle={styles.content}
       >
-        <View style={styles.header}>
-          <View style={{ flexDirection: 'row', alignItems: 'center' }}><Icon name="file-text" size={24} color={COLORS.text} /><Text style={styles.title}> Notes</Text></View>
-          <TouchableOpacity onPress={openAddModal} style={styles.addBtn}>
-            <Text style={styles.addBtnText}>+ New</Text>
-          </TouchableOpacity>
-        </View>
+        <ScreenHeader
+          title="Notes"
+          subtitle={`${notes.length} note${notes.length === 1 ? '' : 's'}`}
+          style={styles.headerFlush}
+          right={(
+            <IconButton
+              icon="plus"
+              onPress={openAddModal}
+              accessibilityLabel="Add note"
+            />
+          )}
+        />
 
         {notes.length === 0 ? (
-          <Text style={styles.emptyText}>No notes found. Start typing!</Text>
+          <EmptyState
+            icon="file-text"
+            title="No notes yet"
+            body="Start typing to capture an idea, a reminder, or anything worth keeping."
+            tone={MODULE_TONES.notes}
+            action={<CtaButton label="New note" variant="tonal" onPress={openAddModal} />}
+          />
         ) : (
           <>
             <View style={styles.listMetaRow}>
-              {notes.length > 1 && (
-                <Text style={styles.reorderHint}>Hold and drag a note to reorder</Text>
-              )}
-              <TouchableOpacity onPress={confirmClearAll}>
-                <Text style={styles.clearAllText}>Clear All</Text>
-              </TouchableOpacity>
+              {notes.length > 1 ? (
+                <Text style={[TEXT.labelSmall, styles.reorderHint]}>
+                  Hold and drag a note to reorder
+                </Text>
+              ) : <View />}
+              <SpringPressable
+                onPress={confirmClearAll}
+                haptic="selection"
+                accessibilityLabel="Clear all notes"
+                style={styles.clearAll}
+                contentStyle={styles.clearAllContent}
+              >
+                <Text style={[TEXT.labelLarge, styles.clearAllText]}>Clear all</Text>
+              </SpringPressable>
             </View>
+
             <DraggableList
               items={notes}
               keyExtractor={(n) => String(n.id)}
               onReorder={handleReorder}
-              itemHeight={140}
+              itemHeight={164}
               scrollRef={scrollRef}
               scrollYRef={scrollYRef}
               renderItem={(n) => (
-                <TouchableOpacity onPress={() => openEditModal(n)} activeOpacity={0.8}>
-                  <Card style={styles.noteCard}>
-                    <View style={styles.noteHeader}>
-                      <Text style={styles.noteTitle}>{n.title || 'Untitled'}</Text>
-                      <TouchableOpacity onPress={() => deleteNote(n.id)} style={styles.trashBtn}>
-                        <Text style={styles.trashIcon}>✕</Text>
-                      </TouchableOpacity>
-                    </View>
-                    <Text style={styles.noteDate}>{n.date}</Text>
-                    {n.content ? <Text style={styles.noteContent}>{n.content}</Text> : null}
+                <SpringPressable
+                  onPress={() => openEditModal(n)}
+                  haptic="selection"
+                  accessibilityLabel={`Edit ${n.title || 'untitled note'}`}
+                  style={styles.noteCard}
+                  contentStyle={styles.noteCardContent}
+                >
+                  <View style={styles.noteHeader}>
+                    <Text style={[TEXT.titleMedium, styles.noteTitle]} numberOfLines={1}>
+                      {n.title || 'Untitled'}
+                    </Text>
+                    <IconButton
+                      icon="trash-2"
+                      size={32}
+                      tone="surfaceContainerHighest"
+                      color={M3.outline}
+                      onPress={() => deleteNote(n.id)}
+                      accessibilityLabel={`Delete ${n.title || 'note'}`}
+                    />
+                  </View>
 
-                    {n.tags && n.tags.length > 0 && (
-                      <View style={styles.tagRow}>
-                        {n.tags.map(t => (
-                          <View key={t} style={{ marginRight: 6, marginBottom: 6 }}>
-                            <Pill color="accent">#{t}</Pill>
-                          </View>
-                        ))}
-                      </View>
-                    )}
-                  </Card>
-                </TouchableOpacity>
+                  <Text style={[TEXT.labelSmall, styles.noteDate]}>{n.date}</Text>
+
+                  {n.content ? (
+                    <Text style={[TEXT.bodyMedium, styles.noteContent]} numberOfLines={2}>
+                      {n.content}
+                    </Text>
+                  ) : null}
+
+                  {n.tags && n.tags.length > 0 && (
+                    <View style={styles.tagRow}>
+                      {n.tags.map(t => (
+                        <View key={t} style={styles.tagChip}>
+                          <Text style={[TEXT.labelSmall, styles.tagText]}>#{t}</Text>
+                        </View>
+                      ))}
+                    </View>
+                  )}
+                </SpringPressable>
               )}
             />
           </>
         )}
       </AppScrollView>
 
-      {/* Add / Edit Modal */}
+      {/* Add / Edit modal — full screen, opaque, own insets. */}
       {/* Edge-to-edge: without these the modal's own window stops at the
           system bars and the strip left uncovered flashes white as the
           sheet slides in. */}
@@ -182,38 +232,39 @@ export default function NotesScreen({ notes, setNotes }) {
         onRequestClose={closeModal}
       >
         <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={styles.modalRoot} keyboardVerticalOffset={0} enabled={true}>
-          <View style={[styles.modalHeader, { paddingTop: insets.top + 16 }]}>
-            <TouchableOpacity onPress={closeModal}><Text style={styles.modalCancelText}>Cancel</Text></TouchableOpacity>
-            <Text style={styles.modalTitle}>{editingId ? 'Edit Note' : 'New Note'}</Text>
+          <View style={[styles.modalHeader, { paddingTop: insets.top + 12 }]}>
+            <IconButton icon="x" onPress={closeModal} accessibilityLabel="Close note form" />
+            <Text style={[TEXT.titleLargeEmphasized, styles.modalTitle]}>
+              {editingId ? 'Edit Note' : 'New Note'}
+            </Text>
             <View style={styles.modalHeaderRight} />
           </View>
 
           <ScrollView contentContainerStyle={styles.modalScrollContent} keyboardShouldPersistTaps="always">
+            <Text style={[TEXT.labelMedium, styles.fieldLabel]}>Title</Text>
             <TextInput
-              style={[styles.input, styles.titleInput]}
+              style={[styles.input, TEXT.bodyLarge]}
               placeholder="Title..."
-              placeholderTextColor={COLORS.textSub}
+              placeholderTextColor={M3.outline}
               value={formTitle}
               onChangeText={setFormTitle}
             />
 
+            <Text style={[TEXT.labelMedium, styles.fieldLabel]}>Content</Text>
             <TextInput
-              style={[styles.input, styles.contentInput]}
+              style={[styles.input, styles.contentInput, TEXT.bodyLarge]}
               placeholder="Write something brilliant..."
-              placeholderTextColor={COLORS.textSub}
+              placeholderTextColor={M3.outline}
               value={formContent}
               onChangeText={setFormContent}
               multiline
               textAlignVertical="top"
             />
 
-            {/* Replaces the old single comma-separated text field. As you
-                type, a dropdown shows tags you've used on other notes
-                plus the option to create whatever you just typed; tapping
-                one commits it as a purple chip and keeps the keyboard up
-                so you can type the next tag right away. Tags are forced
-                lowercase, single-word. */}
-            <Text style={styles.fieldLabel}>Tags</Text>
+            {/* TagInput keeps its full API: committed tags, autocomplete
+                from allKnownTags and the create-new option all live inside
+                the component. */}
+            <Text style={[TEXT.labelMedium, styles.fieldLabel]}>Tags</Text>
             <TagInput
               tags={formTags}
               onChangeTags={setFormTags}
@@ -222,19 +273,27 @@ export default function NotesScreen({ notes, setNotes }) {
             />
           </ScrollView>
 
-          <View style={styles.modalFooter}>
+          <View style={[styles.modalFooter, { paddingBottom: insets.bottom + 12 }]}>
             {editingId ? (
-              <TouchableOpacity onPress={() => deleteNote(editingId)} style={[styles.modalFooterBtn, styles.modalFooterBtnDelete]}>
-                <Text style={styles.modalFooterBtnDeleteText}>Delete</Text>
-              </TouchableOpacity>
+              <CtaButton
+                label="Delete"
+                variant="destructive"
+                onPress={() => deleteNote(editingId)}
+                style={styles.footerBtn}
+              />
             ) : (
-              <TouchableOpacity onPress={closeModal} style={[styles.modalFooterBtn, styles.modalFooterBtnCancel]}>
-                <Text style={styles.modalFooterBtnCancelText}>Cancel</Text>
-              </TouchableOpacity>
+              <CtaButton
+                label="Cancel"
+                variant="tonal"
+                onPress={closeModal}
+                style={styles.footerBtn}
+              />
             )}
-            <TouchableOpacity onPress={saveNote} style={[styles.modalFooterBtn, styles.modalFooterBtnSave]}>
-              <Text style={styles.modalFooterBtnSaveText}>{editingId ? 'Save Changes' : 'Create'}</Text>
-            </TouchableOpacity>
+            <CtaButton
+              label={editingId ? 'Save Changes' : 'Create'}
+              onPress={saveNote}
+              style={[styles.footerBtn, styles.footerPrimary]}
+            />
           </View>
         </KeyboardAvoidingView>
       </Modal>
@@ -245,44 +304,77 @@ export default function NotesScreen({ notes, setNotes }) {
 }
 
 const styles = StyleSheet.create({
-  root:    { flex: 1, backgroundColor: COLORS.bg },
-  content: { padding: 16, paddingBottom: 40 },
-  header:  { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 },
-  title:   { fontSize: 28, fontWeight: '700', color: COLORS.text },
-  addBtn:  { backgroundColor: COLORS.accent, paddingVertical: 8, paddingHorizontal: 14, borderRadius: 20 },
-  addBtnText:{ color: COLORS.onPrimary, fontSize: 14, fontWeight: '700' },
+  root: { flex: 1, backgroundColor: M3.background },
+  scroll: { flex: 1 },
+  content: { paddingHorizontal: SPACING.md, paddingBottom: SPACING.lg },
+  headerFlush: { paddingHorizontal: 0 },
 
-  emptyText: { fontSize: 14, color: COLORS.textSub, textAlign: 'center', marginTop: 20 },
-  listMetaRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 },
-  reorderHint: { fontSize: 11, color: COLORS.textSub },
-  clearAllText: { fontSize: 12, color: COLORS.red, fontWeight: '600' },
+  listMetaRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    minHeight: 40,
+    marginTop: 4,
+  },
+  reorderHint: { color: M3.outline },
+  clearAll: { borderRadius: SHAPE.full, marginLeft: 'auto' },
+  clearAllContent: {
+    paddingHorizontal: SPACING.sm,
+    paddingVertical: SPACING.xs,
+    borderRadius: SHAPE.full,
+  },
+  clearAllText: { color: M3.error },
 
-  noteCard:    { marginBottom: 12, padding: 16 },
-  noteHeader:  { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start' },
-  noteTitle:   { fontSize: 16, fontWeight: '700', color: COLORS.text, flex: 1, marginRight: 8 },
-  trashIcon:   { color: COLORS.textMuted, fontSize: 14 },
-  trashBtn:    { marginLeft: 8, padding: 4 },
-  noteDate:    { fontSize: 11, color: COLORS.textSub, marginTop: 4, marginBottom: 8 },
-  noteContent: { fontSize: 14, color: COLORS.textMuted, lineHeight: 22, marginBottom: 12 },
-  tagRow:      { flexDirection: 'row', flexWrap: 'wrap' },
+  // Tonal note card: 24 radius, 2 px gap between rows.
+  noteCard: {
+    backgroundColor: M3.surfaceContainerHigh,
+    borderRadius: SHAPE.xxl,
+    marginBottom: 2,
+    overflow: 'hidden',
+  },
+  noteCardContent: { padding: SPACING.md },
+  noteHeader: { flexDirection: 'row', alignItems: 'center' },
+  noteTitle: { flex: 1, color: M3.onSurface, marginRight: 8 },
+  noteDate: { color: M3.onSurfaceVariant, marginTop: 2 },
+  noteContent: { color: M3.onSurfaceVariant, marginTop: 8 },
+  tagRow: { flexDirection: 'row', flexWrap: 'wrap', gap: SPACING.xs, marginTop: 10 },
+  tagChip: {
+    backgroundColor: MODULE_TONES.notes.container,
+    borderRadius: SHAPE.full,
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+  },
+  tagText: { color: MODULE_TONES.notes.on },
 
-  // Modal
-  modalRoot: { flex: 1, backgroundColor: COLORS.bg },
-  modalHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 16, borderBottomWidth: 1, borderBottomColor: COLORS.border },
-  modalCancelText: { color: COLORS.accent, fontSize: 16 },
-  modalHeaderRight: { width: 50 },
-  modalTitle: { fontSize: 18, fontWeight: '700', color: COLORS.text, textAlign: 'center' },
-  modalScrollContent: { padding: 16, paddingBottom: 32 },
-  modalFooter: { flexDirection: 'row', alignItems: 'center', justifyContent: 'flex-end', padding: 16, gap: 12, borderTopWidth: 1, borderTopColor: COLORS.border },
-  modalFooterBtn: { paddingVertical: 14, paddingHorizontal: 20, borderRadius: 10, alignItems: 'center' },
-  modalFooterBtnSave: { backgroundColor: COLORS.accent, flex: 1 },
-  modalFooterBtnSaveText: { color: COLORS.onPrimary, fontWeight: '700', fontSize: 15 },
-  modalFooterBtnCancel: { backgroundColor: COLORS.bg4, marginRight: 10 },
-  modalFooterBtnCancelText: { color: COLORS.textMuted, fontWeight: '600' },
-  modalFooterBtnDelete: { backgroundColor: COLORS.redDim, borderWidth: 1, borderColor: COLORS.red, marginRight: 10 },
-  modalFooterBtnDeleteText: { color: COLORS.red, fontWeight: '600' },
-  input:       { backgroundColor: COLORS.bg3, borderWidth: 1, borderColor: COLORS.border, borderRadius: 10, padding: 12, color: COLORS.text, fontSize: 14, marginBottom: 10 },
-  titleInput:  { fontWeight: '600', fontSize: 16 },
-  contentInput:{ height: 120, paddingTop: 12 },
-  fieldLabel:  { color: COLORS.textSub, fontSize: 13, marginBottom: 8 },
+  // Modal — full screen, opaque, own insets.
+  modalRoot: { flex: 1, backgroundColor: M3.background },
+  modalHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: SPACING.md,
+    paddingBottom: 12,
+  },
+  modalHeaderRight: { width: 40 },
+  modalTitle: { color: M3.onSurface },
+  modalScrollContent: { paddingHorizontal: 20, paddingTop: 8, paddingBottom: 40 },
+  fieldLabel: { color: M3.onSurfaceVariant, marginBottom: 6, marginTop: 4 },
+  input: {
+    backgroundColor: M3.surfaceContainerHigh,
+    borderRadius: SHAPE.lg,
+    minHeight: 56,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    color: M3.onSurface,
+    marginBottom: 12,
+  },
+  contentInput: { minHeight: 140, paddingTop: 16, textAlignVertical: 'top' },
+  modalFooter: {
+    flexDirection: 'row',
+    gap: 12,
+    paddingHorizontal: 20,
+    paddingTop: 12,
+  },
+  footerBtn: { flex: 1 },
+  footerPrimary: { flex: 1.4 },
 });

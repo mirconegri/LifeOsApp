@@ -1,18 +1,44 @@
-
+// src/screens/GroceriesScreen.js
+//
+// M3 Expressive Groceries: ScreenHeader with the item count, remaining/done
+// statistics, filter Chips, grouped tonal item rows with a springy checkbox,
+// an EmptyState in the groceries tone, and a full-screen add form with filled
+// fields and a CtaButton footer. Storage shape, ids, validation and the
+// "Clear All" confirmation are unchanged.
 import React, { useState } from 'react';
 import {
   View, Text, ScrollView, StyleSheet, TextInput,
-  TouchableOpacity, Modal, KeyboardAvoidingView, Platform,
+  Modal, KeyboardAvoidingView, Platform,
 } from 'react-native';
-import { COLORS } from '../config/colors';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+
+import { M3, MODULE_TONES } from '../config/colors';
+import { SHAPE, SPACING } from '../config/designSystem';
 import { AppScrollView } from '../ui/AppScrollView';
-import { Card } from '../components/Card';
+import { ScreenHeader } from '../ui/ScreenHeader';
+import { StatRow } from '../ui/StatRow';
+import { Chip } from '../ui/Chip';
+import { CtaButton } from '../ui/CtaButton';
+import { IconButton } from '../ui/IconButton';
+import { SpringPressable } from '../ui/SpringPressable';
+import { EmptyState } from '../ui/EmptyState';
+import { rowShape } from '../ui/GroupItem';
 import { Pill } from '../components/Pill';
 import { CustomAlert } from '../components/CustomAlert';
 import { Icon } from '../components/Icon';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { TEXT } from '../ui/type';
 
 const CATEGORIES = ['supermarket', 'pharmacy', 'home', 'other'];
+
+// Category tag colour on the tonal rows. Pill names map to tonal pairs.
+const CATEGORY_PILL = {
+  supermarket: 'amber',
+  pharmacy: 'green',
+  home: 'accent',
+  other: 'accent',
+};
+
+const CHECK_HIT_SLOP = { top: 8, bottom: 8, left: 4, right: 4 };
 
 export default function GroceriesScreen({ groceries, setGroceries }) {
   const [modalVisible, setModalVisible] = useState(false);
@@ -81,66 +107,118 @@ export default function GroceriesScreen({ groceries, setGroceries }) {
   return (
     <View style={styles.root}>
       <AppScrollView style={styles.scroll} contentContainerStyle={styles.content}>
-        <View style={styles.header}>
-          <View style={{ flexDirection: 'row', alignItems: 'center' }}><Icon name="shopping-cart" size={24} color={COLORS.text} /><Text style={styles.title}> Groceries</Text></View>
-          <TouchableOpacity onPress={() => setModalVisible(true)} style={styles.addFab}>
-            <Text style={styles.addFabText}>+ Product</Text>
-          </TouchableOpacity>
-        </View>
+        <ScreenHeader
+          title="Groceries"
+          subtitle={`${groceries.length} item${groceries.length === 1 ? '' : 's'}`}
+          style={styles.headerFlush}
+          right={(
+            <IconButton
+              icon="plus"
+              onPress={() => setModalVisible(true)}
+              accessibilityLabel="Add product"
+            />
+          )}
+        />
 
-        {/* Counters */}
-        <View style={styles.countersRow}>
-          <View style={[styles.counterChip, { marginRight: 10 }]}>
-            <Text style={styles.counterNum}>{toBuyCount}</Text>
-            <Text style={styles.counterLbl}>to buy</Text>
-          </View>
-          <View style={[styles.counterChip, { borderColor: COLORS.green + '44' }]}>
-            <Text style={[styles.counterNum, { color: COLORS.green }]}>{completedCount}</Text>
-            <Text style={styles.counterLbl}>completed</Text>
-          </View>
-        </View>
+        {/* Remaining / done counters */}
+        <StatRow
+          stats={[
+            { value: toBuyCount, label: 'Remaining' },
+            { value: completedCount, label: 'Done' },
+          ]}
+          style={styles.statsRow}
+        />
 
-        {/* Filters */}
+        {/* Filters + destructive clear-all */}
         <View style={styles.filtersRow}>
           <View style={styles.filters}>
             {[['all', 'All'], ['to buy', 'To Buy'], ['completed', 'Completed']].map(([f, l]) => (
-              <TouchableOpacity key={f} onPress={() => setFilter(f)}
-                style={[styles.filterPill, filter === f && styles.filterPillActive, { marginRight: 8 }]}>
-                <Text style={[styles.filterText, filter === f && { color: COLORS.accent }]}>{l}</Text>
-              </TouchableOpacity>
+              <Chip
+                key={f}
+                label={l}
+                selected={filter === f}
+                onPress={() => setFilter(f)}
+                accessibilityLabel={`Filter ${l}`}
+              />
             ))}
           </View>
-          {groceries.length > 0 && (
-            <TouchableOpacity onPress={confirmClearAll}>
-              <Text style={styles.clearAllText}>Clear All</Text>
-            </TouchableOpacity>
-          )}
+          {groceries.length > 0 ? (
+            <SpringPressable
+              onPress={confirmClearAll}
+              haptic="selection"
+              accessibilityLabel="Clear all items"
+              style={styles.clearAll}
+              contentStyle={styles.clearAllContent}
+            >
+              <Text style={[TEXT.labelLarge, styles.clearAllText]}>Clear All</Text>
+            </SpringPressable>
+          ) : null}
         </View>
 
         {filteredGroceries.length === 0 ? (
-          <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center' }}><Text style={styles.emptyText}>Empty list</Text><Icon name="sparkles" size={14} color={COLORS.textSub} /></View>
+          <EmptyState
+            icon="shopping-cart"
+            title="Empty list"
+            body="Add a product, or switch the filter to see the rest of the list."
+            tone={MODULE_TONES.groceries}
+            action={(
+              <CtaButton
+                label="Add product"
+                variant="tonal"
+                onPress={() => setModalVisible(true)}
+              />
+            )}
+          />
         ) : (
-          filteredGroceries.map(item => (
-            <Card key={item.id} style={styles.itemCard}>
-              <View style={styles.itemRow}>
-                <TouchableOpacity onPress={() => toggleItem(item.id)} style={styles.checkboxWrap}>
-                  <View style={[styles.checkbox,
-                    { borderColor: COLORS.border2, backgroundColor: item.done ? COLORS.green : 'transparent' }]}>
-                    {item.done && <Text style={styles.checkmark}>✓</Text>}
-                  </View>
-                </TouchableOpacity>
-                <Text style={[styles.itemText, item.done && styles.itemTextDone]}>{item.text}</Text>
-                <Pill color="muted">{item.category}</Pill>
-                <TouchableOpacity onPress={() => deleteItem(item.id, item.text)} style={styles.deleteBtn}>
-                  <Text style={styles.deleteBtnText}>✕</Text>
-                </TouchableOpacity>
+          <View style={styles.list}>
+            {filteredGroceries.map((item, index) => (
+              <View
+                key={item.id}
+                style={[styles.itemShell, rowShape(index, filteredGroceries.length)]}
+              >
+                <View style={styles.itemRow}>
+                  <SpringPressable
+                    onPress={() => toggleItem(item.id)}
+                    haptic="selection"
+                    hitSlop={CHECK_HIT_SLOP}
+                    accessibilityRole="checkbox"
+                    accessibilityState={{ checked: item.done }}
+                    accessibilityLabel={item.done ? `Mark ${item.text} not done` : `Mark ${item.text} done`}
+                    style={[styles.checkbox, item.done && styles.checkboxChecked]}
+                    contentStyle={styles.checkboxContent}
+                  >
+                    {item.done ? (
+                      <Icon name="check" size={15} color={MODULE_TONES.groceries.container} />
+                    ) : null}
+                  </SpringPressable>
+
+                  <Text
+                    style={[TEXT.titleMedium, styles.itemText, item.done && styles.itemTextDone]}
+                    numberOfLines={2}
+                  >
+                    {item.text}
+                  </Text>
+
+                  <Pill color={CATEGORY_PILL[item.category] ?? 'muted'}>{item.category}</Pill>
+
+                  <SpringPressable
+                    onPress={() => deleteItem(item.id, item.text)}
+                    haptic="selection"
+                    hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                    accessibilityLabel={`Delete ${item.text}`}
+                    style={styles.deleteBtn}
+                    contentStyle={styles.deleteBtnContent}
+                  >
+                    <Icon name="trash-2" size={16} color={M3.outline} />
+                  </SpringPressable>
+                </View>
               </View>
-            </Card>
-          ))
+            ))}
+          </View>
         )}
       </AppScrollView>
 
-      {/* ── Modal ── */}
+      {/* ── Add product modal ── */}
       {/* Edge-to-edge: without these the modal's own window stops at the
           system bars and the strip left uncovered flashes white as the
           sheet slides in. */}
@@ -153,17 +231,22 @@ export default function GroceriesScreen({ groceries, setGroceries }) {
         onRequestClose={closeModal}
       >
         <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={styles.modalRoot} keyboardVerticalOffset={0} enabled={true}>
-          <View style={[styles.modalHeader, { paddingTop: insets.top + 16 }]}>
-            <TouchableOpacity onPress={closeModal}><Text style={styles.modalCancelText}>Cancel</Text></TouchableOpacity>
-            <Text style={styles.modalTitle}>Add Product</Text>
+          <View style={[styles.modalHeader, { paddingTop: insets.top + 12 }]}>
+            <IconButton
+              icon="x"
+              onPress={closeModal}
+              accessibilityLabel="Close product form"
+            />
+            <Text style={[TEXT.titleLargeEmphasized, styles.modalTitle]}>Add Product</Text>
             <View style={styles.modalHeaderRight} />
           </View>
 
           <ScrollView contentContainerStyle={styles.modalScrollContent} keyboardShouldPersistTaps="always">
+            <Text style={[TEXT.labelLarge, styles.fieldLabel]}>Product</Text>
             <TextInput
-              style={styles.input}
+              style={[styles.input, TEXT.bodyLarge]}
               placeholder="What do you need to buy?"
-              placeholderTextColor={COLORS.textSub}
+              placeholderTextColor={M3.outline}
               value={formText}
               onChangeText={setFormText}
               autoFocus
@@ -171,24 +254,32 @@ export default function GroceriesScreen({ groceries, setGroceries }) {
               onSubmitEditing={addItem}
             />
 
-            <Text style={styles.fieldLabel}>Category:</Text>
-            <View style={styles.catRow}>
+            <Text style={[TEXT.labelLarge, styles.fieldLabel]}>Category</Text>
+            <View style={styles.chipRow}>
               {CATEGORIES.map(c => (
-                <TouchableOpacity key={c} onPress={() => setFormCat(c)}
-                  style={[styles.catChip, formCat === c && styles.catChipActive, { marginRight: 8, marginBottom: 8 }]}>
-                  <Text style={[styles.catChipText, formCat === c && { color: COLORS.accent }]}>{c}</Text>
-                </TouchableOpacity>
+                <Chip
+                  key={c}
+                  label={c}
+                  selected={formCat === c}
+                  onPress={() => setFormCat(c)}
+                  accessibilityLabel={`Category ${c}`}
+                />
               ))}
             </View>
           </ScrollView>
 
-          <View style={styles.modalFooter}>
-            <TouchableOpacity onPress={closeModal} style={[styles.modalFooterBtn, styles.modalFooterBtnCancel]}>
-              <Text style={styles.modalFooterBtnCancelText}>Cancel</Text>
-            </TouchableOpacity>
-            <TouchableOpacity onPress={addItem} style={[styles.modalFooterBtn, styles.modalFooterBtnSave]}>
-              <Text style={styles.modalFooterBtnSaveText}>Create</Text>
-            </TouchableOpacity>
+          <View style={[styles.modalFooter, { paddingBottom: insets.bottom + 12 }]}>
+            <CtaButton
+              label="Cancel"
+              variant="tonal"
+              onPress={closeModal}
+              style={styles.footerBtn}
+            />
+            <CtaButton
+              label="Create"
+              onPress={addItem}
+              style={[styles.footerBtn, styles.footerPrimary]}
+            />
           </View>
         </KeyboardAvoidingView>
       </Modal>
@@ -199,56 +290,86 @@ export default function GroceriesScreen({ groceries, setGroceries }) {
 }
 
 const styles = StyleSheet.create({
-  root:    { flex: 1, backgroundColor: COLORS.bg },
-  scroll:  { flex: 1 },
-  content: { padding: 16, paddingBottom: 32 },
-  header:  { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 },
-  title:   { fontSize: 28, fontWeight: '700', color: COLORS.text },
-  addFab:  { backgroundColor: COLORS.accent, paddingVertical: 8, paddingHorizontal: 14, borderRadius: 20 },
-  addFabText: { color: COLORS.onPrimary, fontSize: 14, fontWeight: '700' },
+  root: { flex: 1, backgroundColor: M3.background },
+  scroll: { flex: 1 },
+  content: { paddingHorizontal: 16 },
+  headerFlush: { paddingHorizontal: 0 },
 
-  countersRow: { flexDirection: 'row', marginBottom: 14 },
-  counterChip: { flex: 1, backgroundColor: COLORS.bg2, borderWidth: 1, borderColor: COLORS.border, borderRadius: 12, padding: 12, alignItems: 'center' },
-  counterNum:  { fontSize: 22, fontWeight: '700', color: COLORS.accent },
-  counterLbl:  { fontSize: 11, color: COLORS.textSub, marginTop: 2 },
+  statsRow: { marginTop: 4, marginBottom: 4 },
 
-  filtersRow:      { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 },
-  filters:         { flexDirection: 'row' },
-  filterPill:      { paddingHorizontal: 12, paddingVertical: 6, borderRadius: 20, backgroundColor: COLORS.bg2 },
-  filterPillActive:{ backgroundColor: COLORS.accentGlow },
-  filterText:      { fontSize: 12, color: COLORS.textMuted },
-  clearAllText:    { fontSize: 12, color: COLORS.red, fontWeight: '600' },
-  emptyText:       { fontSize: 13, color: COLORS.textSub, textAlign: 'center', marginTop: 20 },
+  filtersRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginTop: SPACING.sm,
+    marginBottom: SPACING.md,
+  },
+  filters: { flexDirection: 'row', flexWrap: 'wrap', flex: 1, gap: 8 },
+  clearAll: { borderRadius: SHAPE.full, marginLeft: 8 },
+  clearAllContent: { paddingHorizontal: 10, paddingVertical: 6, borderRadius: SHAPE.full },
+  clearAllText: { color: M3.error },
 
-  itemCard:    { marginBottom: 8, padding: 12 },
-  itemRow:     { flexDirection: 'row', alignItems: 'center' },
-  checkboxWrap:{ padding: 2, marginRight: 10 },
-  checkbox:    { width: 20, height: 20, borderWidth: 1.5, borderRadius: 4, alignItems: 'center', justifyContent: 'center' },
-  checkmark:   { color: COLORS.greenDim, fontSize: 11, fontWeight: 'bold' },
-  itemText:    { flex: 1, fontSize: 14, color: COLORS.text, marginRight: 10 },
-  itemTextDone:{ textDecorationLine: 'line-through', color: COLORS.textSub },
-  deleteBtn:   { padding: 4, marginLeft: 10 },
-  deleteBtnText: { fontSize: 14, color: COLORS.textSub },
+  // Grouped tonal rows: 20/4 corners, 2 px gaps, no border.
+  list: { gap: 2 },
+  itemShell: { backgroundColor: M3.surfaceContainerHigh, overflow: 'hidden' },
+  itemRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+  },
+  checkbox: {
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    borderWidth: 2,
+    borderColor: M3.outline,
+  },
+  checkboxChecked: {
+    backgroundColor: MODULE_TONES.groceries.on,
+    borderColor: MODULE_TONES.groceries.on,
+  },
+  checkboxContent: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderRadius: 12,
+  },
+  itemText: { flex: 1, color: M3.onSurface },
+  itemTextDone: { textDecorationLine: 'line-through', color: M3.outline },
+  deleteBtn: { borderRadius: SHAPE.full },
+  deleteBtnContent: { padding: 6, borderRadius: SHAPE.full },
 
-  // Modal
-  modalRoot: { flex: 1, backgroundColor: COLORS.bg },
-  modalHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 16, borderBottomWidth: 1, borderBottomColor: COLORS.border },
-  modalCancelText: { color: COLORS.accent, fontSize: 16 },
-  modalHeaderRight: { width: 50 },
-  modalTitle: { fontSize: 18, fontWeight: '700', color: COLORS.text, textAlign: 'center' },
-  modalScrollContent: { padding: 16, paddingBottom: 32 },
-  modalFooter: { flexDirection: 'row', alignItems: 'center', justifyContent: 'flex-end', padding: 16, gap: 12, borderTopWidth: 1, borderTopColor: COLORS.border },
-  modalFooterBtn: { paddingVertical: 14, paddingHorizontal: 20, borderRadius: 10, alignItems: 'center' },
-  modalFooterBtnSave: { backgroundColor: COLORS.accent, flex: 1 },
-  modalFooterBtnSaveText: { color: COLORS.onPrimary, fontWeight: '700', fontSize: 15 },
-  modalFooterBtnCancel: { backgroundColor: COLORS.bg4, marginRight: 10 },
-  modalFooterBtnCancelText: { color: COLORS.textMuted, fontWeight: '600' },
-  modalFooterBtnDelete: { backgroundColor: COLORS.redDim, borderWidth: 1, borderColor: COLORS.red, marginRight: 10 },
-  modalFooterBtnDeleteText: { color: COLORS.red, fontWeight: '600' },
-  input:       { backgroundColor: COLORS.bg3, borderWidth: 1, borderColor: COLORS.border, borderRadius: 10, padding: 12, color: COLORS.text, fontSize: 14, marginBottom: 12 },
-  fieldLabel:  { color: COLORS.textSub, fontSize: 13, marginBottom: 8 },
-  catRow:      { flexDirection: 'row', flexWrap: 'wrap', marginBottom: 12 },
-  catChip:     { paddingHorizontal: 14, paddingVertical: 7, borderRadius: 12, backgroundColor: COLORS.bg4 },
-  catChipActive:{ backgroundColor: COLORS.accentGlow },
-  catChipText: { fontSize: 13, color: COLORS.textMuted },
+  // Modal — full screen, opaque, own insets, sticky footer.
+  modalRoot: { flex: 1, backgroundColor: M3.background },
+  modalHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 16,
+    paddingBottom: 12,
+  },
+  modalHeaderRight: { width: 40 },
+  modalTitle: { color: M3.onSurface },
+  modalScrollContent: { paddingHorizontal: 20, paddingTop: 8, paddingBottom: 40 },
+  modalFooter: {
+    flexDirection: 'row',
+    gap: 12,
+    paddingHorizontal: 20,
+    paddingVertical: 12,
+  },
+  footerBtn: { flex: 1 },
+  footerPrimary: { flex: 1.4 },
+  fieldLabel: { color: M3.onSurfaceVariant, marginBottom: 6, marginTop: 4 },
+  input: {
+    backgroundColor: M3.surfaceContainerHigh,
+    borderRadius: SHAPE.lg,
+    minHeight: 56,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    color: M3.onSurface,
+    marginBottom: 12,
+  },
+  chipRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 14 },
 });

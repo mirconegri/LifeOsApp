@@ -1,21 +1,41 @@
 // src/screens/GoalsScreen.js
+//
+// M3 Expressive Goals: ScreenHeader with the add action, active/completed
+// statistics, filter Chips, tonal goal cards with a static wavy linear
+// progress indicator, a springy +/- stepper and a tonal complete control,
+// plus a full-screen create/edit form. Every handler, state variable,
+// storage field and confirmation is unchanged.
 import React, { useState } from 'react';
 import {
-  View, Text, StyleSheet, ScrollView, TouchableOpacity, Modal,
+  View, Text, StyleSheet, ScrollView, Modal,
   TextInput, KeyboardAvoidingView, Platform,
 } from 'react-native';
-import { Card } from '../components/Card';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+
+import { M3, MODULE_TONES } from '../config/colors';
+import { SHAPE, SPACING } from '../config/designSystem';
 import { Pill } from '../components/Pill';
-import { COLORS } from '../config/colors';
-import { AppScrollView } from '../ui/AppScrollView';
 import { CustomAlert } from '../components/CustomAlert';
 import { DatePicker } from '../components/DatePicker';
 import { Icon } from '../components/Icon';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { AppScrollView } from '../ui/AppScrollView';
+import { ScreenHeader } from '../ui/ScreenHeader';
+import { StatRow } from '../ui/StatRow';
+import { Chip } from '../ui/Chip';
+import { CtaButton } from '../ui/CtaButton';
+import { IconButton } from '../ui/IconButton';
+import { SpringPressable } from '../ui/SpringPressable';
+import { EmptyState } from '../ui/EmptyState';
+import { WavyProgress } from '../ui/WavyProgress';
+import { TEXT } from '../ui/type';
 
 const GOAL_CATEGORIES = ['Study', 'Sport', 'Finance', 'Health', 'Personal', 'Work'];
 const PRIORITY_OPTS   = ['low', 'medium', 'high'];
 const FILTERS         = ['All', 'Active', 'Completed', 'Expired'];
+
+// Priority tag colour on the card and in the form chips. Pill names map to
+// tonal pairs, so no raw green/amber/red reaches the screen.
+const PRIORITY_PILL = { low: 'green', medium: 'amber', high: 'red' };
 
 export default function GoalsScreen({ goals, setGoals }) {
   const [modalVisible, setModalVisible] = useState(false);
@@ -46,9 +66,8 @@ export default function GoalsScreen({ goals, setGoals }) {
     setModalVisible(true);
   };
 
-  // New: tapping any goal card opens it here, pre-filled, instead of only
-  // ever being able to create new ones. This was the main "not editable"
-  // bug — there was no openEditModal/editingId at all before.
+  // Tapping a goal card opens it here, pre-filled. This is the edit entry
+  // point added after the original "not editable" bug.
   const openEditModal = (goal) => {
     setEditingId(goal.id);
     setTitle(goal.title);
@@ -142,7 +161,6 @@ export default function GoalsScreen({ goals, setGoals }) {
     });
   };
 
-  const priorityColor = (p) => p === 'high' ? COLORS.red : p === 'medium' ? COLORS.amber : COLORS.green;
   const priorityLabel = (p) => p === 'high' ? '🔴 High' : p === 'medium' ? '🟡 Medium' : '🟢 Low';
 
   const filteredGoals = goals.filter(o => {
@@ -157,118 +175,229 @@ export default function GoalsScreen({ goals, setGoals }) {
 
   return (
     <AppScrollView style={styles.container} contentContainerStyle={styles.content}>
-      <View style={styles.header}>
-        <View style={styles.titleRow}><Icon name="target" size={24} color={COLORS.text} /><Text style={styles.title}> Goals</Text></View>
-        <TouchableOpacity onPress={openAddModal} style={styles.addFab}>
-          <Text style={styles.addFabText}>+ New</Text>
-        </TouchableOpacity>
-      </View>
+      <ScreenHeader
+        title="Goals"
+        subtitle={`${goals.length} goal${goals.length === 1 ? '' : 's'}`}
+        style={styles.headerFlush}
+        right={(
+          <IconButton
+            icon="plus"
+            onPress={openAddModal}
+            accessibilityLabel="Add goal"
+          />
+        )}
+      />
 
-      {/* Stats */}
-      <View style={styles.statsRow}>
-        <View style={[styles.statCard, { flex: 1, marginRight: 8 }]}>
-          <Text style={styles.statVal}>{activeCount}</Text>
-          <Text style={styles.statLbl}>Active</Text>
-        </View>
-        <View style={[styles.statCard, { flex: 1, marginLeft: 8 }]}>
-          <Text style={[styles.statVal, { color: COLORS.green }]}>{completedCount}</Text>
-          <Text style={styles.statLbl}>Completed</Text>
-        </View>
-      </View>
+      {/* Active / completed statistics */}
+      <StatRow
+        stats={[
+          { value: activeCount, label: 'Active' },
+          { value: completedCount, label: 'Completed' },
+        ]}
+        style={styles.statsRow}
+      />
 
-      {/* Filters */}
+      {/* Filters + destructive clear-all */}
       <View style={styles.filterHeaderRow}>
-        <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.pillRow}>
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          style={styles.pillRow}
+          contentContainerStyle={styles.pillRowContent}
+        >
           {FILTERS.map(f => (
-            <View key={f} style={{ marginRight: 8 }}>
-              <Pill label={f} selected={filter === f} onPress={() => setFilter(f)} />
-            </View>
+            <Chip
+              key={f}
+              label={f}
+              selected={filter === f}
+              onPress={() => setFilter(f)}
+              accessibilityLabel={`Filter ${f}`}
+            />
           ))}
         </ScrollView>
-        {goals.length > 0 && (
-          <TouchableOpacity onPress={confirmClearAll}>
-            <Text style={styles.clearAllText}>Clear All</Text>
-          </TouchableOpacity>
-        )}
+
+        {goals.length > 0 ? (
+          <SpringPressable
+            onPress={confirmClearAll}
+            haptic="selection"
+            accessibilityLabel="Clear all goals"
+            style={styles.clearAll}
+            contentStyle={styles.clearAllContent}
+          >
+            <Text style={[TEXT.labelLarge, styles.clearAllText]}>Clear All</Text>
+          </SpringPressable>
+        ) : null}
       </View>
 
-      {/* Goals List */}
+      {/* Goal cards */}
       {filteredGoals.length === 0 ? (
-        <Card><Text style={styles.emptyText}>No goals found in this category.</Text></Card>
+        <EmptyState
+          icon="target"
+          title="No goals found"
+          body="No goals match this filter. Create one to start tracking progress."
+          tone={MODULE_TONES.goals}
+          action={(
+            <CtaButton
+              label="New goal"
+              variant="tonal"
+              onPress={openAddModal}
+            />
+          )}
+        />
       ) : filteredGoals.map(ob => {
         const pct = ob.target > 0 ? Math.min(100, (ob.progress / ob.target) * 100) : 0;
         const isExpired = ob.deadline && !ob.completed && new Date(ob.deadline) < new Date();
+        const progressColor = ob.completed ? MODULE_TONES.journal.on : MODULE_TONES.goals.on;
         return (
-          <Card key={ob.id} style={ob.completed ? styles.cardCompleted : isExpired ? styles.cardExpired : null}>
-            {/* Tapping the title row opens the edit modal — this is the new
-                entry point for editing a goal that didn't exist before. */}
-            <TouchableOpacity onPress={() => openEditModal(ob)} style={styles.obHeader}>
-              <View style={styles.obTitleRow}>
-                <Text style={[styles.obTitle, ob.completed && styles.obDone]}>{ob.title}</Text>
-                {ob.completed && <Icon name="check-circle" size={14} color={COLORS.green} />}
-                {isExpired && <Icon name="alert-triangle" size={14} color={COLORS.amber} />}
-                <Text style={styles.editHint}>✎</Text>
-              </View>
-              <TouchableOpacity onPress={() => deleteGoal(ob.id)} hitSlop={{top:8,bottom:8,left:8,right:8}}>
-                <Text style={styles.trashBtn}>✕</Text>
-              </TouchableOpacity>
-            </TouchableOpacity>
-
-            {ob.description ? <Text style={styles.obDesc}>{ob.description}</Text> : null}
-
-            <View style={styles.obMeta}>
-              <View style={{ marginRight: 8 }}>
-                <Pill color="muted">{ob.category}</Pill>
-              </View>
-              <Text style={{ color: priorityColor(ob.priority), fontSize: 12, fontWeight: '600', marginRight: 8 }}>
-                {priorityLabel(ob.priority)}
-              </Text>
-              {ob.deadline ? (
-                <View style={styles.deadlineRow}>
-                  <Icon name="calendar" size={12} color={COLORS.textMuted} />
-                  <Text style={[styles.deadline, isExpired && styles.deadlineExpired]}> {ob.deadline}</Text>
+          <View key={ob.id} style={[styles.goalCard, ob.completed && styles.cardCompleted]}>
+            <View style={styles.cardHeader}>
+              {/* Tapping the title block opens the edit modal. */}
+              <SpringPressable
+                onPress={() => openEditModal(ob)}
+                haptic="selection"
+                accessibilityLabel={`Edit ${ob.title}`}
+                style={styles.cardTitleTap}
+                contentStyle={styles.cardTitleTapContent}
+              >
+                <View style={styles.titleLine}>
+                  <Text
+                    style={[TEXT.titleMedium, styles.obTitle, ob.completed && styles.obDone]}
+                    numberOfLines={2}
+                  >
+                    {ob.title}
+                  </Text>
+                  {ob.completed ? (
+                    <Icon name="check-circle" size={16} color={MODULE_TONES.journal.on} />
+                  ) : null}
+                  {isExpired ? (
+                    <Icon name="alert-triangle" size={16} color={M3.error} />
+                  ) : null}
                 </View>
-              ) : null}
+
+                {ob.description ? (
+                  <Text style={[TEXT.bodyMedium, styles.obDesc]} numberOfLines={2}>
+                    {ob.description}
+                  </Text>
+                ) : null}
+
+                <View style={styles.obMeta}>
+                  <Pill color="accent">{ob.category}</Pill>
+                  <Pill color={PRIORITY_PILL[ob.priority] ?? 'muted'}>
+                    {priorityLabel(ob.priority)}
+                  </Pill>
+                  {ob.deadline ? (
+                    <View style={styles.deadlineRow}>
+                      <Icon
+                        name="calendar"
+                        size={12}
+                        color={isExpired ? M3.error : M3.outline}
+                      />
+                      <Text
+                        style={[TEXT.labelSmall, styles.deadline, isExpired && styles.deadlineExpired]}
+                        numberOfLines={1}
+                      >
+                        {ob.deadline}
+                      </Text>
+                    </View>
+                  ) : null}
+                </View>
+              </SpringPressable>
+
+              <SpringPressable
+                onPress={() => deleteGoal(ob.id)}
+                haptic="selection"
+                hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                accessibilityLabel={`Delete ${ob.title}`}
+                style={styles.trashBtn}
+                contentStyle={styles.trashBtnContent}
+              >
+                <Icon name="trash-2" size={16} color={M3.outline} />
+              </SpringPressable>
             </View>
 
-            <View style={styles.progressSection}>
+            {/* Static wavy bar: animate={false} keeps it out of the 3-wave cap. */}
+            <View style={styles.progressRow}>
               <View style={styles.progressBar}>
-                <View style={[styles.progressFill, { width: `${pct}%`, backgroundColor: ob.completed ? COLORS.green : COLORS.accent }]} />
+                <WavyProgress
+                  variant="linear"
+                  progress={pct / 100}
+                  color={progressColor}
+                  trackColor={M3.surfaceContainerHighest}
+                  animate={false}
+                  stroke={5}
+                  accessibilityLabel={`${ob.title} progress`}
+                />
               </View>
-              <Text style={styles.progressText}>{pct.toFixed(0)}%</Text>
+              <Text style={[TEXT.labelMedium, styles.progressText]}>
+                {pct.toFixed(0)}%
+              </Text>
             </View>
 
             <View style={styles.progressNumbers}>
-              <Text style={styles.progressCurr}>{ob.progress}</Text>
-              <Text style={styles.progressTarget}> / {ob.target}</Text>
+              <Text style={[TEXT.titleMedium, styles.progressCurr]}>{ob.progress}</Text>
+              <Text style={[TEXT.labelMedium, styles.progressTarget]}> / {ob.target}</Text>
             </View>
 
             <View style={styles.stepperRow}>
-              <TouchableOpacity style={styles.stepBtn} onPress={() => updateProgress(ob.id, -1)}>
-                <Text style={styles.stepBtnText}>−</Text>
-              </TouchableOpacity>
+              <SpringPressable
+                onPress={() => updateProgress(ob.id, -1)}
+                haptic="selection"
+                accessibilityLabel={`Decrease ${ob.title} progress`}
+                style={styles.stepBtn}
+                contentStyle={styles.stepBtnContent}
+              >
+                <Text style={[TEXT.titleMedium, styles.stepBtnText]}>−</Text>
+              </SpringPressable>
+
               <TextInput
-                style={styles.stepInput}
+                style={[styles.stepInput, TEXT.titleSmall]}
                 value={String(ob.progress)}
                 onChangeText={v => setDirectProgress(ob.id, v)}
                 keyboardType="decimal-pad"
-                placeholderTextColor={COLORS.textSub}
+                placeholderTextColor={M3.outline}
               />
-              <TouchableOpacity style={styles.stepBtn} onPress={() => updateProgress(ob.id, 1)}>
-                <Text style={styles.stepBtnText}>+</Text>
-              </TouchableOpacity>
-              <View style={{ flex: 1 }} />
-              <TouchableOpacity
+
+              <SpringPressable
+                onPress={() => updateProgress(ob.id, 1)}
+                haptic="selection"
+                accessibilityLabel={`Increase ${ob.title} progress`}
+                style={styles.stepBtn}
+                contentStyle={styles.stepBtnContent}
+              >
+                <Text style={[TEXT.titleMedium, styles.stepBtnText]}>+</Text>
+              </SpringPressable>
+
+              <View style={styles.spacer} />
+
+              <SpringPressable
+                onPress={() => updateProgress(ob.id, ob.target - ob.progress)}
+                haptic="selection"
+                accessibilityRole="button"
+                accessibilityState={{ selected: ob.completed }}
+                accessibilityLabel={ob.completed ? `${ob.title} is done` : `Complete ${ob.title}`}
                 style={[styles.completeBtn, ob.completed && styles.completeBtnDone]}
-                onPress={() => updateProgress(ob.id, ob.target - ob.progress)}>
-                <Text style={styles.completeBtnText}>{ob.completed ? '✓ Done' : '✓ Complete'}</Text>
-              </TouchableOpacity>
+                contentStyle={styles.completeBtnContent}
+              >
+                <Icon
+                  name="check"
+                  size={14}
+                  color={ob.completed ? MODULE_TONES.goals.container : MODULE_TONES.goals.on}
+                />
+                <Text
+                  style={[
+                    TEXT.labelMedium,
+                    { color: ob.completed ? MODULE_TONES.goals.container : MODULE_TONES.goals.on },
+                  ]}
+                >
+                  {ob.completed ? 'Done' : 'Complete'}
+                </Text>
+              </SpringPressable>
             </View>
-          </Card>
+          </View>
         );
       })}
 
-      {/* Create / Edit Modal */}
+      {/* Create / Edit modal — full screen, opaque, own insets, sticky footer. */}
       {/* Edge-to-edge: without these the modal's own window stops at the
           system bars and the strip left uncovered flashes white as the
           sheet slides in. */}
@@ -281,64 +410,91 @@ export default function GoalsScreen({ goals, setGoals }) {
         onRequestClose={closeModal}
       >
         <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={styles.modalRoot} keyboardVerticalOffset={0} enabled={true}>
-          <View style={[styles.modalHeader, { paddingTop: insets.top + 16 }]}>
-            <TouchableOpacity onPress={closeModal}>
-              <Text style={styles.modalCancelText}>Cancel</Text>
-            </TouchableOpacity>
-            <Text style={styles.modalTitle}>{editingId ? 'Edit Goal' : 'New Goal'}</Text>
+          <View style={[styles.modalHeader, { paddingTop: insets.top + 12 }]}>
+            <IconButton
+              icon="x"
+              onPress={closeModal}
+              accessibilityLabel="Close goal form"
+            />
+            <Text style={[TEXT.titleLargeEmphasized, styles.modalTitle]}>
+              {editingId ? 'Edit Goal' : 'New Goal'}
+            </Text>
             <View style={styles.modalHeaderRight} />
           </View>
 
           <ScrollView contentContainerStyle={styles.modalScrollContent} keyboardShouldPersistTaps="always">
-            <Text style={styles.fieldLabel}>Title</Text>
-            <TextInput style={styles.input} placeholder="e.g. Run a half marathon"
-              placeholderTextColor={COLORS.textSub} value={title} onChangeText={setTitle} />
+            <Text style={[TEXT.labelLarge, styles.fieldLabel]}>Title</Text>
+            <TextInput
+              style={[styles.input, TEXT.bodyLarge]}
+              placeholder="e.g. Run a half marathon"
+              placeholderTextColor={M3.outline}
+              value={title}
+              onChangeText={setTitle}
+            />
 
-            <Text style={styles.fieldLabel}>Description (optional)</Text>
-            <TextInput style={[styles.input, styles.noteInput]} placeholder="More details about this goal..."
-              placeholderTextColor={COLORS.textSub} value={description}
-              onChangeText={setDescription} multiline />
+            <Text style={[TEXT.labelLarge, styles.fieldLabel]}>Description (optional)</Text>
+            <TextInput
+              style={[styles.input, styles.noteInput, TEXT.bodyLarge]}
+              placeholder="More details about this goal..."
+              placeholderTextColor={M3.outline}
+              value={description}
+              onChangeText={setDescription}
+              multiline
+            />
 
-            {/* These two fields used to be two unlabeled boxes side by
-                side with only placeholder text ("Numeric target" /
-                "Start (e.g. 0)") — nothing told you what they meant
-                until you tried typing in them. Each now has its own
-                full-width row with an explicit label above it, plus a
-                one-line explanation of what the number represents. */}
-            <Text style={styles.fieldLabel}>Goal target — the finish line</Text>
-            <Text style={styles.fieldHint}>The number that means "done". E.g. 21 for a 21km run, or 1000 for €1000 saved.</Text>
-            <TextInput style={styles.input} placeholder="e.g. 21"
-              placeholderTextColor={COLORS.textSub} value={targetInput}
-              onChangeText={setTargetInput} keyboardType="decimal-pad" />
+            <Text style={[TEXT.labelLarge, styles.fieldLabel]}>Goal target — the finish line</Text>
+            <Text style={[TEXT.bodySmall, styles.fieldHint]}>
+              The number that means "done". E.g. 21 for a 21km run, or 1000 for €1000 saved.
+            </Text>
+            <TextInput
+              style={[styles.input, TEXT.bodyLarge]}
+              placeholder="e.g. 21"
+              placeholderTextColor={M3.outline}
+              value={targetInput}
+              onChangeText={setTargetInput}
+              keyboardType="decimal-pad"
+            />
 
-            <Text style={styles.fieldLabel}>Current progress — where you are now</Text>
-            <Text style={styles.fieldHint}>How far along you already are, in the same unit as the target above.</Text>
-            <TextInput style={styles.input} placeholder="e.g. 0"
-              placeholderTextColor={COLORS.textSub} value={currentProgress}
-              onChangeText={setCurrentProgress} keyboardType="decimal-pad" />
+            <Text style={[TEXT.labelLarge, styles.fieldLabel]}>Current progress — where you are now</Text>
+            <Text style={[TEXT.bodySmall, styles.fieldHint]}>
+              How far along you already are, in the same unit as the target above.
+            </Text>
+            <TextInput
+              style={[styles.input, TEXT.bodyLarge]}
+              placeholder="e.g. 0"
+              placeholderTextColor={M3.outline}
+              value={currentProgress}
+              onChangeText={setCurrentProgress}
+              keyboardType="decimal-pad"
+            />
 
-            <Text style={styles.fieldLabel}>Category</Text>
-            <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{marginBottom: 10}}>
+            <Text style={[TEXT.labelLarge, styles.fieldLabel]}>Category</Text>
+            <View style={styles.chipRow}>
               {GOAL_CATEGORIES.map(c => (
-                <TouchableOpacity key={c} onPress={() => setCategory(c)} style={[styles.catPill, category === c && styles.catPillActive]}>
-                  <Text style={[styles.catPillText, category === c && {color: COLORS.accent}]}>{c}</Text>
-                </TouchableOpacity>
-              ))}
-            </ScrollView>
-
-            <Text style={styles.fieldLabel}>Priority</Text>
-            <View style={styles.priorityRow}>
-              {PRIORITY_OPTS.map((p, idx) => (
-                <TouchableOpacity key={p} onPress={() => setPriority(p)}
-                  style={[styles.priorityBtn, priority === p && { borderColor: priorityColor(p), backgroundColor: priorityColor(p) + '22' }, idx < 2 && { marginRight: 10 }]}>
-                  <Text style={[styles.priorityText, priority === p && { color: priorityColor(p) }]}>
-                    {priorityLabel(p)}
-                  </Text>
-                </TouchableOpacity>
+                <Chip
+                  key={c}
+                  label={c}
+                  selected={category === c}
+                  onPress={() => setCategory(c)}
+                  accessibilityLabel={`Category ${c}`}
+                />
               ))}
             </View>
 
-            <Text style={styles.fieldLabel}>Deadline (optional)</Text>
+            <Text style={[TEXT.labelLarge, styles.fieldLabel]}>Priority</Text>
+            <View style={styles.chipRow}>
+              {PRIORITY_OPTS.map(p => (
+                <Chip
+                  key={p}
+                  label={priorityLabel(p)}
+                  selected={priority === p}
+                  onPress={() => setPriority(p)}
+                  accessibilityLabel={`Priority ${p}`}
+                />
+              ))}
+            </View>
+
+            <Text style={[TEXT.labelLarge, styles.fieldLabel]}>Deadline (optional)</Text>
             <DatePicker
               value={deadline}
               onChange={setDeadline}
@@ -347,19 +503,27 @@ export default function GoalsScreen({ goals, setGoals }) {
             />
           </ScrollView>
 
-          <View style={styles.modalFooter}>
+          <View style={[styles.modalFooter, { paddingBottom: insets.bottom + 12 }]}>
             {editingId ? (
-              <TouchableOpacity onPress={() => deleteGoal(editingId)} style={[styles.modalFooterBtn, styles.modalFooterBtnDelete]}>
-                <Text style={styles.modalFooterBtnDeleteText}>Delete</Text>
-              </TouchableOpacity>
+              <CtaButton
+                label="Delete"
+                variant="destructive"
+                onPress={() => deleteGoal(editingId)}
+                style={styles.footerBtn}
+              />
             ) : (
-              <TouchableOpacity onPress={closeModal} style={[styles.modalFooterBtn, styles.modalFooterBtnCancel]}>
-                <Text style={styles.modalFooterBtnCancelText}>Cancel</Text>
-              </TouchableOpacity>
+              <CtaButton
+                label="Cancel"
+                variant="tonal"
+                onPress={closeModal}
+                style={styles.footerBtn}
+              />
             )}
-            <TouchableOpacity onPress={saveGoal} style={[styles.modalFooterBtn, styles.modalFooterBtnSave]}>
-              <Text style={styles.modalFooterBtnSaveText}>{editingId ? 'Save Changes' : 'Create Goal'}</Text>
-            </TouchableOpacity>
+            <CtaButton
+              label={editingId ? 'Save Changes' : 'Create Goal'}
+              onPress={saveGoal}
+              style={[styles.footerBtn, styles.footerPrimary]}
+            />
           </View>
         </KeyboardAvoidingView>
       </Modal>
@@ -370,72 +534,126 @@ export default function GoalsScreen({ goals, setGoals }) {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: COLORS.bg },
-  content: { padding: 16, paddingBottom: 40 },
-  header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 },
-  title: { fontSize: 28, fontWeight: '700', color: COLORS.text },
-  addFab: { backgroundColor: COLORS.accent, paddingVertical: 8, paddingHorizontal: 14, borderRadius: 20 },
-  addFabText: { color: COLORS.onPrimary, fontSize: 14, fontWeight: '700' },
-  statsRow: { flexDirection: 'row', marginBottom: 16 },
-  statCard: { backgroundColor: COLORS.bg2, borderWidth: 1, borderColor: COLORS.border, borderRadius: 14, padding: 16, alignItems: 'center' },
-  statVal: { fontSize: 28, fontWeight: '700', color: COLORS.accent },
-  statLbl: { fontSize: 12, color: COLORS.textSub, marginTop: 4 },
-  filterHeaderRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 },
-  pillRow: { flexDirection: 'row', flex: 1 },
-  clearAllText: { fontSize: 12, color: COLORS.red, fontWeight: '600', marginLeft: 10 },
-  emptyText: { color: COLORS.textSub, fontSize: 14, textAlign: 'center', marginVertical: 20 },
-  cardCompleted: { opacity: 0.7 },
-  cardExpired: { borderColor: COLORS.red + '44', borderWidth: 1 },
-  obHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 4 },
-  obTitleRow: { flexDirection: 'row', alignItems: 'center', flex: 1, marginRight: 8 },
-  obTitle: { fontSize: 16, fontWeight: '700', color: COLORS.text, flex: 1 },
-  obDone: { textDecorationLine: 'line-through', color: COLORS.textMuted },
-  titleRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
-  editHint: { fontSize: 12, color: COLORS.textSub, marginLeft: 8 },
-  trashBtn: { color: COLORS.textSub, fontSize: 14, padding: 4 },
-  obDesc: { fontSize: 13, color: COLORS.textMuted, marginBottom: 8 },
-  obMeta: { flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', marginBottom: 12 },
-  deadline: { fontSize: 12, color: COLORS.textMuted },
-  deadlineExpired: { color: COLORS.red, fontWeight: '600' },
-  deadlineRow: { flexDirection: 'row', alignItems: 'center' },
-  progressSection: { flexDirection: 'row', alignItems: 'center', marginBottom: 6 },
-  progressBar: { flex: 1, height: 8, backgroundColor: COLORS.bg4, borderRadius: 4, marginRight: 10, overflow: 'hidden' },
-  progressFill: { height: '100%', borderRadius: 4 },
-  progressText: { fontSize: 12, color: COLORS.textMuted, fontWeight: '600', width: 36, textAlign: 'right' },
-  progressNumbers: { flexDirection: 'row', alignItems: 'baseline', marginBottom: 12 },
-  progressCurr: { fontSize: 18, fontWeight: '700', color: COLORS.text },
-  progressTarget: { fontSize: 14, color: COLORS.textMuted },
-  stepperRow: { flexDirection: 'row', alignItems: 'center' },
-  stepBtn: { width: 32, height: 32, borderRadius: 16, backgroundColor: COLORS.bg4, alignItems: 'center', justifyContent: 'center' },
-  stepBtnText: { fontSize: 18, color: COLORS.text, fontWeight: '700' },
-  stepInput: { width: 56, marginHorizontal: 8, textAlign: 'center', backgroundColor: COLORS.bg3, borderRadius: 8, paddingVertical: 6, color: COLORS.text, fontSize: 13 },
-  completeBtn: { backgroundColor: COLORS.bg4, paddingHorizontal: 14, paddingVertical: 8, borderRadius: 10 },
-  completeBtnDone: { backgroundColor: COLORS.green + '33' },
-  completeBtnText: { fontSize: 12, color: COLORS.text, fontWeight: '700' },
+  container: { flex: 1, backgroundColor: M3.background },
+  content: { paddingHorizontal: 16 },
+  headerFlush: { paddingHorizontal: 0 },
 
-  // Modal
-  modalRoot: { flex: 1, backgroundColor: COLORS.bg },
-  modalHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 16, borderBottomWidth: 1, borderBottomColor: COLORS.border },
-  modalCancelText: { color: COLORS.accent, fontSize: 16 },
-  modalHeaderRight: { width: 50 },
-  modalTitle: { fontSize: 18, fontWeight: '700', color: COLORS.text, textAlign: 'center' },
-  modalScrollContent: { padding: 16, paddingBottom: 32 },
-  modalFooter: { flexDirection: 'row', alignItems: 'center', justifyContent: 'flex-end', padding: 16, gap: 12, borderTopWidth: 1, borderTopColor: COLORS.border },
-  modalFooterBtn: { paddingVertical: 14, paddingHorizontal: 20, borderRadius: 10, alignItems: 'center' },
-  modalFooterBtnSave: { backgroundColor: COLORS.accent, flex: 1 },
-  modalFooterBtnSaveText: { color: COLORS.onPrimary, fontWeight: '700', fontSize: 15 },
-  modalFooterBtnCancel: { backgroundColor: COLORS.bg4, marginRight: 10 },
-  modalFooterBtnCancelText: { color: COLORS.textMuted, fontWeight: '600' },
-  modalFooterBtnDelete: { backgroundColor: COLORS.redDim, borderWidth: 1, borderColor: COLORS.red, marginRight: 10 },
-  modalFooterBtnDeleteText: { color: COLORS.red, fontWeight: '600' },
-  input: { backgroundColor: COLORS.bg3, borderWidth: 1, borderColor: COLORS.border, borderRadius: 10, padding: 12, color: COLORS.text, fontSize: 14, marginBottom: 12 },
-  noteInput: { height: 70, textAlignVertical: 'top' },
-  fieldLabel: { color: COLORS.text, fontSize: 14, fontWeight: '600', marginBottom: 4, marginTop: 4 },
-  fieldHint: { color: COLORS.textSub, fontSize: 11, marginBottom: 8, lineHeight: 15 },
-  catPill: { paddingHorizontal: 14, paddingVertical: 8, borderRadius: 14, backgroundColor: COLORS.bg4, marginRight: 8 },
-  catPillActive: { backgroundColor: COLORS.accentGlow, borderWidth: 1, borderColor: COLORS.accent },
-  catPillText: { fontSize: 13, color: COLORS.textMuted, fontWeight: '500' },
-  priorityRow: { flexDirection: 'row', marginBottom: 14 },
-  priorityBtn: { flex: 1, paddingVertical: 10, borderRadius: 10, backgroundColor: COLORS.bg4, alignItems: 'center', borderWidth: 1, borderColor: 'transparent' },
-  priorityText: { fontSize: 12, color: COLORS.textMuted, fontWeight: '600' },
+  statsRow: { marginTop: 4, marginBottom: 4 },
+
+  filterHeaderRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginTop: SPACING.sm,
+    marginBottom: SPACING.md,
+  },
+  pillRow: { flexGrow: 0, flexShrink: 1 },
+  pillRowContent: { gap: 8, paddingRight: 4 },
+  clearAll: { borderRadius: SHAPE.full, marginLeft: 8 },
+  clearAllContent: { paddingHorizontal: 10, paddingVertical: 6, borderRadius: SHAPE.full },
+  clearAllText: { color: M3.error },
+
+  // Tonal goal card: surfaceContainerHigh, 24 radius, no border.
+  goalCard: {
+    backgroundColor: M3.surfaceContainerHigh,
+    borderRadius: SHAPE.xxl,
+    padding: 16,
+    marginBottom: 10,
+  },
+  cardCompleted: { opacity: 0.7 },
+  cardHeader: { flexDirection: 'row', alignItems: 'flex-start' },
+  cardTitleTap: { flex: 1, borderRadius: SHAPE.md },
+  cardTitleTapContent: { paddingVertical: 2, borderRadius: SHAPE.md },
+  titleLine: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+  obTitle: { flex: 1, color: M3.onSurface },
+  obDone: { textDecorationLine: 'line-through', color: M3.outline },
+  obDesc: { color: M3.onSurfaceVariant, marginTop: 4 },
+  obMeta: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flexWrap: 'wrap',
+    gap: 8,
+    marginTop: 10,
+  },
+  deadlineRow: { flexDirection: 'row', alignItems: 'center', gap: 4 },
+  deadline: { color: M3.outline },
+  deadlineExpired: { color: M3.error },
+  trashBtn: { borderRadius: SHAPE.full, marginLeft: 4 },
+  trashBtnContent: { padding: 6, borderRadius: SHAPE.full },
+
+  progressRow: { flexDirection: 'row', alignItems: 'center', marginTop: 12 },
+  progressBar: { flex: 1, marginRight: 10, justifyContent: 'center' },
+  progressText: { color: M3.onSurfaceVariant, width: 40, textAlign: 'right' },
+  progressNumbers: { flexDirection: 'row', alignItems: 'baseline', marginTop: 2 },
+  progressCurr: { color: M3.onSurface },
+  progressTarget: { color: M3.onSurfaceVariant },
+
+  stepperRow: { flexDirection: 'row', alignItems: 'center', marginTop: 12 },
+  stepBtn: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: M3.surfaceContainerHighest,
+  },
+  stepBtnContent: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderRadius: 18,
+  },
+  stepBtnText: { color: M3.onSurface },
+  stepInput: {
+    width: 56,
+    marginHorizontal: 8,
+    textAlign: 'center',
+    backgroundColor: M3.surfaceContainerHighest,
+    borderRadius: SHAPE.md,
+    paddingVertical: 6,
+    color: M3.onSurface,
+  },
+  spacer: { flex: 1 },
+  completeBtn: { backgroundColor: MODULE_TONES.goals.container, borderRadius: SHAPE.full },
+  completeBtnDone: { backgroundColor: MODULE_TONES.goals.on },
+  completeBtnContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    borderRadius: SHAPE.full,
+  },
+
+  // Modal — full screen, opaque, own insets, sticky footer.
+  modalRoot: { flex: 1, backgroundColor: M3.background },
+  modalHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 16,
+    paddingBottom: 12,
+  },
+  modalHeaderRight: { width: 40 },
+  modalTitle: { color: M3.onSurface },
+  modalScrollContent: { paddingHorizontal: 20, paddingTop: 8, paddingBottom: 40 },
+  modalFooter: {
+    flexDirection: 'row',
+    gap: 12,
+    paddingHorizontal: 20,
+    paddingVertical: 12,
+  },
+  footerBtn: { flex: 1 },
+  footerPrimary: { flex: 1.4 },
+  fieldLabel: { color: M3.onSurfaceVariant, marginBottom: 6, marginTop: 4 },
+  fieldHint: { color: M3.outline, marginBottom: 8 },
+  input: {
+    backgroundColor: M3.surfaceContainerHigh,
+    borderRadius: SHAPE.lg,
+    minHeight: 56,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    color: M3.onSurface,
+    marginBottom: 12,
+  },
+  noteInput: { minHeight: 96, textAlignVertical: 'top' },
+  chipRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 14 },
 });

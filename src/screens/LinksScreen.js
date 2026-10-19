@@ -1,15 +1,29 @@
+// src/screens/LinksScreen.js
+//
+// M3 Expressive Links: tonal rows with an emoji tile in the links tone,
+// star/edit/delete actions, links tone empty state and a full-screen
+// add/edit form with labelled filled fields and a sticky CtaButton footer.
+// Handlers, starring limit, URL normalisation, ids, validation and the
+// DraggableList wiring are unchanged.
 import React, { useState, useRef } from 'react';
 import {
   View, Text, ScrollView, StyleSheet, TextInput,
-  TouchableOpacity, Linking, Modal, KeyboardAvoidingView, Platform,
+  Linking, Modal, KeyboardAvoidingView, Platform,
 } from 'react-native';
-import { COLORS } from '../config/colors';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+
+import { M3, MODULE_TONES } from '../config/colors';
+import { SHAPE, SPACING } from '../config/designSystem';
+import { TEXT } from '../ui/type';
 import { AppScrollView } from '../ui/AppScrollView';
-import { Card } from '../components/Card';
+import { ScreenHeader } from '../ui/ScreenHeader';
+import { SpringPressable } from '../ui/SpringPressable';
+import { IconButton } from '../ui/IconButton';
+import { CtaButton } from '../ui/CtaButton';
+import { EmptyState } from '../ui/EmptyState';
 import { CustomAlert } from '../components/CustomAlert';
 import { DraggableList } from '../components/DraggableList';
 import { Icon } from '../components/Icon';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 const MAX_STARRED = 6;
 
@@ -76,9 +90,9 @@ export default function LinksScreen({ links, setLinks }) {
     setModalVisible(true);
   };
 
-  // New: opens the same modal pre-filled for an existing link. Triggered by
-  // the pencil button next to each row, as requested — separate from the
-  // star button so starring and editing don't compete for the same tap.
+  // Opens the same modal pre-filled for an existing link. Triggered by the
+  // pencil button next to each row — separate from the star button so
+  // starring and editing don't compete for the same tap.
   const openEditModal = (link) => {
     setEditingId(link.id);
     setFormName(link.name);
@@ -121,71 +135,115 @@ export default function LinksScreen({ links, setLinks }) {
       <AppScrollView
         ref={scrollRef}
         onScroll={(e) => { scrollYRef.current = e.nativeEvent.contentOffset.y; }}
+        style={styles.scroll}
         contentContainerStyle={styles.content}
       >
-        <View style={styles.header}>
-          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-            <Icon name="globe" size={24} color={COLORS.text} />
-            <Text style={styles.title}>Useful Links</Text>
-          </View>
-          <TouchableOpacity onPress={openAddModal} style={styles.addBtn}>
-            <Text style={styles.addBtnText}>+ Add</Text>
-          </TouchableOpacity>
-        </View>
-
-        <View style={styles.listMetaRow}>
-          <Text style={styles.sectionTitle}>All Links</Text>
-          {links.length > 0 && (
-            <TouchableOpacity onPress={confirmClearAll}>
-              <Text style={styles.clearAllText}>Clear All</Text>
-            </TouchableOpacity>
+        <ScreenHeader
+          title="Links"
+          subtitle={`${links.length} link${links.length === 1 ? '' : 's'}`}
+          style={styles.headerFlush}
+          right={(
+            <IconButton
+              icon="plus"
+              onPress={openAddModal}
+              accessibilityLabel="Add link"
+            />
           )}
-        </View>
+        />
+
         {links.length === 0 ? (
-          <Text style={styles.emptyText}>No saved links.</Text>
+          <EmptyState
+            icon="globe"
+            title="No links saved"
+            body="Keep the pages you come back to in one place."
+            tone={MODULE_TONES.links}
+            action={<CtaButton label="Add link" variant="tonal" onPress={openAddModal} />}
+          />
         ) : (
           <>
-            {links.length > 1 && (
-              <Text style={styles.reorderHint}>Hold and drag a link to reorder</Text>
-            )}
+            <View style={styles.listMetaRow}>
+              <Text style={[TEXT.titleSmall, styles.sectionLabel]}>All Links</Text>
+              <SpringPressable
+                onPress={confirmClearAll}
+                haptic="selection"
+                accessibilityLabel="Clear all links"
+                style={styles.clearAll}
+                contentStyle={styles.clearAllContent}
+              >
+                <Text style={[TEXT.labelLarge, styles.clearAllText]}>Clear all</Text>
+              </SpringPressable>
+            </View>
+            {links.length > 1 ? (
+              <Text style={[TEXT.labelSmall, styles.reorderHint]}>
+                Hold and drag a link to reorder
+              </Text>
+            ) : null}
+
             <DraggableList
               items={links}
               keyExtractor={(l) => String(l.id)}
               onReorder={handleReorder}
-              itemHeight={66}
+              itemHeight={74}
               scrollRef={scrollRef}
               scrollYRef={scrollYRef}
               renderItem={(l) => (
-                <Card style={styles.linkCard}>
-                  <TouchableOpacity onPress={() => Linking.openURL(l.url)} style={styles.linkInfo}>
-                    <Text style={styles.linkIcon}>{l.icon}</Text>
-                    <View style={styles.linkTexts}>
-                      <Text style={styles.linkName}>{l.name}</Text>
-                      <Text style={styles.linkUrl} numberOfLines={1}>{l.url}</Text>
+                <View style={styles.linkRow}>
+                  <SpringPressable
+                    onPress={() => Linking.openURL(l.url)}
+                    haptic="selection"
+                    accessibilityLabel={`Open ${l.name}`}
+                    style={styles.linkInfo}
+                    contentStyle={styles.linkInfoContent}
+                  >
+                    <View style={styles.iconTile}>
+                      <Text style={[TEXT.headlineSmall, styles.linkIcon]}>{l.icon}</Text>
                     </View>
-                  </TouchableOpacity>
+                    <View style={styles.linkTexts}>
+                      <Text style={[TEXT.titleMedium, styles.linkName]} numberOfLines={1}>
+                        {l.name}
+                      </Text>
+                      <Text style={[TEXT.labelMedium, styles.linkUrl]} numberOfLines={1}>
+                        {l.url}
+                      </Text>
+                    </View>
+                  </SpringPressable>
 
                   <View style={styles.actions}>
-                    <TouchableOpacity onPress={() => toggleStarred(l.id)} style={styles.starBtn}>
-                      <Text style={[styles.starIcon, l.starred ? styles.starIconActive : styles.starIconDisabled]}>
-                        ★
-                      </Text>
-                    </TouchableOpacity>
-                    <TouchableOpacity onPress={() => openEditModal(l)} style={styles.editBtn}>
-                      <Text style={styles.editIcon}>✎</Text>
-                    </TouchableOpacity>
-                    <TouchableOpacity onPress={() => deleteLink(l.id, l.name)} style={styles.trashBtn}>
-                      <Text style={styles.trashIcon}>✕</Text>
-                    </TouchableOpacity>
+                    <IconButton
+                      icon="flame"
+                      size={36}
+                      tone={l.starred ? MODULE_TONES.links.container : 'surfaceContainerHigh'}
+                      color={l.starred ? MODULE_TONES.links.on : M3.outline}
+                      onPress={() => toggleStarred(l.id)}
+                      accessibilityLabel={l.starred ? `Unstar ${l.name}` : `Star ${l.name}`}
+                    />
+                    <SpringPressable
+                      onPress={() => openEditModal(l)}
+                      haptic="selection"
+                      accessibilityLabel={`Edit ${l.name}`}
+                      style={styles.actionBtn}
+                      contentStyle={styles.actionContent}
+                    >
+                      <Icon name="pencil" size={16} color={M3.onSurfaceVariant} />
+                    </SpringPressable>
+                    <SpringPressable
+                      onPress={() => deleteLink(l.id, l.name)}
+                      haptic="selection"
+                      accessibilityLabel={`Delete ${l.name}`}
+                      style={styles.actionBtn}
+                      contentStyle={styles.actionContent}
+                    >
+                      <Icon name="trash-2" size={16} color={M3.outline} />
+                    </SpringPressable>
                   </View>
-                </Card>
+                </View>
               )}
             />
           </>
         )}
       </AppScrollView>
 
-      {/* Add / Edit Modal */}
+      {/* Add / Edit modal — full screen, opaque, own insets. */}
       {/* Edge-to-edge: without these the modal's own window stops at the
           system bars and the strip left uncovered flashes white as the
           sheet slides in. */}
@@ -198,35 +256,44 @@ export default function LinksScreen({ links, setLinks }) {
         onRequestClose={closeModal}
       >
         <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={styles.modalRoot} keyboardVerticalOffset={0} enabled={true}>
-          <View style={[styles.modalHeader, { paddingTop: insets.top + 16 }]}>
-            <TouchableOpacity onPress={closeModal}><Text style={styles.modalCancelText}>Cancel</Text></TouchableOpacity>
-            <Text style={styles.modalTitle}>{editingId ? 'Edit Link' : 'New Link'}</Text>
+          <View style={[styles.modalHeader, { paddingTop: insets.top + 12 }]}>
+            <IconButton icon="x" onPress={closeModal} accessibilityLabel="Close link form" />
+            <Text style={[TEXT.titleLargeEmphasized, styles.modalTitle]}>
+              {editingId ? 'Edit Link' : 'New Link'}
+            </Text>
             <View style={styles.modalHeaderRight} />
           </View>
 
           <ScrollView contentContainerStyle={styles.modalScrollContent} keyboardShouldPersistTaps="always">
             <View style={styles.formRow}>
-              <TextInput
-                style={[styles.input, styles.iconInput]}
-                placeholder="Icon"
-                placeholderTextColor={COLORS.textSub}
-                value={formIcon}
-                onChangeText={setFormIcon}
-                maxLength={2}
-              />
-              <TextInput
-                style={[styles.input, { flex: 1 }]}
-                placeholder="Site name..."
-                placeholderTextColor={COLORS.textSub}
-                value={formName}
-                onChangeText={setFormName}
-              />
+              <View style={styles.iconField}>
+                <Text style={[TEXT.labelMedium, styles.fieldLabel]}>Icon</Text>
+                <TextInput
+                  style={[styles.input, styles.iconInput, TEXT.titleLarge]}
+                  placeholder="Icon"
+                  placeholderTextColor={M3.outline}
+                  value={formIcon}
+                  onChangeText={setFormIcon}
+                  maxLength={2}
+                />
+              </View>
+              <View style={styles.nameField}>
+                <Text style={[TEXT.labelMedium, styles.fieldLabel]}>Name *</Text>
+                <TextInput
+                  style={[styles.input, TEXT.bodyLarge]}
+                  placeholder="Site name..."
+                  placeholderTextColor={M3.outline}
+                  value={formName}
+                  onChangeText={setFormName}
+                />
+              </View>
             </View>
 
+            <Text style={[TEXT.labelMedium, styles.fieldLabel]}>URL *</Text>
             <TextInput
-              style={styles.input}
+              style={[styles.input, TEXT.bodyLarge]}
               placeholder="URL (e.g. google.com)..."
-              placeholderTextColor={COLORS.textSub}
+              placeholderTextColor={M3.outline}
               value={formUrl}
               onChangeText={setFormUrl}
               keyboardType="url"
@@ -234,19 +301,27 @@ export default function LinksScreen({ links, setLinks }) {
             />
           </ScrollView>
 
-          <View style={styles.modalFooter}>
+          <View style={[styles.modalFooter, { paddingBottom: insets.bottom + 12 }]}>
             {editingId ? (
-              <TouchableOpacity onPress={() => deleteLink(editingId, formName)} style={[styles.modalFooterBtn, styles.modalFooterBtnDelete]}>
-                <Text style={styles.modalFooterBtnDeleteText}>Delete</Text>
-              </TouchableOpacity>
+              <CtaButton
+                label="Delete"
+                variant="destructive"
+                onPress={() => deleteLink(editingId, formName)}
+                style={styles.footerBtn}
+              />
             ) : (
-              <TouchableOpacity onPress={closeModal} style={[styles.modalFooterBtn, styles.modalFooterBtnCancel]}>
-                <Text style={styles.modalFooterBtnCancelText}>Cancel</Text>
-              </TouchableOpacity>
+              <CtaButton
+                label="Cancel"
+                variant="tonal"
+                onPress={closeModal}
+                style={styles.footerBtn}
+              />
             )}
-            <TouchableOpacity onPress={handleSave} style={[styles.modalFooterBtn, styles.modalFooterBtnSave]}>
-              <Text style={styles.modalFooterBtnSaveText}>{editingId ? 'Save Changes' : 'Save'}</Text>
-            </TouchableOpacity>
+            <CtaButton
+              label={editingId ? 'Save Changes' : 'Save'}
+              onPress={handleSave}
+              style={[styles.footerBtn, styles.footerPrimary]}
+            />
           </View>
         </KeyboardAvoidingView>
       </Modal>
@@ -257,52 +332,91 @@ export default function LinksScreen({ links, setLinks }) {
 }
 
 const styles = StyleSheet.create({
-  root:    { flex: 1, backgroundColor: COLORS.bg },
-  content: { padding: 16, paddingBottom: 40 },
-  header:  { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 },
-  title:   { fontSize: 28, fontWeight: '700', color: COLORS.text },
-  addBtn:  { backgroundColor: COLORS.accent, paddingVertical: 8, paddingHorizontal: 14, borderRadius: 20 },
-  addBtnText:{ color: COLORS.onPrimary, fontSize: 14, fontWeight: '700' },
+  root: { flex: 1, backgroundColor: M3.background },
+  scroll: { flex: 1 },
+  content: { paddingHorizontal: SPACING.md, paddingBottom: SPACING.lg },
+  headerFlush: { paddingHorizontal: 0 },
 
-  listMetaRow:  { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-  sectionTitle: { fontSize: 13, fontWeight: '600', color: COLORS.textMuted, textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 12 },
-  clearAllText: { fontSize: 12, color: COLORS.red, fontWeight: '600' },
-  emptyText:    { fontSize: 14, color: COLORS.textSub, textAlign: 'center', marginTop: 20 },
-  reorderHint:  { fontSize: 11, color: COLORS.textSub, marginBottom: 10 },
+  listMetaRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    minHeight: 40,
+    marginTop: 4,
+    marginBottom: 6,
+  },
+  sectionLabel: { color: M3.onSurfaceVariant },
+  reorderHint: { color: M3.outline, marginBottom: 6 },
+  clearAll: { borderRadius: SHAPE.full },
+  clearAllContent: {
+    paddingHorizontal: SPACING.sm,
+    paddingVertical: SPACING.xs,
+    borderRadius: SHAPE.full,
+  },
+  clearAllText: { color: M3.error },
 
-  linkCard: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10, padding: 14 },
-  linkInfo: { flexDirection: 'row', alignItems: 'center', flex: 1, marginRight: 10 },
-  linkIcon: { fontSize: 24, marginRight: 12 },
-  linkTexts:{ flex: 1 },
-  linkName: { fontSize: 15, fontWeight: '600', color: COLORS.text, marginBottom: 2 },
-  linkUrl:  { fontSize: 12, color: COLORS.accent },
+  // Tonal row: 20 radius, 2 px gap, 56 emoji tile in the links container.
+  linkRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: M3.surfaceContainerHigh,
+    borderRadius: SHAPE.xl,
+    marginBottom: 2,
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+  },
+  linkInfo: { flex: 1, borderRadius: SHAPE.lg },
+  linkInfoContent: { flexDirection: 'row', alignItems: 'center' },
+  iconTile: {
+    width: 56,
+    height: 56,
+    borderRadius: SHAPE.lg,
+    backgroundColor: MODULE_TONES.links.container,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 12,
+  },
+  linkIcon: { color: MODULE_TONES.links.on },
+  linkTexts: { flex: 1 },
+  linkName: { color: M3.onSurface },
+  linkUrl: { color: MODULE_TONES.links.on, marginTop: 2 },
 
-  actions:  { flexDirection: 'row', alignItems: 'center' },
-  starBtn:  { padding: 8 },
-  starIcon: { fontSize: 18, color: COLORS.amber },
-  starIconActive:   { color: COLORS.amber },
-  starIconDisabled: { color: COLORS.textSub },
-  editBtn:  { padding: 8 },
-  editIcon: { fontSize: 15, color: COLORS.textMuted },
-  trashBtn: { padding: 8 },
-  trashIcon:{ color: COLORS.textSub, fontSize: 14 },
+  actions: { flexDirection: 'row', alignItems: 'center', gap: 2, marginLeft: 6 },
+  actionBtn: { borderRadius: SHAPE.full, overflow: 'hidden' },
+  actionContent: { width: 32, height: 32, alignItems: 'center', justifyContent: 'center' },
 
-  // Modal
-  modalRoot: { flex: 1, backgroundColor: COLORS.bg },
-  modalHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 16, borderBottomWidth: 1, borderBottomColor: COLORS.border },
-  modalCancelText: { color: COLORS.accent, fontSize: 16 },
-  modalHeaderRight: { width: 50 },
-  modalTitle: { fontSize: 18, fontWeight: '700', color: COLORS.text, textAlign: 'center' },
-  modalScrollContent: { padding: 16, paddingBottom: 32 },
-  modalFooter: { flexDirection: 'row', alignItems: 'center', justifyContent: 'flex-end', padding: 16, gap: 12, borderTopWidth: 1, borderTopColor: COLORS.border },
-  modalFooterBtn: { paddingVertical: 14, paddingHorizontal: 20, borderRadius: 10, alignItems: 'center' },
-  modalFooterBtnSave: { backgroundColor: COLORS.accent, flex: 1 },
-  modalFooterBtnSaveText: { color: COLORS.onPrimary, fontWeight: '700', fontSize: 15 },
-  modalFooterBtnCancel: { backgroundColor: COLORS.bg4, marginRight: 10 },
-  modalFooterBtnCancelText: { color: COLORS.textMuted, fontWeight: '600' },
-  modalFooterBtnDelete: { backgroundColor: COLORS.redDim, borderWidth: 1, borderColor: COLORS.red, marginRight: 10 },
-  modalFooterBtnDeleteText: { color: COLORS.red, fontWeight: '600' },
-  formRow:     { flexDirection: 'row', marginBottom: 12 },
-  input:       { backgroundColor: COLORS.bg3, borderWidth: 1, borderColor: COLORS.border, borderRadius: 10, padding: 12, color: COLORS.text, fontSize: 15, marginBottom: 12 },
-  iconInput:   { width: 60, marginRight: 10, textAlign: 'center' },
+  // Modal — full screen, opaque, own insets.
+  modalRoot: { flex: 1, backgroundColor: M3.background },
+  modalHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: SPACING.md,
+    paddingBottom: 12,
+  },
+  modalHeaderRight: { width: 40 },
+  modalTitle: { color: M3.onSurface },
+  modalScrollContent: { paddingHorizontal: 20, paddingTop: 8, paddingBottom: 40 },
+  formRow: { flexDirection: 'row' },
+  iconField: { width: 84, marginRight: 12 },
+  nameField: { flex: 1 },
+  fieldLabel: { color: M3.onSurfaceVariant, marginBottom: 6, marginTop: 4 },
+  input: {
+    backgroundColor: M3.surfaceContainerHigh,
+    borderRadius: SHAPE.lg,
+    minHeight: 56,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    color: M3.onSurface,
+    marginBottom: 12,
+  },
+  iconInput: { textAlign: 'center', paddingHorizontal: 8 },
+  modalFooter: {
+    flexDirection: 'row',
+    gap: 12,
+    paddingHorizontal: 20,
+    paddingTop: 12,
+  },
+  footerBtn: { flex: 1 },
+  footerPrimary: { flex: 1.4 },
 });
