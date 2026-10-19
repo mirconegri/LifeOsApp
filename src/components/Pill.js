@@ -39,11 +39,12 @@ export function Pill({ children, color = 'muted', label, selected, onPress, outl
         haptic="selection"
         accessibilityLabel={typeof (label ?? children) === 'string' ? (label ?? children) : undefined}
         style={[
-          styles.pill,
+          styles.pillShell,
           selected
             ? { backgroundColor: tone.on }
             : { backgroundColor: M3.surfaceContainerHigh },
         ]}
+        contentStyle={styles.pillContent}
       >
         <Text style={[TEXT.labelMedium, { color: selected ? tone.container : M3.onSurfaceVariant }]}>
           {label ?? children}
@@ -61,5 +62,7 @@ export function Pill({ children, color = 'muted', label, selected, onPress, outl
 
 const styles = StyleSheet.create({
   pill:         { paddingHorizontal: 12, paddingVertical: 6, borderRadius: SHAPE.full },
+  pillShell:    { borderRadius: SHAPE.full },
+  pillContent:  { paddingHorizontal: 12, paddingVertical: 6, borderRadius: SHAPE.full, alignItems: 'center', justifyContent: 'center' },
   pillOutline:  { paddingHorizontal: 12, paddingVertical: 6, borderRadius: SHAPE.full, borderWidth: 1, backgroundColor: 'transparent' },
 });

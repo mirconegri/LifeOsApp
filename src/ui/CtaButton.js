@@ -14,10 +14,9 @@
 // `disabled` also dims the button. Optional leading icon (18). No border, no
 // shadow.
 //
-// Press state detail: SpringPressable owns onPressIn/onPressOut internally, so
-// the shape morph is driven by the touch handlers it forwards to its Pressable
-// (the touch target itself). The wrapper keeps scaleTo={1} so the .97 squash is
-// not applied twice.
+// The wrapper owns the scale and the radius morph because the fill lives on
+// it; SpringPressable's own squash is neutralised with scaleTo={1} so the
+// button does not scale twice. Its onPressIn/onPressOut props drive the morph.
 
 import React from 'react';
 import { ActivityIndicator, StyleSheet, Text } from 'react-native';
@@ -83,9 +82,8 @@ export function CtaButton({
     >
       <SpringPressable
         onPress={blocked ? undefined : onPress}
-        onTouchStart={blocked ? undefined : () => press(true)}
-        onTouchEnd={() => press(false)}
-        onTouchCancel={() => press(false)}
+        onPressIn={blocked ? undefined : () => press(true)}
+        onPressOut={() => press(false)}
         haptic="medium"
         scaleTo={1}
         disabled={blocked}

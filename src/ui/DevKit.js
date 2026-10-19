@@ -80,7 +80,7 @@ function DevKitBody({ onClose }) {
         <IconButton icon="x" onPress={onClose} accessibilityLabel="Close dev kit" />
       </View>
 
-      <AppScrollView contentContainerStyle={styles.content} bottomInset={false}>
+      <AppScrollView contentContainerStyle={styles.content} bottomInset={false} topInset={false}>
         <Section title="Colour roles">
           <View style={styles.swatchRow}>
             {[
@@ -113,6 +113,7 @@ function DevKitBody({ onClose }) {
             <SpringPressable
               onPress={() => setBlobIndex((i) => (i + 1) % PRESET_NAMES.length)}
               style={styles.smallButton}
+              contentStyle={styles.smallButtonContent}
               accessibilityLabel="Morph to next blob"
             >
               <Text style={[TEXT.labelLarge, { color: M3.onPrimary }]}>Morph</Text>
@@ -121,19 +122,19 @@ function DevKitBody({ onClose }) {
         </Section>
 
         <Section title="Wavy progress">
-          <WavyProgress progress={0.25} style={styles.wavy} />
-          <WavyProgress progress={0.55} color={MODULE_TONES.journal.on} trackColor={MODULE_TONES.journal.container} style={styles.wavy} />
-          <WavyProgress progress={1} color={MODULE_TONES.finances.on} trackColor={MODULE_TONES.finances.container} style={styles.wavy} />
-          <WavyProgress progress={undefined} color={MODULE_TONES.goals.on} trackColor={MODULE_TONES.goals.container} style={styles.wavy} />
           <View style={styles.rowCenter}>
             <WavyProgress variant="circular" progress={0.65} size={72} color={MODULE_TONES.stats.on} trackColor={MODULE_TONES.stats.container} />
             <WavyProgress variant="circular" progress={undefined} size={72} color={MODULE_TONES.goals.on} trackColor={MODULE_TONES.goals.container} />
           </View>
+          <WavyProgress progress={0.25} style={styles.wavy} />
+          <WavyProgress progress={0.55} color={MODULE_TONES.journal.on} trackColor={MODULE_TONES.journal.container} style={styles.wavy} />
+          <WavyProgress progress={1} animate={false} color={MODULE_TONES.finances.on} trackColor={MODULE_TONES.finances.container} style={styles.wavy} />
+          <WavyProgress progress={undefined} animate={false} color={MODULE_TONES.goals.on} trackColor={MODULE_TONES.goals.container} style={styles.wavy} />
         </Section>
 
         <Section title="Press, chips, buttons">
           <View style={styles.rowWrap}>
-            <SpringPressable onPress={() => {}} style={styles.smallButton}>
+            <SpringPressable onPress={() => {}} style={styles.smallButton} contentStyle={styles.smallButtonContent}>
               <Text style={[TEXT.labelLarge, { color: M3.onPrimary }]}>Press me</Text>
             </SpringPressable>
             <Chip label="All" selected={chip === 'all'} onPress={() => setChip('all')} />
@@ -266,7 +267,10 @@ const styles = StyleSheet.create({
   wavy: { marginBottom: 12 },
   smallButton: {
     backgroundColor: M3.primary, borderRadius: SHAPE.full,
+  },
+  smallButtonContent: {
     paddingHorizontal: 16, paddingVertical: 10,
+    alignItems: 'center', justifyContent: 'center', borderRadius: SHAPE.full,
   },
   mt8: { marginTop: 8 },
   revealRow: {

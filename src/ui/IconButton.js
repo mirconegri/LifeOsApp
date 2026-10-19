@@ -11,10 +11,9 @@
 // `tone` is an M3 role name (background) or a literal colour; `color`
 // overrides the glyph. Hit slop pads the touch target to at least 48 dp.
 //
-// Press state detail: SpringPressable owns onPressIn/onPressOut internally, so
-// the shape morph is driven by the touch handlers it forwards to its Pressable
-// (the touch target itself). The wrapper keeps scaleTo={1} so the squash is not
-// applied twice.
+// The wrapper owns the scale and the radius morph because the fill lives on
+// it; SpringPressable's own squash is neutralised with scaleTo={1} so the
+// button does not scale twice. Its onPressIn/onPressOut props drive the morph.
 
 import React from 'react';
 import { StyleSheet } from 'react-native';
