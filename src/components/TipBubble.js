@@ -1,114 +1,106 @@
+// src/components/TipBubble.js
+//
+// Restyled as an inverse-surface snackbar that floats above the nav pill.
+// Public props are unchanged (visible, text, onDismiss, position), so the
+// screens that used the old bubble do not change.
+//
+// Motion is Reanimated on the UI thread: a short fade + 12 px slide. The
+// snackbar unmounts when hidden (the parent owns visible), so there is no
+// exit animation to coordinate.
+import React, { useEffect } from 'react';
+import { StyleSheet, Text, View } from 'react-native';
+import Animated, {
+  useAnimatedStyle,
+  useReducedMotion,
+  useSharedValue,
+  withTiming,
+  Easing,
+} from 'react-native-reanimated';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import React, { useEffect, useRef } from 'react';
-import { Animated, Text, TouchableOpacity, StyleSheet, View } from 'react-native';
-import { Icon } from '../components/Icon';
-import { COLORS } from '../config/colors';
+import { M3, alpha } from '../config/colors';
+import { SHAPE } from '../config/designSystem';
+import { TEXT } from '../ui/type';
+import { SpringPressable } from '../ui/SpringPressable';
 
-/**
- * TipBubble – floating tooltip shown during onboarding.
- *
- * Props:
- *   visible  – bool
- *   text     – string
- *   onDismiss – () => void
- *   position – 'top' | 'bottom' (default: 'bottom')
- */
+// Floating-nav reservation: pill + gap + bottom inset + breathing room.
+const NAV_LIFT = 64 + 12 + 16;
+
 export function TipBubble({ visible, text, onDismiss, position = 'bottom' }) {
-  const opacity = useRef(new Animated.Value(0)).current;
-  const translateY = useRef(new Animated.Value(12)).current;
+  const insets = useSafeAreaInsets();
+  const reduceMotion = useReducedMotion();
+  const progress = useSharedValue(0);
 
   useEffect(() => {
-    if (visible) {
-      Animated.parallel([
-        Animated.timing(opacity, { toValue: 1, duration: 300, useNativeDriver: true }),
-        Animated.timing(translateY, { toValue: 0, duration: 300, useNativeDriver: true }),
-      ]).start();
-    } else {
-      Animated.parallel([
-        Animated.timing(opacity, { toValue: 0, duration: 200, useNativeDriver: true }),
-        Animated.timing(translateY, { toValue: 12, duration: 200, useNativeDriver: true }),
-      ]).start();
-    }
-  }, [visible]);
+    progress.value = reduceMotion
+      ? 1
+      : withTiming(1, { duration: 220, easing: Easing.out(Easing.cubic) });
+  }, [progress, reduceMotion]);
 
-  if (!visible) return null;
+  const animatedStyle = useAnimatedStyle(() => ({
+    opacity: progress.value,
+    transform: [{ translateY: (1 - progress.value) * (position === 'bottom' ? 12 : -12) }],
+  }));
+
+  if (!visible || !text) return null;
+
+  const offset = position === 'bottom'
+    ? { bottom: insets.bottom + NAV_LIFT }
+    : { top: insets.top + 12 };
 
   return (
-    <Animated.View style={[
-      styles.bubble,
-      position === 'top' ? styles.bubbleTop : styles.bubbleBottom,
-      { opacity, transform: [{ translateY }] },
-    ]}>
-      {position === 'bottom' && <View style={styles.arrowUp} />}
-      <View style={styles.inner}>
-        <Icon name="lightbulb" size={14} color="#fff" /><Text style={styles.text}> {text}</Text>
-        <TouchableOpacity onPress={onDismiss} style={styles.dismissBtn}>
-          <Text style={styles.dismissText}>Got it</Text>
-        </TouchableOpacity>
+    <Animated.View
+      accessibilityLiveRegion="polite"
+      style={[styles.host, offset, animatedStyle]}
+      pointerEvents="box-none"
+    >
+      <View style={styles.bubble}>
+        <Text style={[TEXT.bodyMedium, styles.text]}>{text}</Text>
+        <SpringPressable
+          onPress={onDismiss}
+          haptic="selection"
+          style={styles.dismiss}
+          contentStyle={styles.dismissContent}
+          accessibilityLabel="Dismiss tip"
+        >
+          <Text style={[TEXT.labelLarge, styles.dismissText]}>Got it</Text>
+        </SpringPressable>
       </View>
-      {position === 'top' && <View style={styles.arrowDown} />}
     </Animated.View>
   );
 }
 
 const styles = StyleSheet.create({
-  bubble: {
+  host: {
     position: 'absolute',
-    left: 12,
-    right: 12,
-    zIndex: 999,
+    left: 16,
+    right: 16,
+    zIndex: 30,
   },
-  bubbleBottom: { bottom: 80 },
-  bubbleTop:    { top: 80 },
-  inner: {
-    backgroundColor: COLORS.accent,
-    borderRadius: 20,
-    padding: 14,
+  bubble: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
-    // No shadow: the only shadow in the app is the floating nav pill.
+    backgroundColor: M3.onSurface,
+    borderRadius: SHAPE.xl,
+    paddingVertical: 10,
+    paddingLeft: 16,
+    paddingRight: 8,
   },
   text: {
     flex: 1,
-    color: COLORS.onPrimary,
-    fontSize: 13,
-    lineHeight: 18,
-    marginRight: 12,
+    color: M3.surface,
+    marginRight: 8,
   },
-  dismissBtn: {
-    backgroundColor: COLORS.accentDim,
+  dismiss: {
+    borderRadius: SHAPE.full,
+    backgroundColor: alpha(M3.surface, 0.12),
+  },
+  dismissContent: {
     paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 20,
+    paddingVertical: 8,
+    borderRadius: SHAPE.full,
   },
   dismissText: {
-    color: COLORS.onPrimaryContainer,
-    fontSize: 12,
-    fontWeight: '700',
-  },
-  arrowUp: {
-    alignSelf: 'center',
-    width: 0,
-    height: 0,
-    borderLeftWidth: 8,
-    borderRightWidth: 8,
-    borderBottomWidth: 8,
-    borderLeftColor: 'transparent',
-    borderRightColor: 'transparent',
-    borderBottomColor: COLORS.accent,
-    marginBottom: -1,
-  },
-  arrowDown: {
-    alignSelf: 'center',
-    width: 0,
-    height: 0,
-    borderLeftWidth: 8,
-    borderRightWidth: 8,
-    borderTopWidth: 8,
-    borderLeftColor: 'transparent',
-    borderRightColor: 'transparent',
-    borderTopColor: COLORS.accent,
-    marginTop: -1,
+    color: M3.surface,
   },
 });
