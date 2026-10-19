@@ -231,3 +231,10 @@ At the end of every phase: changed files, what to check on the phone (checklist)
 - Storage-key diff = ∅; seed data untouched; `journal` id intact.
 - Fonts load before first paint.
 - Home matches S1–S8 in structure and feel; detail-style headers where a detail view exists.
+
+## 10. Progress log
+
+- **Phase 0 — done** (`redesign-phase-0`): branch created; this plan; `brag-output/` ignored. Owner approved the plan and locked decisions A / avatar / ignore.
+- **Phase 1 — done** (`redesign-phase-1`): M3 tokens + complete legacy alias map + `tonal()` (matches the precomputed table exactly), Space Grotesk behind the existing ready gate, defensive haptics wrapper, 20 primitives in `src/ui/` (SpringPressable, Reveal, Blob/MorphBlob, WavyProgress, AppScrollView, ScrollProvider, FloatingNav, ScreenHeader, SearchPill, SectionTitle, HeroPager/HeroCard, GroupItem, TonalIcon, StatRow, Chip, IconButton, CtaButton, EmptyState, Dialog), dev kit behind a wordmark long-press, legacy Card/Pill/StatCard/FadeSlideIn restyled, and all 18 accent-on-white pairs fixed. Gates: `expo-doctor` 18/18, `expo install --check` clean, `expo export` bundles 3093 modules / 5 font assets. No push, no EAS build.
+- **Phase 2 — next**: shell (top bar + drawer out, FloatingNav in, AppScrollView everywhere, modules screen, Settings via avatar).
+
