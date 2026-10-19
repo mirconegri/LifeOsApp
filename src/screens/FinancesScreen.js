@@ -1,36 +1,48 @@
-
 // src/screens/FinancesScreen.js
+//
+// M3 Expressive Finances: tonal balance hero, income/expense stat row,
+// six-month tonal bar chart, transactions grouped by date in tonal rows,
+// and a full-screen add/edit form. All storage shapes, ids and handlers are
+// unchanged; the local-date fixes in todayStr()/monthKey() are preserved.
 import React, { useState } from 'react';
 import {
   View, Text, ScrollView, StyleSheet, TextInput,
-  TouchableOpacity, Modal, KeyboardAvoidingView, Platform,
+  Modal, KeyboardAvoidingView, Platform,
 } from 'react-native';
-import { COLORS } from '../config/colors';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+
+import { M3, MODULE_TONES, alpha } from '../config/colors';
+import { SHAPE, SPACING } from '../config/designSystem';
+import { TEXT } from '../ui/type';
 import { AppScrollView } from '../ui/AppScrollView';
-import { TYPE, SPACING } from '../config/designSystem';
-import { Card } from '../components/Card';
-import { StatCard } from '../components/StatCard';
+import { ScreenHeader } from '../ui/ScreenHeader';
+import { StatRow } from '../ui/StatRow';
+import { GroupItem } from '../ui/GroupItem';
+import { Chip } from '../ui/Chip';
+import { CtaButton } from '../ui/CtaButton';
+import { IconButton } from '../ui/IconButton';
+import { SpringPressable } from '../ui/SpringPressable';
+import { EmptyState } from '../ui/EmptyState';
+import { Blob } from '../ui/Blob';
+import { BarChart } from '../components/BarChart';
 import { CustomAlert } from '../components/CustomAlert';
 import { DatePicker } from '../components/DatePicker';
 import { Icon } from '../components/Icon';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { localDateKey, fmt } from '../data/helpers';
 
-import { localDateKey } from '../data/helpers';
-
-const CAT_COLORS = {
-  work:       COLORS.green,
-  university: COLORS.accent,
-  food:       COLORS.amber,
-  transport:  COLORS.blue,
-  other:      COLORS.textMuted,
+// Category = tone + leading icon. No raw hex anywhere.
+const CAT_META = {
+  work:       { tone: MODULE_TONES.journal,   icon: 'wallet' },
+  university: { tone: MODULE_TONES.uni,       icon: 'graduation-cap' },
+  food:       { tone: MODULE_TONES.groceries, icon: 'shopping-cart' },
+  transport:  { tone: MODULE_TONES.stats,     icon: 'globe' },
+  other:      { tone: { container: M3.surfaceContainerHighest, on: M3.onSurfaceVariant }, icon: 'layers' },
 };
 
-const CATEGORIES = Object.keys(CAT_COLORS);
+const CATEGORIES = Object.keys(CAT_META);
 
-// Fixed: this used to be `new Date().toISOString().slice(0,10)`, which
-// converts to UTC first. Between midnight and 1-2am local time in any
-// timezone ahead of UTC (Italy included), that returned YESTERDAY's date
-// as "today" for a brand new transaction.
+// Local date key — never toISOString(): it converts to UTC first and would
+// return yesterday's date between local midnight and 1–2am.
 function todayStr() {
   return localDateKey(new Date());
 }
@@ -54,15 +66,8 @@ export default function FinancesScreen({ finances, setFinances }) {
   const incomes  = finances.filter(t => t.type === 'income').reduce((a, t) => a + t.amount, 0);
   const expenses = Math.abs(finances.filter(t => t.type === 'expense').reduce((a, t) => a + t.amount, 0));
 
-  const now    = new Date();
-  // Fixed: month keys used to come from `d.toISOString().slice(0,7)`.
-  // toISOString() always converts to UTC first — for any timezone ahead of
-  // UTC (like Italy, UTC+1/+2), local midnight on the 1st of the month
-  // becomes 22:00 or 23:00 on the LAST DAY of the PREVIOUS month in UTC.
-  // So the "June" bucket was actually keyed as "2026-05", and every
-  // transaction landed one month off from what the chart label showed.
-  // Building the key from the local year/month directly avoids the UTC
-  // round-trip entirely.
+  const now = new Date();
+  // Month keys from the local year/month directly (no UTC round-trip).
   function monthKey(d) {
     return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
   }
@@ -77,7 +82,13 @@ export default function FinancesScreen({ finances, setFinances }) {
     const entries = finances.filter(t => t.date && t.date.startsWith(m.key));
     return entries.reduce((a, t) => a + t.amount, 0);
   });
-  const maxAbs = Math.max(...monthBars.map(Math.abs), 1);
+
+  const chartData = monthBars.map((value, i) => ({
+    label: months[i].label,
+    value: Math.abs(value),
+    displayValue: `${value > 0 ? '+' : ''}${fmt(value)}`,
+    color: value >= 0 ? MODULE_TONES.journal.on : M3.error,
+  }));
 
   // ── Actions ───────────────────────────────────────────────────────────────
   const openAddModal = () => {
@@ -88,10 +99,6 @@ export default function FinancesScreen({ finances, setFinances }) {
     setModalVisible(true);
   };
 
-  // New: opens the same modal pre-filled for an existing transaction,
-  // triggered by the pencil button next to each row — separate from the
-  // "✕" delete button so editing and deleting don't compete for the same
-  // tap target.
   const openEditModal = (t) => {
     setEditingId(t.id);
     setFormDesc(t.desc);
@@ -169,83 +176,116 @@ export default function FinancesScreen({ finances, setFinances }) {
     .sort((a, b) => b.date.localeCompare(a.date))
     .slice(0, 15);
 
+  // Group the visible transactions by date, newest day first.
+  const groups = [];
+  for (const t of recentTransactions) {
+    const last = groups[groups.length - 1];
+    if (last && last.date === t.date) last.items.push(t);
+    else groups.push({ date: t.date, items: [t] });
+  }
+
   return (
     <View style={styles.root}>
       <AppScrollView style={styles.scroll} contentContainerStyle={styles.content}>
+        <ScreenHeader
+          title="Finances"
+          subtitle={`${finances.length} transaction${finances.length === 1 ? '' : 's'}`}
+          style={styles.headerFlush}
+        />
 
-        {/* Stats */}
-        <View style={styles.sectionTitleRow}><Icon name="wallet" size={14} color={COLORS.textMuted} /><Text style={styles.sectionTitle}> Overview</Text></View>
-        <View style={styles.statsRow}>
-          <View style={{ flex: 1, marginRight: 8 }}>
-            <StatCard label="Balance"  value={balance >= 0 ? `+${balance}` : `${balance}`} sub="€" color={balance >= 0 ? COLORS.green : COLORS.red} />
+        {/* Balance hero — the finances module's tonal container */}
+        <View style={styles.hero}>
+          <View style={styles.heroBlob} pointerEvents="none">
+            <Blob preset="cookie12" size={240} color={alpha(MODULE_TONES.finances.on, 0.08)} />
           </View>
-          <View style={{ flex: 1, marginRight: 8 }}>
-            <StatCard label="Income"   value={`+${incomes}`} sub="€" color={COLORS.green} />
-          </View>
-          <View style={{ flex: 1 }}>
-            <StatCard label="Expenses" value={`-${expenses}`}  sub="€" color={COLORS.red} />
-          </View>
+          <Text style={[TEXT.labelLarge, styles.heroLabel]}>Balance</Text>
+          <Text style={[TEXT.headlineLarge, styles.heroValue]}>
+            {balance >= 0 ? '+' : '−'}€{fmt(Math.abs(balance))}
+          </Text>
+          <Text style={[TEXT.bodySmall, styles.heroSub]}>
+            {months[5].label}: {monthBars[5] >= 0 ? '+' : '−'}€{fmt(Math.abs(monthBars[5]))}
+          </Text>
         </View>
 
-        {/* Chart */}
-        <View style={styles.sectionTitleRow}><Icon name="trending-up" size={14} color={COLORS.textMuted} /><Text style={styles.sectionTitle}> Last 6 months</Text></View>
-        <Card style={styles.chartCard}>
-          <View style={styles.chart}>
-            {monthBars.map((val, i) => {
-              const h     = Math.abs(val) / maxAbs * 80;
-              const isPos = val >= 0;
-              return (
-                <View key={i} style={styles.barCol}>
-                  <View style={[styles.bar, { height: h || 2, backgroundColor: isPos ? COLORS.green : COLORS.red }]} />
-                  <Text style={styles.barVal}>{val > 0 ? '+' : ''}{val}</Text>
-                  <Text style={styles.barLabel}>{months[i].label}</Text>
-                </View>
-              );
-            })}
-          </View>
-        </Card>
+        <StatRow
+          stats={[
+            { value: `+€${fmt(incomes)}`, label: 'Income' },
+            { value: `−€${fmt(expenses)}`, label: 'Expenses' },
+          ]}
+        />
 
-        {/* Transactions */}
+        <Text style={[TEXT.titleLargeEmphasized, styles.sectionTitle]}>Last 6 months</Text>
+        <BarChart data={chartData} height={120} />
+
         <View style={styles.listHeader}>
-          <View style={styles.sectionTitleRow}><Icon name="list" size={14} color={COLORS.textMuted} /><Text style={styles.sectionTitle}> Transactions ({recentTransactions.length})</Text></View>
-          <View style={styles.listHeaderActions}>
-            {finances.length > 0 && (
-              <TouchableOpacity onPress={confirmClearAll} style={{ marginRight: 14 }}>
-                <Text style={styles.clearAllText}>Clear All</Text>
-              </TouchableOpacity>
-            )}
-            <TouchableOpacity onPress={openAddModal}>
-              <Text style={styles.addBtn}>+ Add</Text>
-            </TouchableOpacity>
+          <Text style={[TEXT.titleLargeEmphasized, styles.sectionTitle]}>Transactions</Text>
+          <View style={styles.listActions}>
+            {finances.length > 0 ? (
+              <SpringPressable
+                onPress={confirmClearAll}
+                haptic="selection"
+                accessibilityLabel="Clear all transactions"
+                style={styles.clearAll}
+                contentStyle={styles.clearAllContent}
+              >
+                <Text style={[TEXT.labelLarge, styles.clearAllText]}>Clear all</Text>
+              </SpringPressable>
+            ) : null}
+            <IconButton icon="plus" onPress={openAddModal} accessibilityLabel="Add transaction" />
           </View>
         </View>
 
-        {recentTransactions.map(t => (
-          <Card key={t.id} style={styles.txCard}>
-            <View style={styles.txRow}>
-              <View style={[styles.txDot, { backgroundColor: CAT_COLORS[t.category] || COLORS.textMuted }]} />
-              <View style={styles.txInfo}>
-                <Text style={styles.txDesc}>{t.desc}</Text>
-                <Text style={styles.txMeta}>{t.date} · {t.category}</Text>
-              </View>
-              <Text style={[styles.txAmount, { color: t.amount >= 0 ? COLORS.green : COLORS.red }]}>
-                {t.amount >= 0 ? '+' : ''}{t.amount} €
-              </Text>
-              <TouchableOpacity onPress={() => openEditModal(t)} style={styles.editBtn}>
-                <Text style={styles.editBtnText}>✎</Text>
-              </TouchableOpacity>
-              <TouchableOpacity onPress={() => deleteTransaction(t.id, t.desc)} style={styles.deleteBtn}>
-                <Text style={styles.deleteBtnText}>✕</Text>
-              </TouchableOpacity>
+        {groups.length === 0 ? (
+          <EmptyState
+            icon="wallet"
+            title="No transactions yet"
+            body="Add your first income or expense to see the balance and the monthly bars."
+            tone={MODULE_TONES.finances}
+            action={<CtaButton label="Add transaction" variant="tonal" onPress={openAddModal} />}
+          />
+        ) : groups.map(group => (
+          <View key={group.date} style={styles.groupBlock}>
+            <Text style={[TEXT.labelMedium, styles.groupDate]}>{group.date}</Text>
+            <View style={styles.group}>
+              {group.items.map((t, i) => {
+                const meta = CAT_META[t.category] || CAT_META.other;
+                const positive = t.amount >= 0;
+                return (
+                  <GroupItem
+                    key={t.id}
+                    index={i}
+                    count={group.items.length}
+                    icon={meta.icon}
+                    tone={meta.tone}
+                    title={t.desc}
+                    secondary={t.category}
+                    trailing={(
+                      <View style={styles.txTrailing}>
+                        <Text style={[TEXT.titleMedium, { color: positive ? MODULE_TONES.journal.on : M3.error }]}>
+                          {positive ? '+' : '−'}€{fmt(Math.abs(t.amount))}
+                        </Text>
+                        <SpringPressable
+                          onPress={() => deleteTransaction(t.id, t.desc)}
+                          haptic="selection"
+                          hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                          style={styles.txDelete}
+                          contentStyle={styles.txDeleteContent}
+                          accessibilityLabel={`Delete ${t.desc}`}
+                        >
+                          <Icon name="trash-2" size={15} color={M3.outline} />
+                        </SpringPressable>
+                      </View>
+                    )}
+                    onPress={() => openEditModal(t)}
+                  />
+                );
+              })}
             </View>
-          </Card>
+          </View>
         ))}
       </AppScrollView>
 
-      {/* Add / Edit Modal */}
-      {/* Edge-to-edge: without these the modal's own window stops at the
-          system bars and the strip left uncovered flashes white as the
-          sheet slides in. */}
+      {/* Add / Edit modal — full screen, opaque, own insets. */}
       <Modal
         visible={modalVisible}
         animationType="slide"
@@ -255,33 +295,35 @@ export default function FinancesScreen({ finances, setFinances }) {
         onRequestClose={closeModal}
       >
         <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={styles.modalRoot} keyboardVerticalOffset={0} enabled={true}>
-          <View style={[styles.modalHeader, { paddingTop: insets.top + 16 }]}>
-            <TouchableOpacity onPress={closeModal}>
-              <Text style={styles.modalCancelText}>Cancel</Text>
-            </TouchableOpacity>
-            <Text style={styles.modalTitle}>{editingId ? 'Edit Transaction' : 'New Transaction'}</Text>
+          <View style={[styles.modalHeader, { paddingTop: insets.top + 12 }]}>
+            <IconButton icon="x" onPress={closeModal} accessibilityLabel="Close transaction form" />
+            <Text style={[TEXT.titleLargeEmphasized, styles.modalTitle]}>
+              {editingId ? 'Edit transaction' : 'New transaction'}
+            </Text>
             <View style={styles.modalHeaderRight} />
           </View>
 
           <ScrollView contentContainerStyle={styles.modalScrollContent} keyboardShouldPersistTaps="always">
+            <Text style={styles.fieldLabel}>Description *</Text>
             <TextInput
-              style={styles.input}
-              placeholder="Description *"
-              placeholderTextColor={COLORS.textSub}
+              style={[styles.input, TEXT.bodyLarge]}
+              placeholder="e.g. Weekly groceries"
+              placeholderTextColor={M3.outline}
               value={formDesc}
               onChangeText={setFormDesc}
               autoFocus
             />
+
+            <Text style={styles.fieldLabel}>Amount (€) *</Text>
             <TextInput
-              style={styles.input}
-              placeholder="Amount (€) *"
-              placeholderTextColor={COLORS.textSub}
+              style={[styles.input, TEXT.bodyLarge]}
+              placeholder="0.00"
+              placeholderTextColor={M3.outline}
               keyboardType="numeric"
               value={formAmount}
               onChangeText={setFormAmount}
             />
 
-            {/* Date with Today shortcut */}
             <Text style={styles.fieldLabel}>Date</Text>
             <DatePicker
               value={formDate}
@@ -290,48 +332,57 @@ export default function FinancesScreen({ finances, setFinances }) {
               label="Select date"
             />
 
-            <Text style={styles.fieldLabel}>Type:</Text>
-            <View style={styles.typeRow}>
-              {[['income', '↑ Income'], ['expense', '↓ Expense']].map(([v, l]) => (
-                <TouchableOpacity
-                  key={v}
-                  onPress={() => setFormType(v)}
-                  style={[styles.typeChip, formType === v && styles.typeChipActive, { marginRight: v === 'income' ? 8 : 0 }]}
-                >
-                  <Text style={[styles.typeChipText, formType === v && { color: v === 'income' ? COLORS.green : COLORS.red }]}>
-                    {l}
-                  </Text>
-                </TouchableOpacity>
-              ))}
+            <Text style={styles.fieldLabel}>Type</Text>
+            <View style={styles.chipRow}>
+              <Chip
+                label="Income"
+                icon="trending-up"
+                selected={formType === 'income'}
+                onPress={() => setFormType('income')}
+              />
+              <Chip
+                label="Expense"
+                icon="trending-down"
+                selected={formType === 'expense'}
+                onPress={() => setFormType('expense')}
+              />
             </View>
 
-            <Text style={styles.fieldLabel}>Category:</Text>
-            <View style={styles.catRow}>
+            <Text style={styles.fieldLabel}>Category</Text>
+            <View style={styles.chipRow}>
               {CATEGORIES.map(c => (
-                <TouchableOpacity
+                <Chip
                   key={c}
+                  label={c}
+                  selected={formCat === c}
                   onPress={() => setFormCat(c)}
-                  style={[styles.catChip, formCat === c && styles.catChipActive, { marginRight: 6, marginBottom: 6 }]}
-                >
-                  <Text style={[styles.catChipText, formCat === c && { color: CAT_COLORS[c] }]}>{c}</Text>
-                </TouchableOpacity>
+                  accessibilityLabel={`Category ${c}`}
+                />
               ))}
             </View>
           </ScrollView>
 
           <View style={styles.modalFooter}>
             {editingId ? (
-              <TouchableOpacity onPress={() => deleteTransaction(editingId, formDesc)} style={[styles.modalFooterBtn, styles.modalFooterBtnDelete]}>
-                <Text style={styles.modalFooterBtnDeleteText}>Delete</Text>
-              </TouchableOpacity>
+              <CtaButton
+                label="Delete"
+                variant="destructive"
+                onPress={() => deleteTransaction(editingId, formDesc)}
+                style={styles.footerBtn}
+              />
             ) : (
-              <TouchableOpacity onPress={closeModal} style={[styles.modalFooterBtn, styles.modalFooterBtnCancel]}>
-                <Text style={styles.modalFooterBtnCancelText}>Cancel</Text>
-              </TouchableOpacity>
+              <CtaButton
+                label="Cancel"
+                variant="tonal"
+                onPress={closeModal}
+                style={styles.footerBtn}
+              />
             )}
-            <TouchableOpacity onPress={saveTransaction} style={[styles.modalFooterBtn, styles.modalFooterBtnSave]}>
-              <Text style={styles.modalFooterBtnSaveText}>{editingId ? 'Save Changes' : 'Add Transaction'}</Text>
-            </TouchableOpacity>
+            <CtaButton
+              label={editingId ? 'Save changes' : 'Add transaction'}
+              onPress={saveTransaction}
+              style={[styles.footerBtn, styles.footerPrimary]}
+            />
           </View>
         </KeyboardAvoidingView>
       </Modal>
@@ -342,52 +393,76 @@ export default function FinancesScreen({ finances, setFinances }) {
 }
 
 const styles = StyleSheet.create({
-  root:    { flex: 1, backgroundColor: COLORS.bg },
-  scroll:  { flex: 1 },
-  content: { padding: SPACING.md, paddingBottom: 32 },
+  root: { flex: 1, backgroundColor: M3.background },
+  scroll: { flex: 1 },
+  content: { paddingHorizontal: 16, paddingBottom: 24 },
+  headerFlush: { paddingHorizontal: 0 },
 
-  sectionTitle: { fontSize: TYPE.label, fontWeight: '600', color: COLORS.textMuted, textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 10, marginTop: 10 },
-  statsRow:     { flexDirection: 'row', marginBottom: 4 },
+  hero: {
+    backgroundColor: MODULE_TONES.finances.container,
+    borderRadius: SHAPE.xxxl,
+    padding: 20,
+    overflow: 'hidden',
+    marginTop: 4,
+  },
+  heroBlob: {
+    position: 'absolute',
+    right: -60,
+    bottom: -90,
+  },
+  heroLabel: { color: MODULE_TONES.finances.on, opacity: 0.8 },
+  heroValue: { color: MODULE_TONES.finances.on, marginTop: 4 },
+  heroSub: { color: MODULE_TONES.finances.on, opacity: 0.7, marginTop: 6 },
 
-  chartCard:  { marginBottom: 12 },
-  chart:      { flexDirection: 'row', justifyContent: 'space-around', alignItems: 'flex-end', height: 120, paddingVertical: 8 },
-  barCol:     { alignItems: 'center', flex: 1 },
-  bar:        { width: 24, borderRadius: 3, marginBottom: 4 },
-  barVal:     { fontSize: TYPE.micro, color: COLORS.textSub, marginBottom: 2 },
-  barLabel:   { fontSize: TYPE.micro, color: COLORS.textMuted },
+  sectionTitle: { color: M3.onSurface, marginTop: SPACING.lg, marginBottom: 8 },
 
-  listHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: 8, marginBottom: 4 },
-  listHeaderActions: { flexDirection: 'row', alignItems: 'center' },
-  addBtn:     { fontSize: 13, color: COLORS.accent, fontWeight: '600' },
-  clearAllText: { fontSize: 12, color: COLORS.red, fontWeight: '600' },
+  listHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginTop: SPACING.lg,
+    marginBottom: 8,
+  },
+  listActions: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  clearAll: { borderRadius: SHAPE.full },
+  clearAllContent: { paddingHorizontal: 10, paddingVertical: 6, borderRadius: SHAPE.full },
+  clearAllText: { color: M3.error },
 
-  txCard:  { marginBottom: 8, padding: 12 },
-  txRow:   { flexDirection: 'row', alignItems: 'center' },
-  txDot:   { width: 8, height: 8, borderRadius: 4, marginRight: 10 },
-  txInfo:  { flex: 1, marginRight: 10 },
-  txDesc:  { fontSize: TYPE.body, color: COLORS.text, fontWeight: '500' },
-  txMeta:  { fontSize: 11, color: COLORS.textMuted, marginTop: 2 },
-  txAmount:   { fontSize: TYPE.label, fontWeight: '600', marginRight: 10 },
-  editBtn:    { padding: 4, marginRight: 4 },
-  editBtnText:{ fontSize: 13, color: COLORS.textMuted },
-  deleteBtn:  { padding: 4 },
-  deleteBtnText:{ fontSize: 14, color: COLORS.textSub },
+  groupBlock: { marginBottom: SPACING.md },
+  groupDate: { color: M3.outline, marginBottom: 6, marginLeft: 4 },
+  group: { gap: 2 },
+  txTrailing: { alignItems: 'flex-end', gap: 2 },
+  txDelete: { borderRadius: SHAPE.full },
+  txDeleteContent: { padding: 4, borderRadius: SHAPE.full },
 
-  sectionTitleRow: { flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 10, marginBottom: 10 },
-
-  // Modal
-  modalRoot: { flex: 1, backgroundColor: COLORS.bg },
-  modalHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 16, borderBottomWidth: 1, borderBottomColor: COLORS.border },
-  modalCancelText: { color: COLORS.accent, fontSize: 16 },
-  modalHeaderRight: { width: 50 },
-  modalTitle: { fontSize: 18, fontWeight: '700', color: COLORS.text, textAlign: 'center' },
-  modalScrollContent: { padding: 16, paddingBottom: 32 },
-  modalFooter: { flexDirection: 'row', alignItems: 'center', justifyContent: 'flex-end', padding: 16, gap: 12, borderTopWidth: 1, borderTopColor: COLORS.border },
-  modalFooterBtn: { paddingVertical: 14, paddingHorizontal: 20, borderRadius: 10, alignItems: 'center' },
-  modalFooterBtnSave: { backgroundColor: COLORS.accent, flex: 1 },
-  modalFooterBtnSaveText: { color: COLORS.onPrimary, fontWeight: '700', fontSize: 15 },
-  modalFooterBtnCancel: { backgroundColor: COLORS.bg4, marginRight: 10 },
-  modalFooterBtnCancelText: { color: COLORS.textMuted, fontWeight: '600' },
-  modalFooterBtnDelete: { backgroundColor: COLORS.redDim, borderWidth: 1, borderColor: COLORS.red, marginRight: 10 },
-  modalFooterBtnDeleteText: { color: COLORS.red, fontWeight: '600' },
+  modalRoot: { flex: 1, backgroundColor: M3.background },
+  modalHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 16,
+    paddingBottom: 12,
+  },
+  modalHeaderRight: { width: 40 },
+  modalTitle: { color: M3.onSurface },
+  modalScrollContent: { paddingHorizontal: 20, paddingTop: 8, paddingBottom: 40 },
+  modalFooter: {
+    flexDirection: 'row',
+    gap: 12,
+    paddingHorizontal: 20,
+    paddingVertical: 12,
+  },
+  footerBtn: { flex: 1 },
+  footerPrimary: { flex: 1.4 },
+  fieldLabel: { color: M3.onSurfaceVariant, marginBottom: 6, marginTop: 4 },
+  input: {
+    backgroundColor: M3.surfaceContainerHigh,
+    borderRadius: SHAPE.lg,
+    minHeight: 56,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    color: M3.onSurface,
+    marginBottom: 12,
+  },
+  chipRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 14 },
 });
