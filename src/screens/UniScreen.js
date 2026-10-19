@@ -628,5 +628,5 @@ const styles = StyleSheet.create({
   btnDelete:   { backgroundColor: COLORS.redDim, borderWidth: 1, borderColor: COLORS.red, marginRight: 10 },
   btnDeleteText:{ color: COLORS.red, fontWeight: '600' },
   btnSave:     { backgroundColor: COLORS.accent },
-  btnSaveText: { color: '#fff', fontWeight: '700' },
+  btnSaveText: { color: COLORS.onPrimary, fontWeight: '700' },
 });

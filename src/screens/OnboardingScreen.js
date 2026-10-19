@@ -296,7 +296,7 @@ const styles = StyleSheet.create({
     borderRadius: 16,
   },
   bigBtnText: {
-    color: '#fff',
+    color: COLORS.onPrimary,
     fontSize: 17,
     fontWeight: '700',
   },
@@ -387,7 +387,7 @@ const styles = StyleSheet.create({
     borderRadius: 12,
   },
   nextBtnDisabled: { opacity: 0.35 },
-  nextBtnText: { color: '#fff', fontSize: 15, fontWeight: '700' },
+  nextBtnText: { color: COLORS.onPrimary, fontSize: 15, fontWeight: '700' },
 
   // Dots
   dotsRow: { flexDirection: 'row' },

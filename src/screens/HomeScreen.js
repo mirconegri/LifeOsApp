@@ -399,7 +399,7 @@ const styles = StyleSheet.create({
   taskRowDivider: { borderBottomWidth: 1, borderBottomColor: COLORS.border },
   taskCheck:    { width: 18, height: 18, borderRadius: 5, borderWidth: 1.5, borderColor: COLORS.border, alignItems: 'center', justifyContent: 'center', marginRight: 10 },
   taskCheckDone:{ backgroundColor: COLORS.green, borderColor: COLORS.green },
-  taskCheckMark:{ color: '#fff', fontSize: TYPE.caption, fontWeight: 'bold' },
+  taskCheckMark:{ color: COLORS.greenDim, fontSize: TYPE.caption, fontWeight: 'bold' },
   taskTextWrap: { flex: 1, marginRight: SPACING.sm },
   taskText:     { fontSize: TYPE.label, color: COLORS.text, fontWeight: '500' },
   taskTextDone: { textDecorationLine: 'line-through', color: COLORS.textMuted },

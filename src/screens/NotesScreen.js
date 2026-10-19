@@ -250,7 +250,7 @@ const styles = StyleSheet.create({
   header:  { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 },
   title:   { fontSize: 28, fontWeight: '700', color: COLORS.text },
   addBtn:  { backgroundColor: COLORS.accent, paddingVertical: 8, paddingHorizontal: 14, borderRadius: 20 },
-  addBtnText:{ color: '#fff', fontSize: 14, fontWeight: '700' },
+  addBtnText:{ color: COLORS.onPrimary, fontSize: 14, fontWeight: '700' },
 
   emptyText: { fontSize: 14, color: COLORS.textSub, textAlign: 'center', marginTop: 20 },
   listMetaRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 },
@@ -276,7 +276,7 @@ const styles = StyleSheet.create({
   modalFooter: { flexDirection: 'row', alignItems: 'center', justifyContent: 'flex-end', padding: 16, gap: 12, borderTopWidth: 1, borderTopColor: COLORS.border },
   modalFooterBtn: { paddingVertical: 14, paddingHorizontal: 20, borderRadius: 10, alignItems: 'center' },
   modalFooterBtnSave: { backgroundColor: COLORS.accent, flex: 1 },
-  modalFooterBtnSaveText: { color: '#fff', fontWeight: '700', fontSize: 15 },
+  modalFooterBtnSaveText: { color: COLORS.onPrimary, fontWeight: '700', fontSize: 15 },
   modalFooterBtnCancel: { backgroundColor: COLORS.bg4, marginRight: 10 },
   modalFooterBtnCancelText: { color: COLORS.textMuted, fontWeight: '600' },
   modalFooterBtnDelete: { backgroundColor: COLORS.redDim, borderWidth: 1, borderColor: COLORS.red, marginRight: 10 },

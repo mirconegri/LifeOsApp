@@ -131,7 +131,7 @@ const styles = StyleSheet.create({
     borderColor: COLORS.border,
   },
   btnText: {
-    color: '#fff',
+    color: COLORS.onPrimary,
     fontSize: TYPE.body,
     fontWeight: '700',
   },

@@ -290,7 +290,7 @@ const styles = StyleSheet.create({
   cellToday:      { borderWidth: 1.5, borderColor: COLORS.accent },
   cellDisabled:   { opacity: 0.25 },
   cellText:       { fontSize: 14, color: COLORS.text },
-  cellTextSelected:{ color: '#fff', fontWeight: '700' },
+  cellTextSelected:{ color: COLORS.onPrimary, fontWeight: '700' },
   cellTextToday:  { color: COLORS.accent, fontWeight: '600' },
   cellTextDisabled:{ color: COLORS.textSub },
 
