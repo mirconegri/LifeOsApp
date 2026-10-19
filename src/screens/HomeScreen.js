@@ -1,30 +1,43 @@
 // src/screens/HomeScreen.js
-import React, { useState, useEffect, useRef } from 'react';
+//
+// The M3 Expressive Home: SearchPill header, Focus hero pager, smart banner,
+// "Up next" tonal rail, grouped task list, quick-link tiles and the module
+// grid. All data comes from props that already existed; there is no local
+// state and no data-model change. The old draggable sections and the 2x2
+// dashboard grid are gone (constraint 8): the layout is fixed and designed.
+
+import React from 'react';
 import {
-  View, Text, StyleSheet, TouchableOpacity, Linking,
+  View, Text, StyleSheet, ScrollView, Linking,
 } from 'react-native';
-import AsyncStorage from '@react-native-async-storage/async-storage';
-import { COLORS } from '../config/colors';
-import { TYPE, SPACING } from '../config/designSystem';
-import { Card } from '../components/Card';
-import { Pill } from '../components/Pill';
-import { StatCard } from '../components/StatCard';
-import { TipBubble } from '../components/TipBubble';
-import { DraggableList } from '../components/DraggableList';
+
+import { M3, MODULE_TONES, alpha } from '../config/colors';
+import { SHAPE, SPACING } from '../config/designSystem';
+import { NAV } from '../config/nav';
+import { TEXT } from '../ui/type';
 import { Icon } from '../components/Icon';
+import { Pill } from '../components/Pill';
+import { TipBubble } from '../components/TipBubble';
 import { AppScrollView } from '../ui/AppScrollView';
 import { SearchPill } from '../ui/SearchPill';
 import { Chip } from '../ui/Chip';
+import { SectionTitle } from '../ui/SectionTitle';
+import { HeroPager } from '../ui/HeroPager';
+import { GroupItem } from '../ui/GroupItem';
+import { TonalIcon } from '../ui/TonalIcon';
+import { EmptyState } from '../ui/EmptyState';
+import { CtaButton } from '../ui/CtaButton';
+import { SpringPressable } from '../ui/SpringPressable';
+import { Reveal } from '../ui/Reveal';
+import { WavyProgress } from '../ui/WavyProgress';
+import { Blob } from '../ui/Blob';
 import { todayKey, fmt, diffDays, calculateAverages } from '../data/helpers';
 
 const MAX_STARRED = 6;
 const HOME_TASKS_LIMIT = 6;
-const SECTION_ORDER_KEY = 'lifeos_home_section_order';
-// 'dailyRoutine' removed: Habits no longer gets its own Home module (it
-// already lives inside Tasks, one tap away via the section's own link).
-const DEFAULT_SECTION_ORDER = ['nextTarget', 'todaysTasks', 'quickLinks'];
+const UP_NEXT_LIMIT = 6;
 
-// Tips shown during first use — one per section
+// Tips shown during first use — one per section.
 const TIPS = [
   { id: 'links',    text: 'Tap ★ in the Links screen to add your favorite sites here.' },
   { id: 'habits',   text: 'Add habits from the Tasks section: build your daily routine.' },
@@ -32,57 +45,169 @@ const TIPS = [
   { id: 'exams',    text: 'Add your exams in University to see your degree grade prediction.' },
 ];
 
-// Small arrow-link button placed next to a section title, so the user can
-// jump straight into that section from the Home screen.
-function SectionLink({ onPress }) {
+// Secondary modules on Home's "Browse modules" grid, each with its blob shape.
+const MODULE_TILES = [
+  { id: 'groceries', label: 'Groceries', blob: 'sunny' },
+  { id: 'goals',     label: 'Goals',     blob: 'clover4' },
+  { id: 'notes',     label: 'Notes',     blob: 'cookie6' },
+  { id: 'links',     label: 'Links',     blob: 'flower' },
+];
+
+function priorityTone(priority) {
+  if (priority === 'high') return 'red';
+  if (priority === 'medium') return 'amber';
+  return 'muted';
+}
+
+function TaskCheck({ done, onPress, label }) {
   return (
-    <TouchableOpacity onPress={onPress} style={styles.sectionLinkBtn} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
-      <Text style={styles.sectionLinkIcon}>›</Text>
-    </TouchableOpacity>
+    <SpringPressable
+      onPress={onPress}
+      haptic="selection"
+      accessibilityRole="checkbox"
+      accessibilityState={{ checked: done }}
+      accessibilityLabel={label}
+      hitSlop={12}
+      style={[styles.check, done && styles.checkDone]}
+      contentStyle={styles.checkContent}
+    >
+      {done ? (
+        <Icon name="check" size={15} color={MODULE_TONES.journal.container} />
+      ) : null}
+    </SpringPressable>
   );
 }
 
-function SectionHeader({ title, onPress }) {
+function SmartBanner({ count, onPress }) {
   return (
-    <View style={styles.sectionHeaderRow}>
-      <Text style={styles.sectionTitle}>{title}</Text>
-      {onPress ? <SectionLink onPress={onPress} /> : null}
-    </View>
+    <SpringPressable
+      onPress={onPress}
+      haptic="selection"
+      style={styles.banner}
+      contentStyle={styles.bannerContent}
+      accessibilityLabel={`${count} overdue task${count === 1 ? '' : 's'}, review`}
+    >
+      <TonalIcon
+        icon="alert-circle"
+        size={48}
+        radius={14}
+        tone={{ container: M3.errorContainer, on: M3.onErrorContainer }}
+      />
+      <View style={styles.bannerText}>
+        <Text style={[TEXT.titleSmall, styles.bannerTitle]}>
+          {count} overdue task{count === 1 ? '' : 's'}
+        </Text>
+        <Text style={[TEXT.labelMedium, styles.bannerBody]}>
+          Review them before they pile up
+        </Text>
+      </View>
+      <View style={styles.bannerCta}>
+        <Text style={[TEXT.labelLarge, { color: M3.onSecondaryContainer }]}>Review</Text>
+      </View>
+    </SpringPressable>
+  );
+}
+
+function UpNextCard({ exam, onPress }) {
+  const tone = MODULE_TONES.uni;
+  const days = Math.max(0, diffDays(exam.date));
+  return (
+    <SpringPressable
+      onPress={onPress}
+      haptic="selection"
+      style={[styles.upNextCard, { backgroundColor: tone.container }]}
+      contentStyle={styles.upNextContent}
+      accessibilityLabel={`${exam.name}, ${exam.credits} credits, ${days} days left`}
+    >
+      <View style={styles.upNextArt}>
+        <Blob preset="cookie9" size={120} color={alpha(tone.on, 0.12)} />
+        <View style={styles.centerOverlay} pointerEvents="none">
+          <Icon name="graduation-cap" size={30} color={tone.on} />
+        </View>
+      </View>
+      <View>
+        <Text style={[TEXT.titleMedium, { color: tone.on }]} numberOfLines={2}>
+          {exam.name}
+        </Text>
+        <Text style={[TEXT.labelMedium, styles.upNextMeta, { color: tone.on }]} numberOfLines={1}>
+          {exam.credits} CFU · {days} day{days === 1 ? '' : 's'}
+        </Text>
+      </View>
+    </SpringPressable>
+  );
+}
+
+function QuickLinkTile({ link }) {
+  return (
+    <SpringPressable
+      onPress={() => Linking.openURL(link.url)}
+      haptic="selection"
+      style={styles.iconTile}
+      contentStyle={styles.iconTileContent}
+      accessibilityLabel={`Open ${link.name}`}
+    >
+      <View style={styles.emojiTile}>
+        <Text style={styles.emoji}>{link.icon}</Text>
+      </View>
+      <Text style={[TEXT.labelLarge, styles.iconTileLabel]} numberOfLines={2}>
+        {link.name}
+      </Text>
+    </SpringPressable>
+  );
+}
+
+function ModuleTile({ meta, count, onPress }) {
+  const tone = MODULE_TONES[meta.id] || MODULE_TONES.home;
+  const nav = NAV.find((n) => n.id === meta.id);
+  const countLabel = `${count} ${count === 1 ? 'item' : 'items'}`;
+  return (
+    <SpringPressable
+      onPress={onPress}
+      haptic="selection"
+      style={styles.moduleTile}
+      contentStyle={styles.moduleTileContent}
+      accessibilityLabel={`${meta.label}, ${countLabel}`}
+    >
+      <View style={styles.moduleArt}>
+        <Blob preset={meta.blob} size={64} color={tone.container} />
+        <View style={styles.centerOverlay} pointerEvents="none">
+          <Icon name={nav?.icon || 'grid'} size={26} color={tone.on} />
+        </View>
+      </View>
+      <Text style={[TEXT.labelLarge, styles.moduleLabel]} numberOfLines={1}>
+        {meta.label}
+      </Text>
+      <Text style={[TEXT.labelSmall, styles.moduleCount]} numberOfLines={1}>
+        {countLabel}
+      </Text>
+    </SpringPressable>
   );
 }
 
 export default function HomeScreen({
   exams, tasks, finances, heatmap, links,
   userName, course, isFirstUse, tipsShown, onDismissTip,
-  onNavigate, onOpenModules, onOpenSettings, onOpenDevKit, modules = {},
+  onNavigate, onOpenModules, onOpenSettings, onOpenDevKit,
+  onToggleTask, modules = {}, moduleCounts = {}, timerSec = 0,
 }) {
-  // A section whose module is switched off simply has nothing to render —
-  // the same path an empty "Next Target" already takes.
   const on = (id) => modules[id] !== false;
-  const today    = todayKey();
-  const dateLabel = new Date().toLocaleDateString('en-US', { weekday: 'long', day: 'numeric', month: 'long' });
+  const today = todayKey();
+  const dateLabel = new Date().toLocaleDateString('en-US', {
+    weekday: 'long', day: 'numeric', month: 'long',
+  });
+  const go = (screenId) => { if (onNavigate) onNavigate(screenId); };
 
-  // Habits are entries inside the unified Tasks list (journal) flagged
-  // with recurring:true. They no longer get a Home module of their own —
-  // only one-off tasks are previewed here now.
-  const oneTimeTasks = tasks.filter(t => !t.recurring);
-
-  // ── Metrics ──
-  const activeExams = exams.filter(e => e.status === 'preparing' || e.status === 'to start');
-  const nextExam    = activeExams.sort((a, b) => new Date(a.date) - new Date(b.date))[0];
+  // ── Focus data ───────────────────────────────────────────────────────
+  const activeExams = exams
+    .filter((e) => e.status === 'preparing' || e.status === 'to start')
+    .sort((a, b) => new Date(a.date) - new Date(b.date));
+  const nextExam = activeExams[0];
   const { average } = calculateAverages(exams);
 
-  const completedTasks = oneTimeTasks.filter(t => t.done).length;
-  const totalTasks     = oneTimeTasks.length;
-
-  // "Tasks" preview — was filtered to t.date === today only; now shows
-  // ALL incomplete one-off tasks (overdue + today + future + no-date),
-  // sorted by urgency (no-date last), capped at HOME_TASKS_LIMIT with a
-  // "+N more" link. A dashboard preview that scrolled forever every time
-  // the seed/backlog grew would push every other Home section off-screen,
-  // so this is a deliberate cap rather than the literal "show everything"
-  // — full uncapped list lives one tap away in Tasks itself.
-  const incompleteTasks = oneTimeTasks.filter(t => !t.done);
+  const oneTimeTasks = tasks.filter((t) => !t.recurring);
+  const completedTasks = oneTimeTasks.filter((t) => t.done).length;
+  const totalTasks = oneTimeTasks.length;
+  const incompleteTasks = oneTimeTasks.filter((t) => !t.done);
   const sortedIncomplete = [...incompleteTasks].sort((a, b) => {
     if (!a.date && !b.date) return 0;
     if (!a.date) return 1;
@@ -91,252 +216,246 @@ export default function HomeScreen({
   });
   const homeTasks = sortedIncomplete.slice(0, HOME_TASKS_LIMIT);
   const remainingTasksCount = Math.max(0, incompleteTasks.length - homeTasks.length);
+  const overdueCount = incompleteTasks.filter((t) => t.date && t.date < today).length;
 
   const currentBalance = finances.reduce((acc, f) => acc + f.amount, 0);
-  const starredLinks   = links.filter(l => l.starred).slice(0, MAX_STARRED);
+  const starredLinks = links.filter((l) => l.starred).slice(0, MAX_STARRED);
+  const studyDays = Object.keys(heatmap).length;
+  const studyHours = Math.round((timerSec / 3600) * 10) / 10;
 
-  // ── Onboarding Tips Logic ──
-  const tipToShow = isFirstUse ? TIPS.find(t => !tipsShown.includes(t.id)) : null;
-
-  const go = (screenId) => {
-    if (onNavigate) onNavigate(screenId);
-  };
-
-  // ── Section reorder state ──
-  // The Home page's section blocks (not their inner items — those are
-  // reordered from within their own screens) can be held-and-dragged to
-  // change which one shows up first. The chosen order is persisted
-  // separately from the rest of the app's data, under its own storage key,
-  // since it's purely a Home-screen display preference, not a data model.
-  const [sectionOrder, setSectionOrder] = useState(DEFAULT_SECTION_ORDER);
-
-  useEffect(() => {
-    (async () => {
-      try {
-        const raw = await AsyncStorage.getItem(SECTION_ORDER_KEY);
-        if (raw) {
-          const saved = JSON.parse(raw);
-          // Guard against a stale saved order missing/containing unknown
-          // ids (e.g. after this app update removed 'dailyRoutine') by
-          // falling back to default for anything that doesn't match
-          // exactly — otherwise an order saved before this change would
-          // still contain 'dailyRoutine' forever and silently no-op.
-          const valid = Array.isArray(saved) &&
-            saved.length === DEFAULT_SECTION_ORDER.length &&
-            DEFAULT_SECTION_ORDER.every(id => saved.includes(id));
-          if (valid) setSectionOrder(saved);
-        }
-      } catch {
-        // fall back to default order silently
-      }
-    })();
-  }, []);
-
-  const persistSectionOrder = (newOrder) => {
-    setSectionOrder(newOrder);
-    AsyncStorage.setItem(SECTION_ORDER_KEY, JSON.stringify(newOrder)).catch(() => {});
-  };
-
-  // Each section is a self-contained render function, keyed by id. Only
-  // sections that currently have content to show are included in the
-  // draggable list — e.g. "Next Target" disappears entirely when there's
-  // no upcoming exam, exactly like before, it just also participates in
-  // the reordering when it IS present.
-  // Nothing left on the dashboard means the user switched everything off:
-  // say so instead of showing a blank page.
-  const anyModuleOn = on('journal') || on('finances') || on('uni') || on('links');
-
-  const sectionRenderers = {
-    nextTarget: nextExam && on('uni') ? (
-      <View>
-        <SectionHeader title="Next Target" onPress={() => go('uni')} />
-        <TouchableOpacity onPress={() => go('uni')} activeOpacity={0.8}>
-          <Card style={styles.examCard}>
-            <View style={styles.examCardHeader}>
-              <Text style={styles.examName}>{nextExam.name}</Text>
-              <Pill color="accent">{diffDays(nextExam.date)} days left</Pill>
-            </View>
-            <Text style={styles.examDate}><Icon name="calendar" size={12} color={COLORS.textMuted} /> {nextExam.date}</Text>
-          </Card>
-        </TouchableOpacity>
-      </View>
-    ) : null,
-
-    todaysTasks: on('journal') ? (
-      <View>
-        <SectionHeader title="Tasks" onPress={() => go('journal')} />
-        {homeTasks.length === 0 ? (
-          <Card style={styles.emptyCard}>
-            <Text style={styles.emptyText}>No pending tasks. You're clear!</Text>
-          </Card>
-        ) : (
-          <Card style={styles.tasksCard}>
-            {homeTasks.map((t, idx) => {
-              const isOverdue = t.date && t.date < today;
-              return (
-                <View
-                  key={t.id}
-                  style={[styles.taskRow, idx < homeTasks.length - 1 && styles.taskRowDivider]}
-                >
-                  <View style={[styles.taskCheck, t.done && styles.taskCheckDone]}>
-                    {t.done && <Text style={styles.taskCheckMark}>✓</Text>}
-                  </View>
-                  <View style={styles.taskTextWrap}>
-                    <Text style={[styles.taskText, t.done && styles.taskTextDone]} numberOfLines={1}>
-                      {t.text}
-                    </Text>
-                    <View style={styles.taskMetaRow}>
-                      {t.subject ? <Text style={styles.taskSubject}><Icon name="book" size={12} color={COLORS.textMuted} /> {t.subject}</Text> : null}
-                      {isOverdue ? (
-                        <Text style={styles.taskOverdue}>⚠ overdue · {t.date}</Text>
-                      ) : (t.date && t.date !== today ? (
-                        <Text style={styles.taskSubject}><Icon name="calendar" size={12} color={COLORS.textMuted} /> {t.date}</Text>
-                      ) : null)}
-                    </View>
-                  </View>
-                  <Pill color={t.priority === 'high' ? 'red' : t.priority === 'medium' ? 'amber' : 'muted'}>
-                    {t.priority}
-                  </Pill>
-                </View>
-              );
-            })}
-            {remainingTasksCount > 0 && (
-              <TouchableOpacity onPress={() => go('journal')} style={styles.moreTasksRow}>
-                <Text style={styles.moreTasksText}>
-                  +{remainingTasksCount} more pending task{remainingTasksCount === 1 ? '' : 's'} →
-                </Text>
-              </TouchableOpacity>
-            )}
-          </Card>
-        )}
-      </View>
-    ) : null,
-
-    quickLinks: on('links') ? (
-      <View>
-        <SectionHeader title="Quick Links" onPress={() => go('links')} />
-        <View style={styles.linkGrid}>
-          {starredLinks.length === 0 ? (
-            <Text style={styles.emptyText}>No starred links yet.</Text>
-          ) : (
-            starredLinks.map(l => (
-              <TouchableOpacity key={l.id} onPress={() => Linking.openURL(l.url)} style={styles.linkChip}>
-                <Text style={styles.linkChipIcon}>{l.icon}</Text>
-                <Text style={styles.linkChipLabel} numberOfLines={1}>{l.name}</Text>
-              </TouchableOpacity>
-            ))
-          )}
-        </View>
-      </View>
-    ) : null,
-  };
-
-  // Build the draggable items list from the persisted order, skipping any
-  // section that currently has nothing to render (e.g. no upcoming exam).
-  const draggableSections = sectionOrder
-    .map(id => ({ id, content: sectionRenderers[id] }))
-    .filter(s => s.content !== null);
-
-  const handleSectionReorder = (reorderedSections) => {
-    // Reordering only ever touches the sections that were visible (had
-    // content) at drag time. Any hidden section (e.g. "Next Target" with
-    // no upcoming exam right now) keeps its relative position by being
-    // re-inserted at its old slot in the full order — this avoids a
-    // hidden section silently jumping to the end once it reappears later.
-    const visibleIds = reorderedSections.map(s => s.id);
-    const hiddenIds = sectionOrder.filter(id => !visibleIds.includes(id));
-    const newOrder = [];
-    let visibleIdx = 0;
-    sectionOrder.forEach(id => {
-      if (hiddenIds.includes(id)) {
-        newOrder.push(id);
-      } else {
-        newOrder.push(visibleIds[visibleIdx]);
-        visibleIdx++;
-      }
+  const focusItems = [];
+  if (on('uni') && nextExam) {
+    const days = Math.max(0, diffDays(nextExam.date));
+    focusItems.push({
+      key: 'exam',
+      title: 'Next exam',
+      subtitle: `${nextExam.name} · ${days} day${days === 1 ? '' : 's'}${average ? ` · avg ${average.toFixed(1)}` : ''}`,
+      icon: 'graduation-cap',
+      tone: MODULE_TONES.uni,
+      onPress: () => go('uni'),
     });
-    persistSectionOrder(newOrder);
-  };
+  }
+  if (on('journal') && totalTasks > 0) {
+    focusItems.push({
+      key: 'tasks',
+      title: 'Tasks today',
+      subtitle: `${completedTasks} of ${totalTasks} done`,
+      icon: 'check-square',
+      tone: MODULE_TONES.journal,
+      onPress: () => go('journal'),
+      accessory: (
+        <WavyProgress
+          variant="circular"
+          progress={totalTasks ? completedTasks / totalTasks : 0}
+          size={44}
+          stroke={4}
+          color={MODULE_TONES.journal.on}
+          trackColor={alpha(MODULE_TONES.journal.on, 0.2)}
+          animate={false}
+          accessibilityLabel="Tasks completed"
+        />
+      ),
+    });
+  }
+  if (on('finances') && finances.length > 0) {
+    focusItems.push({
+      key: 'balance',
+      title: 'Balance',
+      subtitle: `€${fmt(currentBalance)}`,
+      icon: 'wallet',
+      tone: MODULE_TONES.finances,
+      onPress: () => go('finances'),
+    });
+  }
+  if (studyDays > 0 || studyHours > 0) {
+    focusItems.push({
+      key: 'study',
+      title: 'Study days',
+      subtitle: `${studyDays} day${studyDays === 1 ? '' : 's'}${studyHours > 0 ? ` · ${studyHours}h` : ''} logged`,
+      icon: 'bar-chart-3',
+      tone: MODULE_TONES.stats,
+      onPress: () => go('stats'),
+    });
+  }
 
-  // Auto-scroll while dragging: DraggableList scrolls this ScrollView, so
-  // it needs the ref plus the offset the ScrollView last reported.
-  const scrollRef = useRef(null);
-  const scrollYRef = useRef(0);
+  const tipToShow = isFirstUse ? TIPS.find((t) => !tipsShown.includes(t.id)) : null;
 
   return (
     <View style={styles.root}>
-      <AppScrollView
-        ref={scrollRef}
-        onScroll={(e) => { scrollYRef.current = e.nativeEvent.contentOffset.y; }}
-        contentContainerStyle={styles.scroll}
-      >
+      <AppScrollView contentContainerStyle={styles.content}>
 
-        {/* S1/S2 — the search pill is the first item of the scroll content,
-            so it scrolls away; brand mark -> modules, avatar -> settings. */}
+        {/* S1/S2 — search pill scrolls away; brand -> modules, avatar -> settings */}
         <SearchPill
           avatarLabel={userName || 'L'}
-          onBrandPress={() => go('modules')}
+          onBrandPress={onOpenModules}
           onBrandLongPress={onOpenDevKit}
           onAvatarPress={onOpenSettings}
-          style={styles.searchPill}
         />
         <View style={styles.infoRow}>
-          <Text style={styles.dateLabel}>{dateLabel}</Text>
-          {course ? <Chip label={course} style={styles.courseChip} /> : null}
+          <Text style={[TEXT.bodyMedium, styles.date]}>{dateLabel}</Text>
+          {course ? <Chip label={course} /> : null}
         </View>
 
-        {/* Dashboard Grid — fixed stats, not reorderable */}
-        <Text style={styles.sectionTitle}>Dashboard</Text>
-        <View style={styles.statsGrid}>
-          {on('journal') && (
-            <View style={styles.statGridItem}>
-              <StatCard label="Tasks Done" value={`${completedTasks}/${totalTasks}`} color={COLORS.green} trend="up" />
-            </View>
+        {/* Focus hero pager — only cards that actually have data */}
+        <Reveal index={0}>
+          {focusItems.length > 0 ? (
+            <HeroPager items={focusItems} style={styles.hero} />
+          ) : (
+            <EmptyState
+              icon="sparkles"
+              title="Nothing to focus on yet"
+              body="Add an exam, a task or a transaction and it will show up here."
+              tone={MODULE_TONES.home}
+              action={(
+                <CtaButton
+                  label="Add a task"
+                  variant="tonal"
+                  onPress={() => go('journal')}
+                />
+              )}
+            />
           )}
-          {on('finances') && (
-            <View style={styles.statGridItem}>
-              <StatCard label="Balance" value={`€${fmt(currentBalance)}`} color={currentBalance >= 0 ? COLORS.accent : COLORS.red} trend={currentBalance > 0 ? 'up' : currentBalance < 0 ? 'down' : 'flat'} />
-            </View>
-          )}
-          {on('uni') && (
-            <View style={styles.statGridItem}>
-              <StatCard label="Avg Grade" value={average ? average.toFixed(1) : '-'} color={COLORS.amber} trend={average ? (average > 27 ? 'up' : average > 24 ? 'flat' : 'down') : 'flat'} />
-            </View>
-          )}
-          <View style={styles.statGridItem}>
-            <StatCard label="Study Days" value={Object.keys(heatmap).length} color={COLORS.text} trend="up" />
+        </Reveal>
+
+        {/* Smart banner — overdue tasks only */}
+        {on('journal') && overdueCount > 0 ? (
+          <Reveal index={1}>
+            <SmartBanner count={overdueCount} onPress={() => go('journal')} />
+          </Reveal>
+        ) : null}
+
+        {/* Up next — tall tonal exam cards */}
+        {on('uni') ? (
+          <Reveal index={2}>
+            <SectionTitle
+              title="Up next"
+              subtitle="Your closest exams"
+              onSeeAll={() => go('uni')}
+            />
+            {activeExams.length > 0 ? (
+              <ScrollView
+                horizontal
+                showsHorizontalScrollIndicator={false}
+                contentContainerStyle={styles.rail}
+              >
+                {activeExams.slice(0, UP_NEXT_LIMIT).map((exam) => (
+                  <UpNextCard key={exam.id} exam={exam} onPress={() => go('uni')} />
+                ))}
+              </ScrollView>
+            ) : (
+              <EmptyState
+                icon="graduation-cap"
+                title="No exams coming up"
+                body="Add an exam in University to see it here."
+                tone={MODULE_TONES.uni}
+                action={(
+                  <CtaButton
+                    label="Open University"
+                    variant="tonal"
+                    onPress={() => go('uni')}
+                  />
+                )}
+              />
+            )}
+          </Reveal>
+        ) : null}
+
+        {/* Tasks — grouped rows, the existing top-6 urgency logic */}
+        {on('journal') ? (
+          <Reveal index={3}>
+            <SectionTitle title="Tasks" onSeeAll={() => go('journal')} />
+            {homeTasks.length > 0 ? (
+              <View style={styles.group}>
+                {homeTasks.map((task, index) => {
+                  const isOverdue = task.date && task.date < today;
+                  const meta = [task.subject, task.date && task.date !== today ? task.date : null]
+                    .filter(Boolean)
+                    .join(' · ');
+                  return (
+                    <GroupItem
+                      key={task.id}
+                      index={index}
+                      count={homeTasks.length + (remainingTasksCount > 0 ? 1 : 0)}
+                      leading={(
+                        <TaskCheck
+                          done={task.done}
+                          label={task.done ? 'Mark task not done' : 'Mark task done'}
+                          onPress={() => onToggleTask?.(task.id)}
+                        />
+                      )}
+                      title={task.text}
+                      secondary={meta || undefined}
+                      status={isOverdue ? `Overdue · ${task.date}` : undefined}
+                      statusIcon={isOverdue ? 'alert-circle' : undefined}
+                      statusColor={isOverdue ? M3.error : undefined}
+                      trailing={<Pill color={priorityTone(task.priority)}>{task.priority}</Pill>}
+                      onPress={() => go('journal')}
+                    />
+                  );
+                })}
+                {remainingTasksCount > 0 ? (
+                  <GroupItem
+                    index={homeTasks.length}
+                    count={homeTasks.length + 1}
+                    icon="list"
+                    tone={MODULE_TONES.journal}
+                    title={`+${remainingTasksCount} more pending task${remainingTasksCount === 1 ? '' : 's'}`}
+                    secondary="Open Tasks"
+                    onPress={() => go('journal')}
+                  />
+                ) : null}
+              </View>
+            ) : (
+              <Text style={[TEXT.bodyMedium, styles.emptyText]}>
+                No pending tasks. You're clear!
+              </Text>
+            )}
+          </Reveal>
+        ) : null}
+
+        {/* Quick links — icon-first tiles (the link icon is user emoji data) */}
+        {on('links') ? (
+          <Reveal index={4}>
+            <SectionTitle title="Quick links" onSeeAll={() => go('links')} />
+            {starredLinks.length > 0 ? (
+              <ScrollView
+                horizontal
+                showsHorizontalScrollIndicator={false}
+                contentContainerStyle={styles.rail}
+              >
+                {starredLinks.map((link) => (
+                  <QuickLinkTile key={link.id} link={link} />
+                ))}
+              </ScrollView>
+            ) : (
+              <Text style={[TEXT.bodyMedium, styles.emptyText]}>
+                No starred links yet.
+              </Text>
+            )}
+          </Reveal>
+        ) : null}
+
+        {/* Browse modules — the secondary modules live on their own screen */}
+        <Reveal index={5}>
+          <SectionTitle title="Browse modules" onSeeAll={onOpenModules} />
+          <View style={styles.moduleGrid}>
+            {MODULE_TILES.filter((m) => on(m.id)).map((meta) => (
+              <ModuleTile
+                key={meta.id}
+                meta={meta}
+                count={moduleCounts[meta.id] || 0}
+                onPress={() => go(meta.id)}
+              />
+            ))}
           </View>
-        </View>
-
-        {!anyModuleOn && (
-          <Card style={styles.emptyCard}>
-            <Text style={styles.emptyText}>
-              Every section is switched off. Open the menu, then Settings, to bring one back.
-            </Text>
-          </Card>
-        )}
-
-        {/* Reorderable section blocks */}
-        {draggableSections.length > 1 && (
-          <Text style={styles.reorderHint}>Hold and drag a section to reorder</Text>
-        )}
-        <DraggableList
-          items={draggableSections}
-          keyExtractor={(s) => s.id}
-          onReorder={handleSectionReorder}
-          itemHeight={140}
-          scrollRef={scrollRef}
-          scrollYRef={scrollYRef}
-          renderItem={(s) => <View style={styles.sectionBlock}>{s.content}</View>}
-        />
+        </Reveal>
 
       </AppScrollView>
 
-      {/* Tip Bubble */}
       <TipBubble
         visible={!!tipToShow}
         text={tipToShow?.text}
-        onDismiss={() => onDismissTip(tipToShow?.id)}
+        onDismiss={() => onDismissTip?.(tipToShow?.id)}
         position="bottom"
       />
     </View>
@@ -344,77 +463,134 @@ export default function HomeScreen({
 }
 
 const styles = StyleSheet.create({
-  root:   { flex: 1, backgroundColor: COLORS.bg },
-  scroll: { padding: SPACING.md },
+  root: { flex: 1, backgroundColor: M3.background },
+  content: { paddingTop: 8 },
 
-  searchPill: { marginBottom: SPACING.sm },
   infoRow: {
-    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
-    marginBottom: SPACING.lg,
-  },
-  courseChip: { marginLeft: SPACING.sm },
-  dateLabel: { fontSize: TYPE.body, color: COLORS.textMuted },
-
-  statsGrid: {
     flexDirection: 'row',
-    flexWrap: 'wrap',
+    alignItems: 'center',
     justifyContent: 'space-between',
-    marginBottom: SPACING.md,
+    paddingHorizontal: 20,
+    marginTop: SPACING.sm,
+    marginBottom: SPACING.sm,
   },
-  statGridItem: { width: '48%', marginBottom: 10 },
+  date: { color: M3.onSurfaceVariant },
 
-  reorderHint: { fontSize: TYPE.meta, color: COLORS.textSub, marginBottom: 6, textAlign: 'center' },
-  sectionBlock: { marginBottom: SPACING.sm },
+  hero: { marginBottom: 4 },
 
-  linkGrid: {
+  banner: { marginHorizontal: 16, marginBottom: 8 },
+  bannerContent: {
     flexDirection: 'row',
-    flexWrap: 'wrap',
+    alignItems: 'center',
+    gap: 12,
+    padding: 12,
+    borderRadius: SHAPE.xxl,
+    backgroundColor: M3.surfaceContainerHigh,
+  },
+  bannerText: { flex: 1 },
+  bannerTitle: { color: M3.onSurface },
+  bannerBody: { color: M3.onSurfaceVariant, marginTop: 1 },
+  bannerCta: {
+    backgroundColor: M3.secondaryContainer,
+    borderRadius: SHAPE.full,
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+  },
+
+  rail: {
+    paddingHorizontal: 16,
+    paddingBottom: 4,
+    gap: 10,
+  },
+  upNextCard: {
+    width: 152,
+    height: 222,
+    borderRadius: SHAPE.xxxl,
+    overflow: 'hidden',
+  },
+  upNextContent: {
+    flex: 1,
     justifyContent: 'space-between',
-    marginBottom: SPACING.xs,
+    padding: 14,
   },
-  linkChip: {
-    flexDirection: 'row', alignItems: 'center',
-    backgroundColor: COLORS.bg3,
-    borderWidth: 1, borderColor: COLORS.border,
-    borderRadius: 12, paddingHorizontal: 14, paddingVertical: 10,
-    width: '48%', marginBottom: 10,
+  upNextArt: {
+    height: 128,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
-  linkChipIcon:  { fontSize: 18, marginRight: SPACING.sm },
-  linkChipLabel: { fontSize: TYPE.body, color: COLORS.text, fontWeight: '600', flex: 1 },
-
-  // Section header with the clickable arrow link next to the title
-  sectionHeaderRow: {
-    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
-    marginTop: SPACING.sm, marginBottom: 10,
+  centerOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
-  sectionTitle: { fontSize: TYPE.label, fontWeight: '600', color: COLORS.textMuted, textTransform: 'uppercase', letterSpacing: 0.5 },
-  sectionLinkBtn: {
-    width: 22, height: 22, borderRadius: 11,
-    backgroundColor: COLORS.bg3, alignItems: 'center', justifyContent: 'center',
+  upNextMeta: { opacity: 0.7, marginTop: 2 },
+
+  group: { paddingHorizontal: 16, gap: 2 },
+
+  check: {
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    borderWidth: 2,
+    borderColor: M3.outline,
+    backgroundColor: 'transparent',
   },
-  sectionLinkIcon: { fontSize: TYPE.title, color: COLORS.accent, fontWeight: '700', marginTop: -1 },
+  checkDone: {
+    backgroundColor: MODULE_TONES.journal.on,
+    borderColor: MODULE_TONES.journal.on,
+  },
+  checkContent: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderRadius: 12,
+  },
 
-  emptyText:    { fontSize: TYPE.meta, color: COLORS.textSub, marginBottom: SPACING.sm },
-  emptyCard:    { marginBottom: SPACING.md, paddingVertical: 18, alignItems: 'center' },
+  iconTile: { width: 84 },
+  iconTileContent: { alignItems: 'center' },
+  emojiTile: {
+    width: 56,
+    height: 56,
+    borderRadius: SHAPE.lg,
+    backgroundColor: M3.surfaceContainerHigh,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  emoji: { fontSize: 26 },
+  iconTileLabel: {
+    color: M3.onSurface,
+    textAlign: 'center',
+    marginTop: 6,
+  },
 
-  examCard:       { marginBottom: SPACING.md, paddingVertical: SPACING.md },
-  examCardHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: SPACING.sm },
-  examName:       { fontSize: TYPE.title, fontWeight: '700', color: COLORS.text, flex: 1, marginRight: 10 },
-  examDate:       { fontSize: TYPE.meta, color: COLORS.textMuted },
+  moduleGrid: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    paddingHorizontal: 16,
+    marginTop: 4,
+  },
+  moduleTile: { width: 84, alignItems: 'center' },
+  moduleTileContent: { alignItems: 'center' },
+  moduleArt: {
+    width: 64,
+    height: 64,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  moduleLabel: {
+    color: M3.onSurface,
+    textAlign: 'center',
+    marginTop: 6,
+  },
+  moduleCount: {
+    color: M3.onSurfaceVariant,
+    textAlign: 'center',
+    marginTop: 1,
+  },
 
-  // Tasks list
-  tasksCard:    { marginBottom: SPACING.md, paddingVertical: SPACING.xs },
-  taskRow:      { flexDirection: 'row', alignItems: 'center', paddingVertical: SPACING.sm },
-  taskRowDivider: { borderBottomWidth: 1, borderBottomColor: COLORS.border },
-  taskCheck:    { width: 18, height: 18, borderRadius: 5, borderWidth: 1.5, borderColor: COLORS.border, alignItems: 'center', justifyContent: 'center', marginRight: 10 },
-  taskCheckDone:{ backgroundColor: COLORS.green, borderColor: COLORS.green },
-  taskCheckMark:{ color: COLORS.greenDim, fontSize: TYPE.caption, fontWeight: 'bold' },
-  taskTextWrap: { flex: 1, marginRight: SPACING.sm },
-  taskText:     { fontSize: TYPE.label, color: COLORS.text, fontWeight: '500' },
-  taskTextDone: { textDecorationLine: 'line-through', color: COLORS.textMuted },
-  taskMetaRow:  { flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap' },
-  taskSubject:  { fontSize: TYPE.meta, color: COLORS.textMuted, marginTop: SPACING.xxs },
-  taskOverdue:  { fontSize: TYPE.meta, color: COLORS.red, fontWeight: '600', marginTop: SPACING.xxs, marginLeft: 6 },
-  moreTasksRow: { paddingVertical: 10, alignItems: 'center' },
-  moreTasksText:{ fontSize: TYPE.label, color: COLORS.accent, fontWeight: '600' },
+  emptyText: {
+    color: M3.onSurfaceVariant,
+    paddingHorizontal: 20,
+    paddingVertical: 12,
+  },
 });

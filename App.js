@@ -288,6 +288,9 @@ function AppContent() {
   const navigateTo = (screenId) => goToScreen(screenId);
   const openSettings = () => setSettingsVisible(true);
   const openDevKit = __DEV__ ? () => setDevKitVisible(true) : undefined;
+  const toggleTask = (id) => pJournal((prev) => prev.map(
+    (t) => (t.id === id ? { ...t, done: !t.done } : t),
+  ));
 
   if (!ready || (!fontsLoaded && !fontError)) {
     return (
@@ -303,6 +306,14 @@ function AppContent() {
     );
   }
 
+  // Counts shown on Home's module grid and in the switch-off confirmation,
+  // so the user can see how much data is being hidden before agreeing to it.
+  const moduleData = { uni: exams, journal, finances, groceries, goals, notes, links };
+  const moduleCounts = MODULES.reduce((acc, m) => {
+    acc[m.id] = (moduleData[m.id] || []).length;
+    return acc;
+  }, {});
+
   const SCREENS = {
     home: (
       <HomeScreen
@@ -311,6 +322,8 @@ function AppContent() {
         userName={userName} course={course} isFirstUse={isFirstUse}
         tipsShown={tipsShown} onDismissTip={dismissTip}
         onNavigate={navigateTo} modules={enabledModules}
+        moduleCounts={moduleCounts}
+        onToggleTask={toggleTask}
         onOpenModules={() => goToScreen('modules')}
         onOpenSettings={openSettings}
         onOpenDevKit={openDevKit}
@@ -320,15 +333,7 @@ function AppContent() {
     modules: (
       <ModulesScreen
         modules={enabledModules}
-        moduleCounts={{
-          uni: exams.length,
-          journal: journal.length,
-          finances: finances.length,
-          groceries: groceries.length,
-          goals: goals.length,
-          notes: notes.length,
-          links: links.length,
-        }}
+        moduleCounts={moduleCounts}
         onNavigate={navigateTo}
         onOpenSettings={openSettings}
         onOpenDevKit={openDevKit}
@@ -355,14 +360,6 @@ function AppContent() {
     (n) => n.bottomNav && enabledModules[n.id] !== false,
   );
   const showBottomNav = bottomNavItems.length > 1;
-
-  // Counts shown in the switch-off confirmation, so the user can see how
-  // much data is being hidden before agreeing to it.
-  const moduleData = { uni: exams, journal, finances, groceries, goals, notes, links };
-  const moduleCounts = MODULES.reduce((acc, m) => {
-    acc[m.id] = (moduleData[m.id] || []).length;
-    return acc;
-  }, {});
 
   const pendingTasks = journal.filter((t) => !t.done && !t.recurring).length;
   const navBadges = pendingTasks > 0 ? { journal: pendingTasks } : {};
