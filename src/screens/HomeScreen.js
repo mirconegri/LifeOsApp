@@ -1,7 +1,7 @@
 // src/screens/HomeScreen.js
 import React, { useState, useEffect, useRef } from 'react';
 import {
-  View, Text, ScrollView, StyleSheet, TouchableOpacity, Linking,
+  View, Text, StyleSheet, TouchableOpacity, Linking,
 } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { COLORS } from '../config/colors';
@@ -12,7 +12,10 @@ import { StatCard } from '../components/StatCard';
 import { TipBubble } from '../components/TipBubble';
 import { DraggableList } from '../components/DraggableList';
 import { Icon } from '../components/Icon';
-import { greet, todayKey, fmt, diffDays, calculateAverages } from '../data/helpers';
+import { AppScrollView } from '../ui/AppScrollView';
+import { SearchPill } from '../ui/SearchPill';
+import { Chip } from '../ui/Chip';
+import { todayKey, fmt, diffDays, calculateAverages } from '../data/helpers';
 
 const MAX_STARRED = 6;
 const HOME_TASKS_LIMIT = 6;
@@ -51,7 +54,7 @@ function SectionHeader({ title, onPress }) {
 export default function HomeScreen({
   exams, tasks, finances, heatmap, links,
   userName, course, isFirstUse, tipsShown, onDismissTip,
-  onNavigate, modules = {},
+  onNavigate, onOpenModules, onOpenSettings, onOpenDevKit, modules = {},
 }) {
   // A section whose module is switched off simply has nothing to render —
   // the same path an empty "Next Target" already takes.
@@ -262,22 +265,24 @@ export default function HomeScreen({
 
   return (
     <View style={styles.root}>
-      <ScrollView
+      <AppScrollView
         ref={scrollRef}
         onScroll={(e) => { scrollYRef.current = e.nativeEvent.contentOffset.y; }}
-        scrollEventThrottle={16}
         contentContainerStyle={styles.scroll}
       >
 
-        {/* Header */}
-        <View style={styles.header}>
-          <Text style={styles.greeting}>{greet()}, {userName || 'Boss'}!</Text>
-          <Text style={styles.dateLabel}>Today is {dateLabel}</Text>
-          {course ? (
-            <Text style={[styles.dateLabel, {color: COLORS.accent, marginTop: 2, fontWeight: '600'}]}>
-              <Icon name="graduation-cap" size={14} color={COLORS.accent} /> {course}
-            </Text>
-          ) : null}
+        {/* S1/S2 — the search pill is the first item of the scroll content,
+            so it scrolls away; brand mark -> modules, avatar -> settings. */}
+        <SearchPill
+          avatarLabel={userName || 'L'}
+          onBrandPress={() => go('modules')}
+          onBrandLongPress={onOpenDevKit}
+          onAvatarPress={onOpenSettings}
+          style={styles.searchPill}
+        />
+        <View style={styles.infoRow}>
+          <Text style={styles.dateLabel}>{dateLabel}</Text>
+          {course ? <Chip label={course} style={styles.courseChip} /> : null}
         </View>
 
         {/* Dashboard Grid — fixed stats, not reorderable */}
@@ -325,7 +330,7 @@ export default function HomeScreen({
           renderItem={(s) => <View style={styles.sectionBlock}>{s.content}</View>}
         />
 
-      </ScrollView>
+      </AppScrollView>
 
       {/* Tip Bubble */}
       <TipBubble
@@ -340,11 +345,15 @@ export default function HomeScreen({
 
 const styles = StyleSheet.create({
   root:   { flex: 1, backgroundColor: COLORS.bg },
-  scroll: { padding: SPACING.md, paddingBottom: 100 },
+  scroll: { padding: SPACING.md },
 
-  header:    { marginBottom: SPACING.lg, marginTop: 10 },
-  greeting:  { fontSize: TYPE.display, fontWeight: '800', color: COLORS.text, letterSpacing: -0.5 },
-  dateLabel: { fontSize: TYPE.body, color: COLORS.textMuted, marginTop: SPACING.xs },
+  searchPill: { marginBottom: SPACING.sm },
+  infoRow: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
+    marginBottom: SPACING.lg,
+  },
+  courseChip: { marginLeft: SPACING.sm },
+  dateLabel: { fontSize: TYPE.body, color: COLORS.textMuted },
 
   statsGrid: {
     flexDirection: 'row',

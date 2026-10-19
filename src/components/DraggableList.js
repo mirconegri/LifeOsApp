@@ -62,12 +62,12 @@ const IDLE_MS      = 120;   // how quickly idle rows shrink/restore
 const SHIFT_MS     = 150;   // reorder slide
 const SPRING       = { damping: 20, stiffness: 300, mass: 0.8 };
 
-// Auto-scroll bands. The top band starts below the app's 52px top bar so a
-// row is never dragged under the header; the bottom band clears the tab
-// strip plus the gesture bar.
-// Read once: worklets can't call Dimensions.get, and the app is portrait-locked.
+// Auto-scroll bands. There is no fixed top bar anymore: AppScrollView
+// reserves the status bar plus the 64-high header row, so the top band starts
+// below that. The bottom band clears the floating nav pill (64 + 12 + bottom
+// inset) plus a gesture margin.
 const WINDOW_H    = Dimensions.get('window').height;
-const EDGE_TOP    = 110;
+const EDGE_TOP    = 150;
 const EDGE_BOTTOM = 160;
 const SCROLL_TICK = 16;     // ms — one scroll step per frame
 const MAX_STEP    = 12;     // px per tick at the very edge, scaled by depth
