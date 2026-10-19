@@ -49,7 +49,7 @@ import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import Animated, {
   useSharedValue, useAnimatedStyle, withSpring, withTiming, Easing, runOnJS,
 } from 'react-native-reanimated';
-import { COLORS } from '../config/colors';
+import { M3 } from '../config/colors';
 
 // How long the finger must rest before the row arms. 200ms is the native
 // long-press feel; 280ms read as "nothing happened, I let go".
@@ -274,7 +274,7 @@ function DraggableItem({
 
   return (
     <GestureDetector gesture={panGesture}>
-      <Animated.View style={[isActive && styles.activeBg, isActive && styles.activeShadow, animatedStyle]}>
+      <Animated.View style={[isActive && styles.activeBg, animatedStyle]}>
         {renderItem(item, index, isActive)}
       </Animated.View>
     </GestureDetector>
@@ -365,14 +365,7 @@ export function DraggableList({
 
 const styles = StyleSheet.create({
   activeBg: {
-    backgroundColor: COLORS.bg3,
+    backgroundColor: M3.surfaceContainerHighest,
     borderRadius: 12,
-  },
-  activeShadow: {
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.45,
-    shadowRadius: 14,
-    elevation: 14,
   },
 });

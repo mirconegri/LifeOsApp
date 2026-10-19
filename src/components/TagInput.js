@@ -1,27 +1,18 @@
 // src/components/TagInput.js
 //
 // Chip-style tag input with autocomplete against previously used tags.
-//
-// Behavior (matches what was asked for):
-// - As you type, a dropdown appears showing existing tags that start with
-//   what you've typed, PLUS the literal text you're typing as its own
-//   option (so you can always create a brand-new tag, not just pick an
-//   old one).
-// - Tapping any option in the dropdown — whether it's an existing tag or
-//   the "create new" entry for what you just typed — commits it as a
-//   purple chip, exactly like the other tag chips shown elsewhere in the
-//   Notes section.
-// - After committing a tag, the text field clears and keeps focus, so the
-//   keyboard stays up and you can immediately type the next tag without
-//   re-tapping the input.
-// - A tag is forced to a single word with no uppercase: typing a space
-//   commits the current word as a tag (instead of inserting a space into
-//   it), and all characters are lowercased as you type.
+// Behaviour is unchanged (lowercase single-word tags, space commits, the
+// create-new suggestion, deferred blur, focus returns to the field).
+// M3 pass: tonal chips, a filled 56 field and a solid tonal dropdown.
 import React, { useState, useRef } from 'react';
 import {
-  View, Text, TextInput, TouchableOpacity, ScrollView, StyleSheet,
+  View, Text, TextInput, ScrollView, StyleSheet,
 } from 'react-native';
-import { COLORS } from '../config/colors';
+
+import { M3 } from '../config/colors';
+import { SHAPE } from '../config/designSystem';
+import { TEXT } from '../ui/type';
+import { SpringPressable } from '../ui/SpringPressable';
 
 // Cleans a raw tag candidate down to the allowed shape: lowercase, single
 // word, no leading/trailing junk. Used both while typing and on commit.
@@ -39,9 +30,6 @@ export function TagInput({ tags, onChangeTags, allKnownTags = [], placeholder = 
 
   const cleanQuery = sanitizeTag(query);
 
-  // Suggestions: existing tags (from other notes) that start with what's
-  // typed and aren't already attached to this note, plus — if what's typed
-  // isn't already an existing tag — an explicit "create new" option for it.
   const existingMatches = cleanQuery
     ? allKnownTags.filter(t => t.startsWith(cleanQuery) && !tags.includes(t))
     : allKnownTags.filter(t => !tags.includes(t));
@@ -56,15 +44,6 @@ export function TagInput({ tags, onChangeTags, allKnownTags = [], placeholder = 
       onChangeTags([...tags, clean]);
     }
     setQuery('');
-    // Cancel any pending blur timeout from just before this commit — if
-    // one were left running, it would fire setFocused(false) shortly
-    // after this function sets it back to true below, and the dropdown
-    // (which only renders when `focused` is true) would silently stay
-    // hidden even though the keyboard is visually still open. This was
-    // the actual bug: re-focusing the TextInput programmatically doesn't
-    // reliably re-fire onFocus synchronously on Android, so the explicit
-    // setFocused(true) here — not the native event — is what the dropdown
-    // visibility now depends on.
     clearTimeout(blurTimer.current);
     setFocused(true);
     requestAnimationFrame(() => inputRef.current?.focus());
@@ -76,8 +55,7 @@ export function TagInput({ tags, onChangeTags, allKnownTags = [], placeholder = 
 
   function handleChangeText(text) {
     // A space commits whatever's been typed so far as a tag, rather than
-    // becoming part of it — this is what enforces "one word per tag"
-    // at the input level, not just on save.
+    // becoming part of it — this enforces "one word per tag".
     if (text.endsWith(' ')) {
       commitTag(text.slice(0, -1));
       return;
@@ -87,26 +65,29 @@ export function TagInput({ tags, onChangeTags, allKnownTags = [], placeholder = 
 
   return (
     <View style={styles.wrapper}>
-      {/* Committed tags as purple chips — same visual language as the
-          read-only tag pills shown on note cards elsewhere in this
-          section, so a tag looks the same whether you're creating it or
-          just viewing it later. */}
-      {tags.length > 0 && (
+      {tags.length > 0 ? (
         <View style={styles.chipRow}>
           {tags.map(tag => (
-            <TouchableOpacity key={tag} onPress={() => removeTag(tag)} style={styles.chip}>
-              <Text style={styles.chipText}>#{tag}</Text>
-              <Text style={styles.chipRemove}>✕</Text>
-            </TouchableOpacity>
+            <SpringPressable
+              key={tag}
+              onPress={() => removeTag(tag)}
+              haptic="selection"
+              accessibilityLabel={`Remove tag ${tag}`}
+              style={styles.chip}
+              contentStyle={styles.chipContent}
+            >
+              <Text style={[TEXT.labelMedium, styles.chipText]}>#{tag}</Text>
+              <Text style={[TEXT.labelSmall, styles.chipRemove]}>✕</Text>
+            </SpringPressable>
           ))}
         </View>
-      )}
+      ) : null}
 
       <TextInput
         ref={inputRef}
-        style={styles.input}
+        style={[styles.input, TEXT.bodyLarge]}
         placeholder={placeholder}
-        placeholderTextColor={COLORS.textSub}
+        placeholderTextColor={M3.outline}
         value={query}
         onChangeText={handleChangeText}
         onFocus={() => setFocused(true)}
@@ -119,33 +100,30 @@ export function TagInput({ tags, onChangeTags, allKnownTags = [], placeholder = 
         returnKeyType="done"
       />
 
-      {focused && suggestions.length > 0 && (
-        // Same clipping bug as GradeSelector's dropdown: 6 rows at ~43px
-        // each is ~258px against a 220px non-scrolling maxHeight, so the
-        // 6th suggestion was partially outside the touchable area.
-        // Flagged proactively, not reported — applying the same
-        // ScrollView fix here for consistency since it's the same root
-        // cause in the same dropdown pattern.
+      {focused && suggestions.length > 0 ? (
         <View style={styles.dropdown}>
           <ScrollView
             nestedScrollEnabled
             keyboardShouldPersistTaps="always"
             showsVerticalScrollIndicator={false}
           >
-            {suggestions.slice(0, 6).map((s, i) => (
-              <TouchableOpacity
+            {suggestions.slice(0, 6).map((s) => (
+              <SpringPressable
                 key={s}
-                style={[styles.option, i < suggestions.length - 1 && styles.optionDivider]}
                 onPressIn={() => commitTag(s)}
+                haptic="selection"
+                accessibilityLabel={`Add tag ${s}`}
+                style={styles.option}
+                contentStyle={styles.optionContent}
               >
-                <Text style={styles.optionText}>
+                <Text style={[TEXT.bodyMedium, styles.optionText]}>
                   {s === cleanQuery && showCreateOption && !allKnownTags.includes(s) ? `Create "#${s}"` : `#${s}`}
                 </Text>
-              </TouchableOpacity>
+              </SpringPressable>
             ))}
           </ScrollView>
         </View>
-      )}
+      ) : null}
     </View>
   );
 }
@@ -154,26 +132,45 @@ const styles = StyleSheet.create({
   wrapper: { marginBottom: 12, zIndex: 100, elevation: 100 },
   chipRow: { flexDirection: 'row', flexWrap: 'wrap', marginBottom: 8 },
   chip: {
-    flexDirection: 'row', alignItems: 'center',
-    backgroundColor: COLORS.accentGlow, borderWidth: 1, borderColor: COLORS.accent,
-    borderRadius: 14, paddingHorizontal: 10, paddingVertical: 5,
-    marginRight: 6, marginBottom: 6,
+    backgroundColor: M3.primaryContainer,
+    borderRadius: SHAPE.full,
+    marginRight: 6,
+    marginBottom: 6,
   },
-  chipText: { color: COLORS.accent, fontSize: 12, fontWeight: '600', marginRight: 6 },
-  chipRemove: { color: COLORS.accent, fontSize: 11 },
+  chipContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: SHAPE.full,
+  },
+  chipText: { color: M3.onPrimaryContainer, marginRight: 6 },
+  chipRemove: { color: M3.onPrimaryContainer },
 
   input: {
-    backgroundColor: COLORS.bg3, borderWidth: 1, borderColor: COLORS.border,
-    borderRadius: 10, padding: 12, color: COLORS.text, fontSize: 14,
+    backgroundColor: M3.surfaceContainerHigh,
+    borderRadius: SHAPE.lg,
+    minHeight: 56,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    color: M3.onSurface,
   },
 
   dropdown: {
-    position: 'absolute', top: '100%', left: 0, right: 0,
-    backgroundColor: COLORS.bg3, borderWidth: 1, borderColor: COLORS.border,
-    borderRadius: 10, marginTop: 4, zIndex: 999, elevation: 999,
-    overflow: 'hidden', maxHeight: 220,
+    position: 'absolute',
+    top: '100%',
+    left: 0,
+    right: 0,
+    backgroundColor: M3.surfaceContainerHigh,
+    borderRadius: SHAPE.lg,
+    marginTop: 4,
+    zIndex: 999,
+    elevation: 999,
+    overflow: 'hidden',
+    maxHeight: 220,
+    paddingVertical: 4,
   },
-  option: { paddingHorizontal: 14, paddingVertical: 11 },
-  optionDivider: { borderBottomWidth: 1, borderBottomColor: COLORS.border },
-  optionText: { color: COLORS.text, fontSize: 14 },
+  option: { borderRadius: SHAPE.sm, marginHorizontal: 4 },
+  optionContent: { paddingHorizontal: 12, paddingVertical: 11, borderRadius: SHAPE.sm },
+  optionText: { color: M3.onSurface },
 });

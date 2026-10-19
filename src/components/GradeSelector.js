@@ -45,9 +45,13 @@
 // moment they leave it re-syncs to whatever the parent committed.
 import React, { useState, useRef, useEffect } from 'react';
 import {
-  View, Text, TextInput, TouchableOpacity, ScrollView, StyleSheet,
+  View, Text, TextInput, ScrollView, StyleSheet,
 } from 'react-native';
-import { COLORS } from '../config/colors';
+import { M3 } from '../config/colors';
+import { SHAPE } from '../config/designSystem';
+import { TEXT } from '../ui/type';
+import { SpringPressable } from '../ui/SpringPressable';
+import { Icon } from './Icon';
 
 // All valid grades as display strings and numeric values
 // We store 30L as the number 31 internally to distinguish it
@@ -118,12 +122,12 @@ export function GradeSelector({ value, onChange, placeholder = 'Grade (18–30L)
 
   return (
     <View style={styles.wrapper}>
-      {label ? <Text style={styles.label}>{label}</Text> : null}
+      {label ? <Text style={[TEXT.labelMedium, styles.label]}>{label}</Text> : null}
       <View style={styles.inputRow}>
         <TextInput
-          style={styles.input}
+          style={[styles.input, TEXT.bodyLarge]}
           placeholder={placeholder}
-          placeholderTextColor={COLORS.textSub}
+          placeholderTextColor={M3.outline}
           value={text}
           onChangeText={handleChangeText}
           onFocus={() => {
@@ -148,9 +152,16 @@ export function GradeSelector({ value, onChange, placeholder = 'Grade (18–30L)
           returnKeyType="done"
         />
         {(value !== null && value !== undefined && value !== '') ? (
-          <TouchableOpacity onPress={handleClear} style={styles.clearBtn} hitSlop={{top:8,bottom:8,left:8,right:8}}>
-            <Text style={styles.clearText}>✕</Text>
-          </TouchableOpacity>
+          <SpringPressable
+            onPress={handleClear}
+            haptic={false}
+            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+            accessibilityLabel="Clear grade"
+            style={styles.clearBtn}
+            contentStyle={styles.clearBtnContent}
+          >
+            <Icon name="x" size={16} color={M3.outline} />
+          </SpringPressable>
         ) : null}
       </View>
 
@@ -174,18 +185,26 @@ export function GradeSelector({ value, onChange, placeholder = 'Grade (18–30L)
             showsVerticalScrollIndicator={false}
           >
             {filtered.map(g => (
-              <TouchableOpacity
+              <SpringPressable
                 key={g.label}
-                style={[styles.option, value === g.value && styles.optionSelected]}
+                style={styles.option}
+                contentStyle={styles.optionContent}
                 // onPressIn fires on touch-down, before the deferred blur's
-                // 150ms timeout above — so this now reliably wins the race
-                // and commits the value before the dropdown can close.
+                // 150ms timeout above — so this reliably wins the race and
+                // commits the value before the dropdown can close.
                 onPressIn={() => handleSelect(g)}
+                haptic="selection"
+                accessibilityRole="button"
+                accessibilityLabel={`Grade ${g.label}`}
               >
-                <Text style={[styles.optionText, value === g.value && styles.optionTextSelected]}>
+                <Text style={[
+                  TEXT.bodyLarge,
+                  styles.optionText,
+                  value === g.value && styles.optionTextSelected,
+                ]}>
                   {g.label}
                 </Text>
-              </TouchableOpacity>
+              </SpringPressable>
             ))}
           </ScrollView>
         </View>
@@ -196,32 +215,51 @@ export function GradeSelector({ value, onChange, placeholder = 'Grade (18–30L)
 
 const styles = StyleSheet.create({
   wrapper:   { marginBottom: 12, zIndex: 100, elevation: 100 },
-  label:     { color: COLORS.textSub, fontSize: 13, marginBottom: 6 },
-  inputRow:  { flexDirection: 'row', alignItems: 'center', backgroundColor: COLORS.bg3, borderWidth: 1, borderColor: COLORS.border, borderRadius: 10 },
-  input:     {
-    flex: 1, paddingHorizontal: 12, paddingVertical: 11,
-    color: COLORS.text, fontSize: 14,
+  label:     { color: M3.onSurfaceVariant, marginBottom: 6 },
+  inputRow:  {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: M3.surfaceContainerHigh,
+    borderRadius: SHAPE.lg,
   },
-  clearBtn:  { paddingHorizontal: 12 },
-  clearText: { color: COLORS.textSub, fontSize: 14 },
+  input:     {
+    flex: 1,
+    minHeight: 56,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    color: M3.onSurface,
+  },
+  clearBtn:  { borderRadius: SHAPE.full },
+  clearBtnContent: {
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderRadius: SHAPE.full,
+  },
 
   dropdown: {
     position: 'absolute',
     top: '100%',
     left: 0, right: 0,
-    backgroundColor: COLORS.bg3,
-    borderWidth: 1, borderColor: COLORS.border,
-    borderRadius: 10,
+    backgroundColor: M3.surfaceContainerHigh,
+    borderRadius: SHAPE.lg,
     zIndex: 999,
     elevation: 999,
     overflow: 'hidden',
     maxHeight: 220,
+    marginTop: 4,
+    paddingVertical: 4,
   },
   option: {
-    paddingHorizontal: 16, paddingVertical: 12,
-    borderBottomWidth: 1, borderBottomColor: COLORS.border,
+    marginHorizontal: 4,
+    borderRadius: SHAPE.sm,
   },
-  optionSelected: { backgroundColor: COLORS.accentGlow },
-  optionText:     { fontSize: 15, color: COLORS.text, fontWeight: '500' },
-  optionTextSelected: { color: COLORS.accent, fontWeight: '700' },
+  optionContent: {
+    paddingHorizontal: 12,
+    paddingVertical: 12,
+    borderRadius: SHAPE.sm,
+  },
+  optionText:     { color: M3.onSurface },
+  optionTextSelected: { color: M3.primary },
 });

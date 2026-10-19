@@ -1,5 +1,5 @@
 import * as Lucide from 'lucide-react-native';
-import { COLORS } from '../config/colors';
+import { M3 } from '../config/colors';
 
 const nameToPascal = {
   'menu': 'Menu',
@@ -66,7 +66,7 @@ const nameToPascal = {
   'shield-check': 'ShieldCheck',
 };
 
-export function Icon({ name, size = 20, color = COLORS.text, strokeWidth = 2 }) {
+export function Icon({ name, size = 20, color = M3.onSurface, strokeWidth = 2 }) {
   const key = nameToPascal[name] || name;
   const LucideIcon = Lucide[key];
   if (!LucideIcon) {

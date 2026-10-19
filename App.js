@@ -18,7 +18,7 @@ import {
   SpaceGrotesk_700Bold,
 } from '@expo-google-fonts/space-grotesk';
 
-import { COLORS } from './src/config/colors';
+import { M3 } from './src/config/colors';
 import { NAV } from './src/config/nav';
 import { MODULES, DEFAULT_MODULES, normalizeModules } from './src/config/modules';
 import { todayKey } from './src/data/helpers';
@@ -294,8 +294,8 @@ function AppContent() {
 
   if (!ready || (!fontsLoaded && !fontError)) {
     return (
-      <View style={{ flex: 1, backgroundColor: COLORS.bg }}>
-        <StatusBar barStyle="light-content" backgroundColor={COLORS.bg} />
+      <View style={{ flex: 1, backgroundColor: M3.background }}>
+        <StatusBar barStyle="light-content" backgroundColor={M3.background} />
       </View>
     );
   }
@@ -366,7 +366,7 @@ function AppContent() {
 
   return (
     <View style={styles.root}>
-      <StatusBar barStyle="light-content" backgroundColor={COLORS.bg} />
+      <StatusBar barStyle="light-content" backgroundColor={M3.background} />
 
       <View style={styles.content}>
         <FadeSlideIn key={screen} style={{ flex: 1 }}>
@@ -403,7 +403,7 @@ function AppContent() {
 const styles = StyleSheet.create({
   root: {
     flex: 1,
-    backgroundColor: COLORS.bg,
+    backgroundColor: M3.background,
   },
   content: { flex: 1 },
 });
