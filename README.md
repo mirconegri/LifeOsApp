@@ -31,11 +31,7 @@ Built out of frustration with having a different app for every life domain — o
 
 ## Preview
 
-[![LifeOS launch video](images/brag.jpg)](images/brag.mp4)
-
-*20-second launch video.*
-
-| ![Home](images/home.png) | ![University](images/university.png) |
+| ![Home](images/home.png) | ![University](images/uni.png) |
 |:--:|:--:|
 | **Home Dashboard** | **University and Exams** |
 
@@ -43,17 +39,21 @@ Built out of frustration with having a different app for every life domain — o
 |:--:|:--:|
 | **Finance Tracker** | **Tasks** *(incl. recurring habits)* |
 
-| ![Groceries](images/groceries.png) | ![Goals](images/goals.png) |
+| ![Statistics](images/stats.png) | ![Modules](images/modules.png) |
 |:--:|:--:|
-| **Groceries** | **Life Goals** |
+| **Statistics** | **Modules** |
 
-| ![Notes](images/notes.png) | ![Links](images/links.png) |
+| ![Settings](images/settings.png) | ![Onboarding](images/name.png) |
 |:--:|:--:|
-| **Notes** | **Links** |
+| **Settings** | **Onboarding — Your Name** |
 
-| ![Statistics](images/stats.png) | ![Screen List](images/screen.png) |
+| ![Degree Setup](images/uni_selection.png) | ![Priorities](images/what_matters.png) |
 |:--:|:--:|
-| **Statistics** | **All Screens** |
+| **Onboarding — Degree Setup** | **Onboarding — What Matters Most** |
+
+| ![All Set](images/all_set.png) |  |
+|:--:|:--:|
+| **Onboarding — All Set** |  |
 
 ## Features
 
@@ -270,8 +270,8 @@ LifeOS/
 ### Installation
 
 ```bash
-git clone https://github.com/mirconegri/LifeOS.git
-cd LifeOS
+git clone https://github.com/mirconegri/LifeOsApp.git
+cd LifeOsApp
 npm install
 ```
 
@@ -299,7 +299,7 @@ No `.env` file and no API keys required. Configuration lives in two files:
 
 | File | Purpose |
 |---|---|
-| `app.json` | Expo metadata — app name, Android package `com.mylifeos.app`, EAS project ID, `newArchEnabled` flag |
+| `app.config.js` | Expo metadata — app name, Android package `com.mylifeos.app`, EAS project ID, `newArchEnabled` flag |
 | `eas.json` | EAS Build profiles — `preview` (APK) and `production` (App Bundle) |
 
 All user data is persisted via AsyncStorage under keys prefixed with `lifeos_`, entirely on-device.
@@ -336,7 +336,7 @@ The following are explicitly planned and not yet implemented. Play Store publica
 3. Commit your changes with a clear message
 4. Open a Pull Request
 
-For bugs or feature ideas, open an [Issue](https://github.com/mirconegri/LifeOS/issues).
+For bugs or feature ideas, open an [Issue](https://github.com/mirconegri/LifeOsApp/issues).
 
 ### Author
 
