@@ -14,5 +14,4 @@ npm-debug.*
 .omc/
 dist/
 
-# Local recording/brag tool workspace — not app code, never commit it.
 brag-output/
