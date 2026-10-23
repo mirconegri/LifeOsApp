@@ -33,8 +33,6 @@ Built out of frustration with having a different app for every life domain — o
 
 [![LifeOS launch video](images/brag.jpg)](images/brag.mp4)
 
-*20-second launch video.*
-
 | ![Home](images/home.png) | ![University](images/university.png) |
 |:--:|:--:|
 | **Home Dashboard** | **University and Exams** |
