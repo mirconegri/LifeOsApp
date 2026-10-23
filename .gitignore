@@ -9,9 +9,5 @@ npm-debug.*
 *.key
 *.mobileprovision
 *.orig.*
-
-.claude/
 .omc/
 dist/
-
-brag-output/
