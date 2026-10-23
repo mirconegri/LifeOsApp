@@ -31,6 +31,8 @@ Built out of frustration with having a different app for every life domain — o
 
 ## Preview
 
+[![LifeOS launch video](assets/brag.jpg)](assets/brag.mp4)
+
 | ![Onboarding](assets/name.png) | ![Degree Setup](assets/uni_selection.png) | ![Priorities](assets/what_matters.png) |
 |:--:|:--:|:--:|
 | **Onboarding — Your Name** | **Onboarding — Degree Setup** | **Onboarding — What Matters Most** | 
