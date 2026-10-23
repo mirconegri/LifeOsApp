@@ -11,3 +11,7 @@ npm-debug.*
 *.orig.*
 .omc/
 dist/
+credentials.json
+credentials/
+*.keystore
+android/app/keystore.jks
