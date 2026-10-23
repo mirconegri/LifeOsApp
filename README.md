@@ -315,15 +315,15 @@ The following are explicitly planned and not yet implemented. Play Store publica
 
 | Version | Date | Highlights |
 |---|---|---|
-| `v1.1.0` | Oct 2026 | Local-first release: Firebase and all cloud sign-in removed, every optional section can be switched off without touching its data, and all data exports to and imports from a readable JSON file |
-| `v1.7` | Jul 2026 | Drag-to-reorder and Grade Simulator fixes (in progress); drawer safe-area padding adjustments |
-| `v1.6` | Jun 2026 | Left-side drawer redesign, full English localization, per-screen Clear All action, black splash screen, Study Heatmap removed from Stats |
-| `v1.5` | Jun 2026 | Pre-seeded demo data, onboarding credit/year presets with custom Other option, architecture audit — React Navigation / SQLite / cloud-sync roadmap defined |
-| `v1.4` | May 2026 | Microsoft To Do-style Tasks screen, Habits merged into Tasks, Stats replaces Habits in bottom nav, dark visual redesign |
-| `v1.3` | May 2026 | Goals, Links, Notes, and Habits made editable; tag autocomplete; Study section removed; drag-to-reorder rolled out app-wide |
-| `v1.2` | Apr 2026 | Calendar exam dates, 18–30L grade picker, working exam Edit, Grade Simulator, shared date picker, mandatory field validation |
-| `v1.1` | Apr 2026 | Exam progress bar, CFU fields, Credits Progress bar, drawer safe-area fix, Links text-visibility fix |
-| `v1.0` | Apr 2026 | Onboarding flow, study timer removed, Quick Links widget on Home, custom delete dialogs, first-launch tips |
+| `v1.2` | Oct 2026 | Local-first release: Firebase and all cloud sign-in removed, every optional section can be switched off without touching its data, and all data exports to and imports from a readable JSON file |
+| `v1.1.2` | Sept 2026 | Drag-to-reorder and Grade Simulator fixes (in progress); drawer safe-area padding adjustments |
+| `v1.1.1` | Aug 2026 | Left-side drawer redesign, full English localization, per-screen Clear All action, black splash screen, Study Heatmap removed from Stats |
+| `v1.1` | Jul 2026 | Pre-seeded demo data, onboarding credit/year presets with custom Other option, architecture audit — React Navigation / SQLite / cloud-sync roadmap defined |
+| `v1.0.4` | Jun 2026 | Microsoft To Do-style Tasks screen, Habits merged into Tasks, Stats replaces Habits in bottom nav, dark visual redesign |
+| `v1.0.3` | May 2026 | Goals, Links, Notes, and Habits made editable; tag autocomplete; Study section removed; drag-to-reorder rolled out app-wide |
+| `v1.0.2` | Apr 2026 | Calendar exam dates, 18–30L grade picker, working exam Edit, Grade Simulator, shared date picker, mandatory field validation |
+| `v1.0.1` | Apr 2026 | Exam progress bar, CFU fields, Credits Progress bar, drawer safe-area fix, Links text-visibility fix |
+| `v1.0` | Mar 2026 | Onboarding flow, study timer removed, Quick Links widget on Home, custom delete dialogs, first-launch tips |
 
 ## Contributing
 
