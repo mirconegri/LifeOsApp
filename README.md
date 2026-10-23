@@ -31,29 +31,25 @@ Built out of frustration with having a different app for every life domain — o
 
 ## Preview
 
-| ![Home](images/home.png) | ![University](images/uni.png) |
-|:--:|:--:|
-| **Home Dashboard** | **University and Exams** |
+| ![Onboarding](images/name.png) | ![Degree Setup](images/uni_selection.png) | ![Priorities](images/what_matters.png) |
+|:--:|:--:|:--:|
+| **Onboarding — Your Name** | **Onboarding — Degree Setup** | **Onboarding — What Matters Most** | 
 
-| ![Finances](images/finances.png) | ![Tasks](images/tasks.png) |
+| ![All Set](images/all_set.png) | ![Home](images/home.png) | 
 |:--:|:--:|
-| **Finance Tracker** | **Tasks** *(incl. recurring habits)* |
+| **Onboarding — All Set** | **Home Dashboard** | 
 
-| ![Statistics](images/stats.png) | ![Modules](images/modules.png) |
+| ![University](images/uni.png) | ![Tasks](images/tasks.png) | 
 |:--:|:--:|
-| **Statistics** | **Modules** |
+| **University and Exams** | **Tasks** *(incl. recurring habits)* |
 
-| ![Settings](images/settings.png) | ![Onboarding](images/name.png) |
+| ![Finances](images/finances.png) | ![Statistics](images/stats.png) | 
 |:--:|:--:|
-| **Settings** | **Onboarding — Your Name** |
+| **Finance Tracker** | **Statistics** |
 
-| ![Degree Setup](images/uni_selection.png) | ![Priorities](images/what_matters.png) |
+| ![Modules](images/modules.png) | ![Settings](images/settings.png) |
 |:--:|:--:|
-| **Onboarding — Degree Setup** | **Onboarding — What Matters Most** |
-
-| ![All Set](images/all_set.png) |  |
-|:--:|:--:|
-| **Onboarding — All Set** |  |
+| **Modules** | **Settings** |
 
 ## Features
 
