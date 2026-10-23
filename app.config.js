@@ -2,7 +2,7 @@ module.exports = {
   expo: {
     name: "LifeOS",
     slug: "lifeos",
-    version: "1.1.0",
+    version: "1.2",
     orientation: "portrait",
     icon: "./assets/icon.png",
     splash: {
@@ -18,6 +18,7 @@ module.exports = {
     },
     android: {
       package: "com.mylifeos.app",
+      versionCode: 2,
       adaptiveIcon: {
         foregroundImage: "./assets/adaptive-icon.png",
         backgroundColor: "#0a0a0f"
